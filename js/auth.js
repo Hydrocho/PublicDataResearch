@@ -65,3 +65,33 @@ export async function saveActivityLog(studentId, stepId, content) {
         .insert([{ student_id: studentId, step_id: stepId, content: content }]);
     return { error };
 }
+
+export async function saveStudentDataset(studentId, dataName, fileUrl, metadata) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .insert([{ 
+            student_id: studentId, 
+            data_name: dataName, 
+            file_url: fileUrl, 
+            metadata: metadata 
+        }])
+        .select();
+    return { data, error };
+}
+
+export async function fetchStudentDatasets(studentId) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
+
+export async function deleteStudentDataset(id) {
+    const { error } = await supabaseClient
+        .from('student_datasets')
+        .delete()
+        .eq('id', id);
+    return { error };
+}
