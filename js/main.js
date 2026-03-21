@@ -243,12 +243,16 @@ function showCategoryDetails(catId) {
         document.getElementById('fetch-meta-btn').innerText = '⌛ 추출 중...';
         
         try {
-            // Deployed Supabase Function URL (Corrected Project ID)
+            // Updated Project ID and Function Path
             const EDGE_FUNCTION_URL = 'https://yfmstwhnqxrucbxjmmsd.supabase.co/functions/v1/data-fetcher';
+            const ANON_KEY = 'sb_publishable_PD9suAY61uPmtavkjkPIJQ_aIos3uxL';
             
             const response = await fetch(EDGE_FUNCTION_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'apikey': ANON_KEY
+                },
                 body: JSON.stringify({ url })
             });
             
