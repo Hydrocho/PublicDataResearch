@@ -1,4 +1,5 @@
 import { categories, searchMethods, cautions } from './data.js';
+import { supabaseClient } from './config.js';
 
 export function renderCategories(onCategoryClick, selectedId) {
     const grid = document.getElementById('categories-grid');
@@ -179,29 +180,41 @@ export function renderStepContent(stepId, state, onStepChange) {
                     lucide.createIcons();
 
                     const makeBtn = document.getElementById('make-prompt-btn');
-                    makeBtn.onclick = async () => {
-                        const opinion = document.getElementById('researcher-opinion-text').value;
-                        const originalHtml = makeBtn.innerHTML;
-                        makeBtn.disabled = true;
-                        makeBtn.innerHTML = '<i class="spinner-sm"></i> 프롬프트 생성 중...';
-                        
-                        const prompt = await generateProblemDefinitionPrompt(datasets, opinion);
-                        
-                        document.getElementById('prompt-generator-section').style.display = 'none';
-                        const resultArea = document.getElementById('ai-prompt-result');
-                        resultArea.style.display = 'block';
-                        document.getElementById('ai-prompt-text').value = prompt;
-                        lucide.createIcons();
-                    };
+                    if (makeBtn) {
+                        makeBtn.onclick = async () => {
+                            const opinionField = document.getElementById('researcher-opinion-text');
+                            const opinion = opinionField ? opinionField.value : '';
+                            const originalHtml = makeBtn.innerHTML;
+                            makeBtn.disabled = true;
+                            makeBtn.innerHTML = '<i class="spinner-sm"></i> 프롬프트 생성 중...';
+                            
+                            const prompt = await generateProblemDefinitionPrompt(datasets, opinion);
+                            
+                            const promptSection = document.getElementById('prompt-generator-section');
+                            if (promptSection) promptSection.style.display = 'none';
+
+                            const resultArea = document.getElementById('ai-prompt-result');
+                            if (resultArea) {
+                                resultArea.style.display = 'block';
+                                const promptText = document.getElementById('ai-prompt-text');
+                                if (promptText) promptText.value = prompt;
+                            }
+                            lucide.createIcons();
+                        };
+                    }
 
                     const copyBtn = document.getElementById('copy-prompt-btn');
-                    copyBtn.onclick = () => {
-                        const text = document.getElementById('ai-prompt-text').value;
-                        navigator.clipboard.writeText(text).then(() => {
-                            copyBtn.innerText = '복사 완료!';
-                            setTimeout(() => copyBtn.innerText = '클립보드 복사', 2000);
-                        });
-                    };
+                    if (copyBtn) {
+                        copyBtn.onclick = () => {
+                            const textElem = document.getElementById('ai-prompt-text');
+                            const text = textElem ? textElem.value : '';
+                            navigator.clipboard.writeText(text).then(() => {
+                                const originalText = copyBtn.innerText;
+                                copyBtn.innerText = '복사 완료!';
+                                setTimeout(() => copyBtn.innerText = originalText, 2000);
+                            });
+                        };
+                    }
                 }, 50);
                 break;
             case 4: // 2단계: 데이터 전처리 (Step 2)
@@ -327,8 +340,18 @@ export function renderStepContent(stepId, state, onStepChange) {
                                                 fetchStudentDatasets(state.user.student_id),
                                                 fetchSharedDatasets(state.user.student_id)
                                             ]);
-                                            const datasets = [...(ownRes.data || []), ...(sharedRes.data || [])];
-                                            console.log('Step 2: Datasets for download:', datasets);
+                                            const allDatasets = [...(ownRes.data || []), ...(sharedRes.data || [])];
+                                            
+                                            // [Smart Filter] Only show datasets mentioned in the AI research guide
+                                            const researchText = data.answer || "";
+                                            const datasets = allDatasets.filter(ds => {
+                                                const baseName = ds.data_name.replace(/\.(csv|xlsx|xls|json)$/i, "").trim();
+                                                // Check if the AI mentioned the filename or base name in its logic
+                                                return researchText.toLowerCase().includes(baseName.toLowerCase()) || 
+                                                       researchText.toLowerCase().includes(ds.data_name.toLowerCase());
+                                            });
+
+                                            console.log('Step 2: Filtered datasets for download:', datasets);
                                             
                                             const colabPrompt = await generateColabPreprocessingPrompt(selectedLog, datasets);
                                             
@@ -353,18 +376,30 @@ export function renderStepContent(stepId, state, onStepChange) {
                                                     `;
                                                 } else {
                                                     filesList.innerHTML = datasets.map(ds => {
-                                                        const sizeStr = ds.size_kb ? `${ds.size_kb.toLocaleString()} KB` : '용량 확인 불가';
+                                                        const meta = ds.metadata || {};
+                                                        const sizeKb = meta.size_kb || ds.size_kb;
+                                                         const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB (${Number(sizeKb).toLocaleString()} KB)` : `${Number(sizeKb).toLocaleString()} KB`) : '';
+                                                        const rowCount = meta.row_count;
+                                                        const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '';
+                                                        const infoStr = [rowStr, sizeStr].filter(Boolean).join(' · ');
                                                         let fileName = ds.data_name.trim();
                                                         if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
                                                         
-                                                        // Ensure ds.file_url is just the path part
-                                                        let storagePath = ds.file_url;
-                                                        if (storagePath && storagePath.startsWith('datasets/')) {
-                                                            storagePath = storagePath.replace('datasets/', '');
+                                                        // Ensure we handle both portal URLs and storage paths
+                                                        let downloadUrl = ds.file_url;
+                                                        if (downloadUrl && !downloadUrl.startsWith('http')) {
+                                                            let storagePath = downloadUrl;
+                                                            if (storagePath.startsWith('datasets/')) {
+                                                                storagePath = storagePath.replace('datasets/', '');
+                                                            }
+                                                            const { data: { publicUrl } } = supabaseClient.storage.from('datasets').getPublicUrl(storagePath);
+                                                            // Append ?download=filename per Supabase official docs.
+                                                            // This forces the server to set Content-Disposition header with our Korean name.
+                                                            // This bypasses the browser's cross-origin restriction on the HTML 'download' attribute.
+                                                            downloadUrl = `${publicUrl}?download=${encodeURIComponent(fileName)}`;
                                                         }
                                                         
-                                                        const { data: { publicUrl } } = supabaseClient.storage.from('datasets').getPublicUrl(storagePath);
-                                                        console.log(`Download Link for ${fileName}:`, publicUrl);
+                                                        console.log(`Download Link for ${fileName}:`, downloadUrl);
 
                                                         return `
                                                             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -372,10 +407,10 @@ export function renderStepContent(stepId, state, onStepChange) {
                                                                     <i data-lucide="file-spreadsheet" style="color: #059669;"></i>
                                                                     <div>
                                                                         <div style="font-weight: 600; font-size: 0.95rem; color: #1e293b;">${fileName}</div>
-                                                                        <div style="font-size: 0.75rem; color: #64748b;">${sizeStr}</div>
+                                                                        <div style="font-size: 0.75rem; color: #64748b;">${infoStr || '정보 없음'}</div>
                                                                     </div>
                                                                 </div>
-                                                                <a href="${publicUrl}" download="${fileName}" target="_blank" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 15px; background: white; text-decoration: none; display: flex; align-items: center; gap: 5px; color: #475569; border: 1px solid #cbd5e1;">
+                                                                <a href="${downloadUrl}" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 15px; background: white; text-decoration: none; display: flex; align-items: center; gap: 5px; color: #475569; border: 1px solid #cbd5e1;">
                                                                     <i data-lucide="download" size="14"></i> 다운로드
                                                                 </a>
                                                             </div>

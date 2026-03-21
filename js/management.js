@@ -35,23 +35,34 @@ export async function onLoadDatasets(state, changeStep) {
                 <thead>
                     <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
                         <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
+                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${ownData.map(ds => `
+                    ${ownData.map(ds => {
+                        const meta = ds.metadata || {};
+                        const rowCount = meta.row_count;
+                        const sizeKb = meta.size_kb || ds.size_kb;
+                        const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
+                        const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB (${Number(sizeKb).toLocaleString()} KB)` : `${Number(sizeKb).toLocaleString()} KB`) : '';
+                        return `
                         <tr class="clickable-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border);">
                             <td style="padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <i data-lucide="file-spreadsheet" size="18" style="color: var(--primary);"></i>
-                                    <strong>${ds.data_name}</strong>
+                                    <div>
+                                        <strong>${ds.data_name}</strong>
+                                        ${sizeStr ? `<div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${sizeStr}</div>` : ''}
+                                    </div>
                                     <button class="edit-name-btn" data-id="${ds.id}" title="이름 수정" style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; display: flex; align-items: center;">
                                         <i data-lucide="pencil" size="14"></i>
                                     </button>
                                 </div>
                             </td>
+                            <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? 'var(--primary)' : '#94a3b8'};">${rowStr}</td>
                             <td style="padding: 12px; text-align: center;">
                                 <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="true" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
                             </td>
@@ -65,7 +76,8 @@ export async function onLoadDatasets(state, changeStep) {
                                 <button class="btn-secondary delete-ds-btn" data-id="${ds.id}" style="font-size: 0.75rem; padding: 5px 10px; color: var(--accent);">삭제</button>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
             `}
@@ -245,7 +257,8 @@ async function openDatasetModal(dataset) {
     const desc = getVal('description');
     const keywords = getVal('keywords');
     const format = getVal('encodingFormat') || dataset.data_name.split('.').pop().toUpperCase();
-    const size = dataset.size_kb ? `${dataset.size_kb} KB` : '-';
+    const sizeVal = Number(dataset.size_kb);
+    const size = sizeVal ? (sizeVal >= 1024 ? `${(sizeVal / 1024).toFixed(1)} MB (${sizeVal.toLocaleString()} KB)` : `${sizeVal.toLocaleString()} KB`) : '-';
 
     bodyInner.innerHTML = `
         <table class="portal-meta-table">

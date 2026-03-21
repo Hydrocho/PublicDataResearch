@@ -104,16 +104,22 @@ export async function deleteActivityLog(logId, studentId) {
     return response;
 }
 
-export async function saveStudentDataset(studentId, dataName, fileUrl, metadata, sizeKb = null, totalRows = null) {
+export async function saveStudentDataset(studentId, dataName, fileUrl, metadata = {}, sizeKb = null, totalRows = null) {
+    // Store row_count and size_kb inside the metadata JSON.
+    // This avoids needing new DB columns while still persisting the data.
+    const enrichedMetadata = {
+        ...(metadata || {}),
+        ...(totalRows !== null ? { row_count: totalRows } : {}),
+        ...(sizeKb !== null ? { size_kb: sizeKb } : {})
+    };
+
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .insert([{ 
             student_id: studentId, 
             data_name: dataName, 
             file_url: fileUrl, 
-            metadata: metadata,
-            size_kb: sizeKb,
-            total_rows: totalRows
+            metadata: enrichedMetadata
         }])
         .select();
     return { data, error };

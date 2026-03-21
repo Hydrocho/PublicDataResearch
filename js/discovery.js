@@ -145,9 +145,11 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
     fileInput.onchange = (e) => {
         if (e.target.files.length > 0) {
             selectedFile = e.target.files[0];
-            uploadStatus.innerText = `📦 ${selectedFile.name} (${Math.round(selectedFile.size/1024)}KB) 준비됨`;
+            const sizeKb = Math.round(selectedFile.size / 1024);
+            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
+            uploadStatus.innerText = `📦 ${selectedFile.name} (${displaySize}) 준비됨`;
             const nameField = document.getElementById('found-data-name');
-            if (nameField && (!nameField.value.trim() || nameField.value === dataName)) {
+            if (nameField && !nameField.value.trim()) {
                 nameField.value = selectedFile.name.split('.')[0];
             }
         }
@@ -224,54 +226,36 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
         // [Check] File size limit (Supabase default is often 50MB)
         const MAX_SIZE = 50 * 1024 * 1024; // 50MB
         if (fileToUpload.size > MAX_SIZE) {
-            let samplingSuccessful = false;
-            while (!samplingSuccessful) {
-                const keywords = prompt(`파일(${Math.round(selectedFile.size/1024/1024)}MB)이 제한(50MB)을 초과합니다.\n\n추출할 키워드들을 공백으로 구분하여 입력해 주세요. (예: 경기도 수원 상가)\n입력한 모든 단어를 포함하는 행만 추출됩니다.`, '경기도 수원');
-                
-                if (keywords === null) return; // Cancelled
-                const targetKeywords = keywords.trim();
-                if (!targetKeywords) {
-                    alert('하나 이상의 키워드를 입력해야 합니다.');
-                    continue;
-                }
+            // --- [NEW] Column-based Filter Modal ---
+            btn.disabled = true;
+            btn.innerText = '컬럼 분석 중...';
 
-                try {
-                    btn.disabled = true;
-                    btn.innerText = '샘플링 중...';
-                    const { sampleCsvByKeywords } = await import('./sampler.js');
-                    const result = await sampleCsvByKeywords(selectedFile, targetKeywords, (msg) => {
-                        uploadStatus.innerText = msg;
-                    });
-
-                    const resultSizeMB = result.newSize / (1024 * 1024);
-                    if (resultSizeMB > 49.5) { // Leave a small buffer
-                        alert(`필터링 결과(${Math.round(resultSizeMB)}MB)가 여전히 50MB 제한에 가깝거나 초과합니다.\n조건을 더 구체적으로 입력하여 범위를 좁혀주세요.`);
-                        continue;
-                    }
-
-                    const confirmSave = confirm(`스마트 샘플링 결과:\n- 키워드: [${targetKeywords}]\n- 일치 데이터: ${result.rowCount.toLocaleString()}행\n- 최종 용량: ${Math.round(result.newSize/1024)}KB\n\n이 데이터로 정책 연구실에 저장할까요?`);
-                    if (!confirmSave) {
-                        btn.disabled = false;
-                        btn.innerText = originalText;
-                        uploadStatus.innerText = '저장이 취소되었습니다.';
-                        return;
-                    }
-
-                    fileToUpload = result.blob;
-                    extractedMeta.sampled = true;
-                    extractedMeta.sampled_row_count = result.rowCount; // Pass to save logic
-                    extractedMeta.sampling_keywords = targetKeywords;
-                    extractedMeta.original_size_mb = Math.round(selectedFile.size/1024/1024);
-                    
-                    uploadStatus.innerText = `✅ '${targetKeywords}' 데이터 추출 완료 (${result.rowCount.toLocaleString()}행, ${Math.round(result.newSize/1024)}KB)`;
-                    samplingSuccessful = true;
-                } catch (err) {
-                    alert('샘플링 중 오류가 발생했습니다: ' + err.message);
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                    return;
-                }
+            let headers = [];
+            try {
+                const { parseCsvHeaders } = await import('./sampler.js');
+                headers = await parseCsvHeaders(fileToUpload);
+            } catch(e) {
+                alert('파일 헤더를 읽는 중 오류가 발생했습니다: ' + e.message);
+                btn.disabled = false; btn.innerText = originalText; return;
             }
+
+            btn.disabled = false;
+            btn.innerText = originalText;
+
+            // Build and show filter modal
+            const result = await showColumnFilterModal(fileToUpload, headers, selectedFile.size, uploadStatus);
+            if (!result) { // User cancelled
+                return;
+            }
+
+            fileToUpload = result.blob;
+            extractedMeta.sampled = true;
+            extractedMeta.sampled_row_count = result.rowCount;
+            extractedMeta.filter_conditions = result.conditions;
+            extractedMeta.original_size_mb = Math.round(selectedFile.size / 1024 / 1024);
+            const sizeKb = Math.round(result.blob.size / 1024);
+            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
+            uploadStatus.innerText = `✅ 필터링 완료 (${result.rowCount.toLocaleString()}행, ${displaySize})`;
         }
 
         btn.disabled = true;
@@ -306,11 +290,11 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
                     });
                 } else {
                     // rowCount from sampling block is needed
-                    // In the sampling block, we could have saved it to extractedMeta
                     totalRows = extractedMeta.sampled_row_count || 0;
                 }
 
-                const result = await uploadManualFile(state.user.student_id, fileToUpload, selectedFile.name);
+                // [New] Pass dataInfo.name to use as filename
+                const result = await uploadManualFile(state.user.student_id, fileToUpload, dataInfo.name);
                 if (result.success) {
                     dataInfo.file_url = result.path;
                     dataInfo.size_kb = result.size_kb;
@@ -347,4 +331,146 @@ export function showCategoryDetails(catId, state, onDataSelected) {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return;
     showSaveInstructions(cat.title, state, onDataSelected);
+}
+
+/**
+ * Shows a modal UI for column-based CSV filtering.
+ * Returns a Promise<{blob, rowCount, conditions}> or null if cancelled.
+ */
+function showColumnFilterModal(file, headers, originalSizeBytes, uploadStatus) {
+    return new Promise((resolve) => {
+        // Remove any existing modal
+        const existingModal = document.getElementById('filter-modal-overlay');
+        if (existingModal) existingModal.remove();
+
+        const OPERATORS = ['포함', '=', '!=', '>', '<', '>=', '<='];
+        let conditions = [{ column: headers[0] || '', operator: '=', value: '' }];
+        let filterResult = null;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'filter-modal-overlay';
+        overlay.style.cssText = `
+            position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999;
+            display:flex; align-items:center; justify-content:center; padding:20px;
+        `;
+
+        function buildOptionHtml(items, selected) {
+            return items.map(h => `<option value="${h}" ${h === selected ? 'selected' : ''}>${h}</option>`).join('');
+        }
+
+        function renderModal() {
+            overlay.innerHTML = `
+                <div style="background:#fff; border-radius:16px; padding:30px; width:100%; max-width:620px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0 0 6px; font-size:1.15rem; color:#1e293b;">📊 데이터 필터링 조건 설정</h3>
+                    <p style="margin:0 0 18px; font-size:0.85rem; color:#64748b;">
+                        파일 용량: <strong>${Math.round(originalSizeBytes/1024/1024)}MB</strong> (50MB 초과 → 필터링 필요)
+                    </p>
+
+                    <div id="filter-conditions-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+                        ${conditions.map((c, i) => `
+                            <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;" data-idx="${i}">
+                                <div style="font-size:0.75rem; color:#64748b; min-width:28px;">${i === 0 ? 'WHERE' : 'AND'}</div>
+                                <select class="fc-col" style="flex:2; padding:7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                                    ${buildOptionHtml(headers, c.column)}
+                                </select>
+                                <select class="fc-op" style="flex:1; padding:7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                                    ${buildOptionHtml(OPERATORS, c.operator)}
+                                </select>
+                                <input class="fc-val" type="text" value="${c.value}" placeholder="값 입력" style="flex:2; padding:7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                                ${i > 0 ? `<button class="fc-remove" style="background:none; border:none; color:#ef4444; font-size:1.1rem; cursor:pointer; padding:2px 4px;">✕</button>` : '<div style="width:24px;"></div>'}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                        ${conditions.length < 3 ? `
+                            <button id="fc-add-btn" style="padding:7px 16px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-size:0.85rem; color:#475569;">
+                                + 조건 추가 (AND)
+                            </button>
+                        ` : '<div></div>'}
+                        <button id="fc-run-btn" style="padding:8px 22px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                            🔍 필터 실행
+                        </button>
+                    </div>
+
+                    <div id="fc-result-area" style="min-height:36px; margin-bottom:18px; font-size:0.9rem; color:#475569; padding:10px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; display:${filterResult ? 'block' : 'none'};">
+                        ${filterResult ? (() => {
+                            const sizeKb = Math.round(filterResult.blob.size / 1024);
+                            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
+                            return `✅ <strong>${filterResult.rowCount.toLocaleString()}행</strong> 추출됨 (${displaySize})`;
+                        })() : ''}
+                    </div>
+
+                    <div style="display:flex; gap:10px; justify-content:flex-end;">
+                        <button id="fc-cancel-btn" style="padding:9px 22px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-size:0.9rem;">취소</button>
+                        <button id="fc-confirm-btn" style="padding:9px 22px; background:${filterResult ? '#10b981' : '#94a3b8'}; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;" ${filterResult ? '' : 'disabled'}>
+                            📥 이 데이터로 저장하기
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Sync condition state from DOM -> array on change
+            overlay.querySelectorAll('[data-idx]').forEach(row => {
+                const i = parseInt(row.dataset.idx);
+                row.querySelector('.fc-col').onchange = e => { conditions[i].column = e.target.value; };
+                row.querySelector('.fc-op').onchange = e => { conditions[i].operator = e.target.value; };
+                row.querySelector('.fc-val').oninput = e => { conditions[i].value = e.target.value; filterResult = null; renderModal(); };
+                const removeBtn = row.querySelector('.fc-remove');
+                if (removeBtn) removeBtn.onclick = () => { conditions.splice(i, 1); filterResult = null; renderModal(); };
+            });
+
+            const addBtn = overlay.querySelector('#fc-add-btn');
+            if (addBtn) addBtn.onclick = () => {
+                conditions.push({ column: headers[0] || '', operator: '=', value: '' });
+                filterResult = null;
+                renderModal();
+            };
+
+            overlay.querySelector('#fc-cancel-btn').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.querySelector('#fc-confirm-btn').onclick = () => {
+                if (!filterResult) return;
+                overlay.remove();
+                resolve({ ...filterResult, conditions });
+            };
+
+            overlay.querySelector('#fc-run-btn').onclick = async () => {
+                // Validate conditions
+                const valid = conditions.filter(c => c.column && c.value.trim() !== '');
+                if (valid.length === 0) { alert('조건을 하나 이상 완성해 주세요 (컬럼 + 값 필수).'); return; }
+
+                const runBtn = overlay.querySelector('#fc-run-btn');
+                runBtn.disabled = true;
+                runBtn.textContent = '분석 중...';
+                if (uploadStatus) uploadStatus.innerText = '데이터 필터링 중...';
+
+                try {
+                    const { sampleCsvByConditions } = await import('./sampler.js');
+                    const r = await sampleCsvByConditions(file, valid, (msg) => {
+                        if (uploadStatus) uploadStatus.innerText = msg;
+                        const ra = overlay.querySelector('#fc-result-area');
+                        if (ra) { ra.style.display = 'block'; ra.textContent = msg; }
+                    });
+
+                    const sizeMB = r.blob.size / (1024 * 1024);
+                    if (sizeMB > 49.5) {
+                        alert(`필터링 결과(${Math.round(sizeMB)}MB)가 아직 50MB 제한에 가깝습니다.\n조건을 더 추가해 범위를 좁혀주세요.`);
+                        runBtn.disabled = false;
+                        runBtn.textContent = '🔍 필터 실행';
+                        return;
+                    }
+
+                    filterResult = r;
+                    renderModal();
+                } catch (err) {
+                    alert('필터링 오류: ' + err.message);
+                    runBtn.disabled = false;
+                    runBtn.textContent = '🔍 필터 실행';
+                }
+            };
+        }
+
+        document.body.appendChild(overlay);
+        renderModal();
+    });
 }
