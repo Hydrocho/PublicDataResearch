@@ -259,6 +259,7 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
 
                     fileToUpload = result.blob;
                     extractedMeta.sampled = true;
+                    extractedMeta.sampled_row_count = result.rowCount; // Pass to save logic
                     extractedMeta.sampling_keywords = targetKeywords;
                     extractedMeta.original_size_mb = Math.round(selectedFile.size/1024/1024);
                     
@@ -285,8 +286,30 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             };
 
             // 1. Upload file
+            let totalRows = 0;
             if (state.user && state.user.student_id !== 'Guest') {
                 const { uploadManualFile } = await import('./downloader.js');
+                
+                // [Diagnostic] Get correct row count if not already sampled
+                if (!extractedMeta.sampled) {
+                    btn.innerText = '행 수 분석 중...';
+                    await new Promise((resolve) => {
+                        Papa.parse(fileToUpload, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: (results) => {
+                                totalRows = results.data.length;
+                                resolve();
+                            },
+                            error: () => resolve() // Fail gracefully
+                        });
+                    });
+                } else {
+                    // rowCount from sampling block is needed
+                    // In the sampling block, we could have saved it to extractedMeta
+                    totalRows = extractedMeta.sampled_row_count || 0;
+                }
+
                 const result = await uploadManualFile(state.user.student_id, fileToUpload, selectedFile.name);
                 if (result.success) {
                     dataInfo.file_url = result.path;
@@ -300,7 +323,8 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
                     dataInfo.name,
                     dataInfo.file_url,
                     dataInfo.metadata,
-                    dataInfo.size_kb
+                    dataInfo.size_kb,
+                    totalRows || 0
                 );
             } else {
                 dataInfo.file_url = `guest/${selectedFile.name}`;

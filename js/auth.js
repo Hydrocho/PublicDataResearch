@@ -66,7 +66,45 @@ export async function saveActivityLog(studentId, stepId, content) {
     return { error };
 }
 
-export async function saveStudentDataset(studentId, dataName, fileUrl, metadata, sizeKb = null) {
+export async function fetchActivityLogs(studentId, stepId) {
+    const { data, error } = await supabaseClient
+        .from('activity_log')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('step_id', stepId)
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
+
+export async function deleteActivityLog(logId, studentId) {
+    console.log('auth.js: Attempting to delete log ID (UUID):', logId, 'for student:', studentId);
+    
+    // Check if exists first
+    const check = await supabaseClient
+        .from('activity_log')
+        .select('id')
+        .eq('id', logId)
+        .eq('student_id', studentId);
+    console.log('auth.js: Pre-delete check result:', check.data, 'check error:', check.error);
+
+    const response = await supabaseClient
+        .from('activity_log')
+        .delete()
+        .eq('id', logId)
+        .eq('student_id', studentId)
+        .select();
+    
+    console.log('auth.js: Full delete response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        error: response.error
+    });
+    
+    return response;
+}
+
+export async function saveStudentDataset(studentId, dataName, fileUrl, metadata, sizeKb = null, totalRows = null) {
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .insert([{ 
@@ -74,7 +112,8 @@ export async function saveStudentDataset(studentId, dataName, fileUrl, metadata,
             data_name: dataName, 
             file_url: fileUrl, 
             metadata: metadata,
-            size_kb: sizeKb
+            size_kb: sizeKb,
+            total_rows: totalRows
         }])
         .select();
     return { data, error };
