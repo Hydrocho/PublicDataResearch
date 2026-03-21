@@ -1,0 +1,306 @@
+:root {
+  --primary: #4f46e5;
+  --primary-glow: rgba(79, 70, 229, 0.1);
+  --secondary: #0891b2;
+  --accent: #e11d48;
+  --background: #f1f5f9;
+  --surface: rgba(255, 255, 255, 0.9);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.btn-secondary {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Layout */
+.app-header {
+  height: 70px;
+  padding: 0 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-radius: 0;
+}
+
+.main-layout {
+  display: flex;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.side-nav {
+  width: 280px;
+  padding: 20px;
+  height: calc(100vh - 110px);
+  position: sticky;
+  top: 90px;
+}
+
+.content-area {
+  flex: 1;
+  padding: 0 40px;
+}
+
+/* Section visibility */
+section {
+  display: none;
+}
+
+section.active {
+  display: block;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Login Screen */
+#login-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  background: radial-gradient(circle at top right, #1e293b, #0f172a);
+  transition: background 0.8s ease;
+}
+
+#login-screen.signup-mode-active {
+  background: #ffffff;
+  transition: background 0.8s ease;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  text-align: center;
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0 15px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.input-group input {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 15px;
+  color: var(--text);
+  outline: none;
+}
+
+/* Idea Bank */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+  margin: 40px 0;
+}
+
+.category-card {
+  background: #ffffff;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.category-card.active {
+  background: var(--primary-glow) !important;
+  border: 1px solid var(--primary) !important;
+  box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+  transform: translateY(-5px);
+}
+
+.category-card i {
+  font-size: 2rem;
+  color: var(--primary);
+  margin-bottom: 15px;
+  display: block;
+}
+
+.idea-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.tag {
+  color: var(--secondary);
+  font-weight: 700;
+  min-width: 60px;
+}
+
+/* Navigation items */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.nav-item.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Step content */
+.step-container {
+  padding: 40px;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 40px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Utils */
+.text-muted { color: var(--text-muted); }
+.icon-glow { filter: drop-shadow(0 0 10px var(--primary-glow)); }
+
+/* Auth State Animations & Light Theme for Signup */
+.login-card {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-card.signup-mode {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.signup-mode .text-muted {
+    color: #64748b !important;
+}
+
+.signup-mode h1 {
+    background: none !important;
+    color: #10b981 !important;
+    -webkit-text-fill-color: #10b981 !important;
+}
+
+.signup-mode .input-group {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.signup-mode .input-group input {
+    color: #0f172a;
+}
+
+.signup-mode .input-group i {
+    color: #10b981;
+}
+
+.signup-mode .btn-secondary {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #0f172a;
+}
+
+.signup-mode .icon-glow {
+    color: #10b981 !important;
+    filter: none !important;
+}
+
+.signup-mode .btn-primary {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+}
