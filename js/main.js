@@ -1,6 +1,7 @@
 import { categories } from './data.js';
 import { handleLogin, handleSignup } from './auth.js';
 import * as UI from './ui.js';
+import { supabaseUrl, supabaseKey } from './config.js';
 
 lucide.createIcons();
 
@@ -243,37 +244,64 @@ function showCategoryDetails(catId) {
         document.getElementById('fetch-meta-btn').innerText = '⌛ 추출 중...';
         
         try {
-            // Updated Project ID and Function Path
-            const EDGE_FUNCTION_URL = 'https://yfmstwhnqxrucbxjmmsd.supabase.co/functions/v1/data-fetcher';
-            const ANON_KEY = 'sb_publishable_PD9suAY61uPmtavkjkPIJQ_aIos3uxL';
+            // [Tier 1] Try calling the Supabase Edge Function (Server-side fetch)
+            const EDGE_FUNCTION_URL = `${supabaseUrl}/functions/v1/data-fetcher`;
             
             const response = await fetch(EDGE_FUNCTION_URL, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'apikey': ANON_KEY
+                    'apikey': supabaseKey
                 },
                 body: JSON.stringify({ url })
             });
             
-            if (!response.ok) throw new Error('서버 응답 오류');
-            
-            const result = await response.json();
-            
-            if (result.error) throw new Error(result.error);
-
-            document.getElementById('found-data-name').value = result.name;
-            document.getElementById('found-data-provider').value = result.provider;
-            document.getElementById('found-data-cycle').value = result.cycle;
-
-            alert('정보를 성공적으로 불러왔습니다! 🎊');
+            if (response.ok) {
+                const result = await response.json();
+                if (!result.error) {
+                    fillMetadata(result);
+                    alert('서버 엔진을 통해 정보를 성공적으로 불러왔습니다! 🎊');
+                    return;
+                }
+            }
+            throw new Error('Server block detected, switching to backup...');
         } catch (err) {
-            console.error('Meta Fetch Error:', err);
-            alert('정보를 자동으로 가져오지 못했습니다. 상세 페이지 주소가 정확한지 확인해 주세요.');
+            console.warn('Edge Function blocked or failed, attempting frontend backup engine...', err);
+            
+            try {
+                // [Tier 2] Fallback: Frontend-side scraping via AllOrigins proxy
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                const html = data.contents;
+                
+                // Flexible parsing
+                const titleMatch = html.match(/파일데이터명<\/th>\s*<td[^>]*>(.*?)<\/td>/i) || html.match(/<title>(.*?) \|/i);
+                const providerMatch = html.match(/제공기관<\/th>\s*<td[^>]*>(.*?)<\/td>/i);
+                const cycleMatch = html.match(/업데이트 주기<\/th>\s*<td[^>]*>(.*?)<\/td>/i);
+
+                const result = {
+                    name: titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : '추출 실패',
+                    provider: providerMatch ? providerMatch[1].replace(/<[^>]*>/g, '').trim() : '추출 실패',
+                    cycle: cycleMatch ? cycleMatch[1].replace(/<[^>]*>/g, '').trim() : '추출 실패'
+                };
+                
+                fillMetadata(result);
+                alert('프론트엔드 백업 엔진으로 정보를 성공적으로 불러왔습니다! ✨');
+            } catch (fallbackErr) {
+                console.error('All engines failed:', fallbackErr);
+                alert('보안 정책으로 자동 수집이 차단되었습니다. 상세 페이지를 확인하여 직접 입력해 주세요.');
+            }
         } finally {
             document.getElementById('fetch-meta-btn').innerText = '✨ 정보 불러오기';
         }
     };
+
+    function fillMetadata(result) {
+        document.getElementById('found-data-name').value = result.name;
+        document.getElementById('found-data-provider').value = result.provider;
+        document.getElementById('found-data-cycle').value = result.cycle;
+    }
 
     document.getElementById('auto-link-btn').onclick = () => {
         const url = document.getElementById('found-data-url').value;
