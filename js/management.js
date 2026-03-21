@@ -1,5 +1,5 @@
 import { supabaseClient } from './config.js';
-import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, updateDatasetName } from './auth.js';
+import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, updateDatasetName, toggleResearchUse } from './auth.js';
 
 export async function onLoadDatasets(state, changeStep) {
     if (!state.user || state.user.student_id === 'Guest') {
@@ -35,7 +35,7 @@ export async function onLoadDatasets(state, changeStep) {
                 <thead>
                     <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
                         <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
-                        <th style="padding: 12px; font-size: 0.85rem;">제공기관</th>
+                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
                     </tr>
@@ -52,7 +52,9 @@ export async function onLoadDatasets(state, changeStep) {
                                     </button>
                                 </div>
                             </td>
-                            <td style="padding: 12px; font-size: 0.85rem; color: var(--text-muted);">${ds.metadata?.provider || '-'}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="true" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                            </td>
                             <td style="padding: 12px; text-align: center;">
                                 <label class="switch">
                                     <input type="checkbox" class="share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
@@ -80,8 +82,7 @@ export async function onLoadDatasets(state, changeStep) {
                     <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
                         <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
                         <th style="padding: 12px; font-size: 0.85rem;">공유자(학번)</th>
-                        <th style="padding: 12px; font-size: 0.85rem;">수집일</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
+                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,9 +95,8 @@ export async function onLoadDatasets(state, changeStep) {
                                 </div>
                             </td>
                             <td style="padding: 12px; font-size: 0.85rem; color: #4338ca; font-weight: 600;">${ds.student_id}</td>
-                            <td style="padding: 12px; font-size: 0.8rem;">${new Date(ds.created_at).toLocaleDateString()}</td>
-                            <td style="padding: 12px; text-align: right;">
-                                <button class="btn-primary select-ds-btn" data-id="${ds.id}" data-source="shared" style="font-size: 0.75rem; padding: 5px 15px; border-radius: 20px;">자료 가져오기</button>
+                            <td style="padding: 12px; text-align: center;">
+                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="false" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
                             </td>
                         </tr>
                     `).join('')}
@@ -109,12 +109,29 @@ export async function onLoadDatasets(state, changeStep) {
     container.innerHTML = html;
     lucide.createIcons();
 
-    // Row Click Listener (for details) - Combined for both tables
+    // Row Click Listener (for details)
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('.switch')) return; 
+            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return; 
             const ds = [...ownData, ...sharedData].find(d => String(d.id) === row.dataset.id);
             if (ds) openDatasetModal(ds);
+        });
+    });
+
+    // Research Use Check Listener
+    container.querySelectorAll('.research-use-check').forEach(chk => {
+        chk.addEventListener('change', async () => {
+            const id = chk.dataset.id;
+            const isUse = chk.checked;
+            const isOwner = chk.dataset.owner === 'true';
+            
+            chk.disabled = true;
+            const { error } = await toggleResearchUse(id, isUse, state.user.student_id, isOwner);
+            if (error) {
+                alert('연구 활용 상태 저장 실패: ' + error.message);
+                chk.checked = !isUse;
+            }
+            chk.disabled = false;
         });
     });
 
@@ -328,7 +345,7 @@ async function openDatasetModal(dataset) {
 /**
  * Fetches and parses CSV or Excel data
  */
-async function fetchDatasetPreview(fileUrl, fileName = '') {
+export async function fetchDatasetPreview(fileUrl, fileName = '') {
     let finalUrl = fileUrl;
     if (!fileUrl.startsWith('http')) {
         const { data } = supabaseClient.storage.from('datasets').getPublicUrl(fileUrl);

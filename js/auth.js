@@ -92,6 +92,20 @@ export async function fetchStudentDatasets(studentId) {
 export async function deleteStudentDataset(id, studentId) {
     console.log(`auth.js: deleteStudentDataset called with id: ${id}, studentId: ${studentId}`);
     
+    // 0. Safety Check: Is anyone else using this for research?
+    const { data: usage, error: checkError } = await supabaseClient
+        .from('shared_research_use')
+        .select('student_id')
+        .eq('dataset_id', id)
+        .eq('is_research_use', true);
+
+    if (usage && usage.length > 0) {
+        return { 
+            error: { message: '다른 사용자가 연구에 활용 중인 데이터는 삭제할 수 없습니다. 공유를 먼저 해제해 주세요.' },
+            status: 403 
+        };
+    }
+
     // 1. Delete from DB and get the deleted row's data to find the file_url
     const { data, error, status, statusText } = await supabaseClient
         .from('student_datasets')
@@ -119,8 +133,6 @@ export async function deleteStudentDataset(id, studentId) {
             
             if (storageError) {
                 console.error('Supabase Storage deletion error:', storageError);
-                // We don't fail the whole operation if storage deletion fails, 
-                // but we should log it.
             } else {
                 console.log('auth.js: Storage file deleted successfully.');
             }
@@ -135,11 +147,21 @@ export async function deleteStudentDataset(id, studentId) {
  * Toggle the is_shared status of a dataset
  */
 export async function toggleDatasetShare(id, isShared, studentId) {
-    console.log('[DEBUG] toggleDatasetShare Request:', { 
-        targetDatasetID: id, 
-        currentStudentID: studentId, 
-        newSharedStatus: isShared 
-    });
+    // 0. Safety Check: If unsharing, is anyone else using this for research?
+    if (isShared === false) {
+        const { data: usage, error: checkError } = await supabaseClient
+            .from('shared_research_use')
+            .select('student_id')
+            .eq('dataset_id', id)
+            .eq('is_research_use', true);
+
+        if (usage && usage.length > 0) {
+            return { 
+                error: { message: '다른 사용자가 이미 연구에 활용 중인 데이터는 공유를 해제할 수 없습니다.' },
+                status: 403 
+            };
+        }
+    }
     
     const { data, error } = await supabaseClient
         .from('student_datasets')
@@ -149,7 +171,6 @@ export async function toggleDatasetShare(id, isShared, studentId) {
         .select();
         
     if (!error && (!data || data.length === 0)) {
-        console.warn('[DEBUG] No rows updated! Possible Permission/ID Mismatch. Data rows returned:', data);
         return { error: { message: 'DB 업데이트에 실패했습니다. (권한 또는 ID 확인 필요)' } };
     }
     
@@ -157,28 +178,119 @@ export async function toggleDatasetShare(id, isShared, studentId) {
 }
 
 /**
- * Fetch all shared datasets from OTHER students
+ * Fetch all shared datasets from OTHER students 
+ * AND include current student's research usage flag for those shared datasets
  */
 export async function fetchSharedDatasets(currentStudentId) {
-    const { data, error } = await supabaseClient
+    // 1. Get all shared datasets
+    const { data: sharedDs, error: dsError } = await supabaseClient
         .from('student_datasets')
         .select('*')
         .eq('is_shared', true)
-        .neq('student_id', currentStudentId) // Exclude own shared datasets
+        .neq('student_id', currentStudentId)
         .order('created_at', { ascending: false });
-    return { data, error };
+
+    if (dsError || !sharedDs) return { data: sharedDs, error: dsError };
+
+    // 2. Get current student's research usage for these datasets
+    const { data: usageData, error: usageError } = await supabaseClient
+        .from('shared_research_use')
+        .select('dataset_id, is_research_use')
+        .eq('student_id', currentStudentId);
+
+    // 3. Merge usage data into shared datasets
+    const mergedData = sharedDs.map(ds => {
+        const usage = usageData?.find(u => u.dataset_id === ds.id);
+        return {
+            ...ds,
+            is_research_use: usage ? usage.is_research_use : false
+        };
+    });
+
+    return { data: mergedData, error: null };
+}
+
+/**
+ * Update 'Use for Research' status immediately
+ */
+export async function toggleResearchUse(datasetId, isUse, studentId, isOwner) {
+    if (isOwner) {
+        // Owner updates their own dataset record
+        const { data, error } = await supabaseClient
+            .from('student_datasets')
+            .update({ is_research_use: isUse })
+            .eq('id', datasetId)
+            .eq('student_id', studentId)
+            .select();
+        return { data, error };
+    } else {
+        // Shared user updates their preference in a separate table
+        const { data, error } = await supabaseClient
+            .from('shared_research_use')
+            .upsert({ 
+                student_id: studentId, 
+                dataset_id: datasetId, 
+                is_research_use: isUse 
+            }, { onConflict: 'student_id,dataset_id' })
+            .select();
+        return { data, error };
+    }
+}
+
+/**
+ * Fetch ALL datasets marked for 'Research Use' by the current student
+ * (Both own datasets and shared datasets from others)
+ */
+export async function fetchAllResearchDatasets(studentId) {
+    // 1. Fetch OWN research datasets
+    const { data: ownData, error: ownError } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('is_research_use', true);
+
+    if (ownError) return { error: ownError };
+
+    // 2. Fetch SHARED research datasets
+    const { data: usageData, error: usageError } = await supabaseClient
+        .from('shared_research_use')
+        .select('dataset_id')
+        .eq('student_id', studentId)
+        .eq('is_research_use', true);
+
+    if (usageError) return { error: usageError };
+
+    let sharedData = [];
+    if (usageData && usageData.length > 0) {
+        const sharedIds = usageData.map(u => u.dataset_id);
+        const { data: sharedRes, error: sharedError } = await supabaseClient
+            .from('student_datasets')
+            .select('*')
+            .in('id', sharedIds);
+        
+        if (!sharedError) sharedData = sharedRes;
+    }
+
+    const allDatasets = [...ownData, ...sharedData];
+
+    // 4. Get exact row counts for EACH research dataset to enrich the AI prompt
+    for (let ds of allDatasets) {
+        const { count, error: countError } = await supabaseClient
+            .from('student_datasets')
+            .select('*', { count: 'exact', head: true })
+            .eq('id', ds.id);
+        
+        if (!countError) ds.total_rows = count;
+        else ds.total_rows = '조회 불가';
+    }
+    
+    return { data: allDatasets, error: null };
 }
 
 /**
  * Update the name of a dataset
  */
 export async function updateDatasetName(id, newName, studentId) {
-    console.log('[DEBUG] updateDatasetName Request:', { 
-        targetDatasetID: id, 
-        currentStudentID: studentId, 
-        newName: newName 
-    });
-    
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .update({ data_name: newName })
