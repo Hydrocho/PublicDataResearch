@@ -167,8 +167,10 @@ export function showCategoryDetails(catId, state, onDataSelected) {
         if (state.user && state.user.student_id !== 'Guest') {
             const { uploadManualFile } = await import('./downloader.js');
             const result = await uploadManualFile(state.user.student_id, selectedFile, selectedFile.name);
-            if (result.success) dataInfo.file_url = result.path;
-            else return alert('파일 저장에 실패했습니다: ' + result.error);
+            if (result.success) {
+                dataInfo.file_url = result.path;
+                dataInfo.size_kb = result.size_kb;
+            } else return alert('파일 저장에 실패했습니다: ' + result.error);
         }
         
         onDataSelected(cat, dataInfo);

@@ -161,7 +161,8 @@ window.onDataSelected = async (cat, dataInfo) => {
             state.user.student_id, 
             dataInfo.name, 
             dataInfo.file_url, 
-            { ...dataInfo.metadata, url: dataInfo.url }
+            { ...dataInfo.metadata, url: dataInfo.url },
+            dataInfo.size_kb
         );
     }
     changeStep(1); 

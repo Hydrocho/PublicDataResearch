@@ -66,14 +66,15 @@ export async function saveActivityLog(studentId, stepId, content) {
     return { error };
 }
 
-export async function saveStudentDataset(studentId, dataName, fileUrl, metadata) {
+export async function saveStudentDataset(studentId, dataName, fileUrl, metadata, sizeKb = null) {
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .insert([{ 
             student_id: studentId, 
             data_name: dataName, 
             file_url: fileUrl, 
-            metadata: metadata 
+            metadata: metadata,
+            size_kb: sizeKb
         }])
         .select();
     return { data, error };
