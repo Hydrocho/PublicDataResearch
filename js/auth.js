@@ -134,12 +134,25 @@ export async function deleteStudentDataset(id, studentId) {
 /**
  * Toggle the is_shared status of a dataset
  */
-export async function toggleDatasetShare(id, isShared) {
+export async function toggleDatasetShare(id, isShared, studentId) {
+    console.log('[DEBUG] toggleDatasetShare Request:', { 
+        targetDatasetID: id, 
+        currentStudentID: studentId, 
+        newSharedStatus: isShared 
+    });
+    
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .update({ is_shared: isShared })
         .eq('id', id)
+        .eq('student_id', studentId)
         .select();
+        
+    if (!error && (!data || data.length === 0)) {
+        console.warn('[DEBUG] No rows updated! Possible Permission/ID Mismatch. Data rows returned:', data);
+        return { error: { message: 'DB 업데이트에 실패했습니다. (권한 또는 ID 확인 필요)' } };
+    }
+    
     return { data, error };
 }
 
@@ -159,11 +172,18 @@ export async function fetchSharedDatasets(currentStudentId) {
 /**
  * Update the name of a dataset
  */
-export async function updateDatasetName(id, newName) {
+export async function updateDatasetName(id, newName, studentId) {
+    console.log('[DEBUG] updateDatasetName Request:', { 
+        targetDatasetID: id, 
+        currentStudentID: studentId, 
+        newName: newName 
+    });
+    
     const { data, error } = await supabaseClient
         .from('student_datasets')
         .update({ data_name: newName })
         .eq('id', id)
+        .eq('student_id', studentId)
         .select();
     return { data, error };
 }

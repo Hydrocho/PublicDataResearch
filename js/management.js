@@ -128,7 +128,7 @@ export async function onLoadDatasets(state, changeStep) {
             const newName = prompt('수정할 데이터셋 이름을 입력하세요:', currentName);
             
             if (newName && newName.trim() !== '' && newName !== currentName) {
-                const { error } = await updateDatasetName(id, newName.trim());
+                const { error } = await updateDatasetName(id, newName.trim(), state.user.student_id);
                 if (!error) {
                     onLoadDatasets(state, changeStep);
                 } else {
@@ -143,10 +143,17 @@ export async function onLoadDatasets(state, changeStep) {
         chk.addEventListener('change', async () => {
             const id = chk.dataset.id;
             const isShared = chk.checked;
-            const { error } = await toggleDatasetShare(id, isShared);
+            
+            chk.disabled = true; // prevent double-clicks
+            const { error } = await toggleDatasetShare(id, isShared, state.user.student_id);
+            
             if (error) {
                 alert('공유 상태 변경 실패: ' + error.message);
                 chk.checked = !isShared; // revert
+                chk.disabled = false;
+            } else {
+                console.log('Toggle success for ID:', id, 'New status:', isShared);
+                chk.disabled = false;
             }
         });
     });
