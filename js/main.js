@@ -132,41 +132,51 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     location.reload();
 });
 
+// Navigation Logic
+window.changeStep = changeStep;
+
 function initApp() {
     UI.renderStepsNav(state.currentStep, state.selectedTopic, changeStep);
-    UI.renderCategories((catId) => showCategoryDetails(catId, state, window.onDataSelected));
+    
+    if (state.currentStep === 0) {
+        const root = document.getElementById('explorer-root');
+        if (root) {
+            import('./discovery.js').then(m => m.renderDataExplorer(root, state, window.onDataSelected));
+        }
+    }
 }
+
+// Global callback for data selection
+window.onDataSelected = (cat, dataInfo) => {
+    state.selectedTopic = { cat, dataInfo };
+    
+    // Update nav to show selected topic
+    const topicBox = document.getElementById('selected-topic-box');
+    const topicText = document.getElementById('current-topic-text');
+    if (topicBox && topicText) {
+        topicBox.style.display = 'block';
+        topicText.innerText = `[${cat.title}] ${dataInfo.name}`;
+    }
+
+    alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다! \n[데이터 관리] 단계에서 확인할 수 있습니다.`);
+    
+    // Move to management step
+    changeStep(2);
+};
 
 function changeStep(id) {
     state.currentStep = id;
     document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    
     if (id === 0) {
         document.getElementById('step-0').classList.add('active');
+        initApp(); // Re-render explorer
     } else {
         document.getElementById('step-content-section').classList.add('active');
         UI.renderStepContent(id, state, changeStep);
     }
     UI.renderStepsNav(id, state.selectedTopic, changeStep);
 }
-
-window.onDataSelected = async (cat, dataInfo) => {
-    state.selectedTopic = { cat, dataInfo };
-    document.getElementById('selected-topic-box').style.display = 'block';
-    document.getElementById('current-topic-text').innerText = `[${cat.title}] ${dataInfo.name}`;
-    
-    if (state.user && state.user.student_id !== 'Guest') {
-        const { saveActivityLog, saveStudentDataset } = await import('./auth.js');
-        await saveActivityLog(state.user.student_id, 0, JSON.stringify(dataInfo));
-        await saveStudentDataset(
-            state.user.student_id, 
-            dataInfo.name, 
-            dataInfo.file_url, 
-            { ...dataInfo.metadata, url: dataInfo.url },
-            dataInfo.size_kb
-        );
-    }
-    changeStep(1); 
-};
 
 // Start
 checkSession();

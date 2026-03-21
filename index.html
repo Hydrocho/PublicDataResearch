@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- PapaParse for CSV -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
+    <!-- SheetJS for Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -70,13 +72,15 @@
             </nav>
 
             <main class="content-area">
-                <!-- Step 0: Idea Bank -->
+                <!-- Step 0: Idea Bank / Data Explorer -->
                 <section id="step-0" class="active">
-                    <div id="categories-grid" class="categories-grid">
-                        <!-- Categories injected here -->
+                    <div class="explorer-top-area" style="margin-bottom: 25px;">
+                        <h2 style="font-size: 1.8rem; margin-bottom: 8px;">🔍 데이터 탐색 및 수집</h2>
+                        <p class="text-muted">연구하고 싶은 분야의 데이터를 탐색하고 내 연구실로 가져오세요.</p>
                     </div>
-                    <div id="category-details" class="glass" style="display: none; padding: 40px; margin-bottom: 40px;">
-                        <!-- Details injected here -->
+
+                    <div id="explorer-root">
+                        <!-- Hierarchical Explorer injected here -->
                     </div>
                 </section>
 
@@ -109,23 +113,14 @@
 
     <!-- Dataset Detail Modal -->
     <div id="dataset-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content glass">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-data-name">데이터셋 이름</h2>
-                <button id="close-modal" class="btn-secondary" style="padding: 5px 10px;">&times;</button>
+                <button id="close-modal" class="btn-secondary" style="padding: 5px 12px; font-size: 1.2rem;">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="meta-section">
-                    <h3>📌 메타 정보</h3>
-                    <div id="modal-meta-content" class="meta-grid">
-                        <!-- Meta items injected here -->
-                    </div>
-                </div>
-                <div class="preview-section">
-                    <h3>📄 데이터 미리보기 (상위 20행)</h3>
-                    <div id="modal-data-preview" class="data-preview-table-container">
-                        <p class="text-muted">데이터를 읽어오는 중...</p>
-                    </div>
+                <div id="modal-body-inner" class="modal-body-inner">
+                    <!-- Dynamic content will be injected here -->
                 </div>
             </div>
         </div>

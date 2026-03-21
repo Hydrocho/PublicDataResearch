@@ -2,6 +2,7 @@ import { categories, searchMethods, cautions } from './data.js';
 
 export function renderCategories(onCategoryClick, selectedId) {
     const grid = document.getElementById('categories-grid');
+    if (!grid) return;
     grid.innerHTML = categories.map(cat => `
         <div class="category-card glass card ${cat.id === selectedId ? 'active' : ''}" data-id="${cat.id}" 
              style="padding: 12px 20px; text-align: center; min-height: auto;">
@@ -20,15 +21,17 @@ export function renderCategories(onCategoryClick, selectedId) {
 export function renderStepsNav(currentStep, selectedTopic, onStepChange) {
     const steps = [
         { id: 0, title: "데이터 탐색", icon: "search" },
-        { id: 1, title: "데이터 관리", icon: "list" },
-        { id: 2, title: "1단계: 문제 정의", icon: "database" },
-        { id: 3, title: "2단계: 전처리", icon: "map" },
-        { id: 4, title: "3단계: AI 분석", icon: "brain" },
-        { id: 5, title: "4단계: 시각화", icon: "bar-chart" },
-        { id: 6, title: "5단계: 정책 제안", icon: "file-text" },
+        { id: 1, title: "데이터 저장", icon: "download" },
+        { id: 2, title: "데이터 관리", icon: "list" },
+        { id: 3, title: "1단계: 문제 정의", icon: "database" },
+        { id: 4, title: "2단계: 전처리", icon: "map" },
+        { id: 5, title: "3단계: AI 분석", icon: "brain" },
+        { id: 6, title: "4단계: 시각화", icon: "bar-chart" },
+        { id: 7, title: "5단계: 정책 제안", icon: "file-text" },
     ];
     
     const navItems = document.getElementById('nav-items');
+    if (!navItems) return;
     navItems.innerHTML = steps.map(step => `
         <div class="nav-item ${currentStep === step.id ? 'active' : ''}" 
              data-id="${step.id}">
@@ -36,21 +39,23 @@ export function renderStepsNav(currentStep, selectedTopic, onStepChange) {
             <span>${step.title}</span>
         </div>
     `).join('');
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.onclick = () => {
             onStepChange(parseInt(item.dataset.id));
-        });
+        };
     });
 }
 
 export function renderStepContent(stepId, state, onStepChange) {
     const canvas = document.getElementById('step-canvas');
+    if (!canvas) return;
     let content = '';
     const topic = state.selectedTopic;
 
-    if (!topic && stepId > 1) {
+    // Steps 3+ require a selected topic
+    if (!topic && stepId > 2) {
         content = `
             <div style="text-align: center; padding: 60px 20px;">
                 <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
@@ -62,12 +67,29 @@ export function renderStepContent(stepId, state, onStepChange) {
     } else {
         switch(stepId) {
             case 0:
-                content = `<h2>데이터 탐색 단계입니다.</h2>`;
+                content = `<div style="text-align:center; padding: 40px;"><h2>데이터 탐색 단계입니다.</h2><p>왼쪽 메뉴를 이용하거나 홈으로 가세요.</p></div>`;
                 break;
-            case 1:
+            case 1: // NEW: Data Saving
                 content = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h2>📥 데이터 관리</h2>
+                        <div>
+                            <h2>📥 데이터 저장 및 연동</h2>
+                            <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px;">포털에서 찾은 데이터의 메타정보와 파일을 시스템에 등록합니다.</p>
+                        </div>
+                    </div>
+                    <div id="save-form-container" class="glass" style="padding: 30px; min-height: 400px; border-top: 3px solid var(--primary);">
+                        <!-- The save instructions will be injected here by discovery.js -->
+                    </div>
+                `;
+                const initialName = state.pendingDataName || '';
+                setTimeout(() => {
+                    import('./discovery.js').then(m => m.showSaveInstructions(initialName, state, window.onDataSelected));
+                }, 50);
+                break;
+            case 2: // Old 1: Management
+                content = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h2>📋 데이터 관리</h2>
                         <span class="text-muted" style="font-size: 0.9rem;">수집한 데이터셋을 확인하고 관리할 수 있습니다.</span>
                     </div>
                     <div id="datasets-list-container" class="glass" style="padding: 20px; min-height: 300px;">
@@ -80,62 +102,46 @@ export function renderStepContent(stepId, state, onStepChange) {
                     setTimeout(() => state.onLoadDatasets(), 100);
                 }
                 break;
-            case 2:
+            case 3: // Old 2: Step 1
                 content = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                     <h2>1단계: 문제 정의 및 가설 설정</h2>
                     <span class="tag" style="background: var(--primary-glow); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;">${topic ? topic.cat.title : '분야'}</span>
                 </div>
                 <div class="glass" style="padding: 25px; border-left: 4px solid var(--primary); margin-bottom: 20px;">
-                    <h4 style="color: var(--secondary); margin-bottom: 15px;">📥 선택한 데이터셋 및 연동 가이드</h4>
+                    <h4 style="color: var(--secondary); margin-bottom: 15px;">📥 선택한 데이터셋 정보</h4>
                     <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 15px;">${topic ? topic.dataInfo.name : '선택된 데이터 정보 없음'}</p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button onclick="window.open('${topic ? topic.dataInfo.url : '#'}', '_blank')" class="btn-secondary" style="font-size: 0.8rem; flex: 1;">데이터 상세페이지 바로가기</button>
-                    </div>
-                    <div class="glass" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">🐍 Python (Pandas) 로딩 코드</span>
-                            <button onclick="navigator.clipboard.writeText('dataset = pd.read_csv(\\'파일_경로.csv\\', encoding=\\'cp949\\')\\nprint(dataset.head())'); alert('코드가 복사되었습니다! Colab에 붙여넣으세요.');" 
-                                    style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.75rem;">코드 복사</button>
-                        </div>
-                        <pre style="color: #a5b4fc; font-size: 0.8rem; overflow-x: auto;">dataset = pd.read_csv('파일_경로.csv', encoding='cp949')
-print(dataset.head())</pre>
                     </div>
                 </div>
                 <div class="glass" style="padding: 25px; background: rgba(79, 70, 229, 0.1);">
                     <p>📋 <strong>가이드:</strong> 위의 데이터를 분석하여 해결하고 싶은 '사회 문제'를 정의하고 가설을 세워보세요.</p>
                 </div>
-            `;
-                break;
-            case 3:
-                content = `
-                    <h2>2단계: 데이터 전처리</h2>
-                    <div class="glass" style="padding: 30px;">
-                        <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; font-family: monospace; color: #a5b4fc;">import pandas as pd
-df = pd.read_csv('data.csv')
-df = df.fillna(0)</pre>
-                    </div>
                 `;
                 break;
-            case 4:
-                content = `<h2>3단계: AI 분석</h2><div class="glass" style="padding:30px;"><p>패턴 찾기(Clustering) 및 미래 예측(Prediction)을 통해 인사이트를 도출합니다.</p></div>`;
+            case 4: // Old 3: Step 2
+                content = `<h2>2단계: 데이터 전처리</h2><div class="glass" style="padding:30px;"><p>데이터 정제 및 분석 준비 단계입니다.</p></div>`;
                 break;
-            case 5:
-                content = `<h2>4단계: 시각화</h2><div class="glass" style="padding:30px;"><p>Seaborn과 Folium을 활용하여 데이터의 특징을 시각적으로 표현합니다.</p></div>`;
+            case 5: // Old 4: Step 3
+                content = `<h2>3단계: AI 데이터 분석</h2><div class="glass" style="padding:30px;"><p>패턴 탐색 및 예측 모델링 단계입니다.</p></div>`;
                 break;
-            case 6:
-                content = `<h2>5단계: 정책 제안</h2><div class="glass" style="padding:30px;"><p>분석 결과를 바탕으로 구체적인 해결 방안을 피칭합니다.</p></div>`;
+            case 6: // Old 5: Step 4
+                content = `<h2>4단계: 시각화</h2><div class="glass" style="padding:30px;"><p>분석 데이터의 시각적 요약 단계입니다.</p></div>`;
+                break;
+            case 7: // Old 6: Step 5
+                content = `<h2>5단계: 정책 및 인사이트 제안</h2><div class="glass" style="padding:30px;"><p>최종 제안서 작성 단계입니다.</p></div>`;
                 break;
             default:
                 content = `<h2>개발 준비 중인 단계입니다.</h2>`;
         }
 
-        if (stepId >= 2) {
+        if (stepId >= 3) {
             content += `
                 <div class="glass" style="margin-top: 40px; padding: 25px; border-top: 1px solid var(--glass-border);">
                     <h4 style="margin-bottom: 15px;">📝 연구 기록 및 메모</h4>
                     <textarea id="step-memo" placeholder="이 단계에서 찾아낸 데이터나 아이디어를 기록하세요..." 
-                              style="width: 100%; height: 100px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;"></textarea>
+                               style="width: 100%; height: 100px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;"></textarea>
                     <div style="text-align: right;">
                         <button id="save-memo-btn" class="btn-primary" style="font-size: 0.85rem; padding: 8px 20px;">기록 저장하기</button>
                     </div>
@@ -145,16 +151,22 @@ df = df.fillna(0)</pre>
     }
 
     canvas.innerHTML = `
-        <div style="flex: 1;">${content}</div>
-        <div class="step-footer">
-            <button class="btn-secondary" id="prev-step">이전 단계</button>
-            <button class="btn-primary" id="next-step">${stepId === 6 ? '처음으로' : '다음 단계로'}</button>
+        <div style="display: flex; flex-direction: column; height: 100%;">
+            <div style="flex: 1;">${content}</div>
+            <div class="step-footer" style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <button class="btn-secondary" id="prev-step">이전 단계</button>
+                <button class="btn-primary" id="next-step">${stepId === 7 ? '처음으로' : '다음 단계로'}</button>
+            </div>
         </div>
     `;
-    lucide.createIcons();
     
-    document.getElementById('prev-step').onclick = () => onStepChange(stepId - 1);
-    document.getElementById('next-step').onclick = () => onStepChange(stepId === 6 ? 0 : stepId + 1);
+    if (window.lucide) lucide.createIcons();
+    
+    const prevBtn = document.getElementById('prev-step');
+    const nextBtn = document.getElementById('next-step');
+    
+    if (prevBtn) prevBtn.onclick = () => onStepChange(stepId - 1);
+    if (nextBtn) nextBtn.onclick = () => onStepChange(stepId === 7 ? 0 : stepId + 1);
 
     const saveBtn = document.getElementById('save-memo-btn');
     if (saveBtn) {
@@ -167,6 +179,7 @@ df = df.fillna(0)</pre>
 
 export function renderTeacherDashboard(students, onReset) {
     const listDiv = document.getElementById('teacher-student-list');
+    if (!listDiv) return;
     if (!students || students.length === 0) {
         listDiv.innerHTML = '<p class="text-muted">가입된 학생이 없습니다.</p>';
         return;

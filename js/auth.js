@@ -91,6 +91,8 @@ export async function fetchStudentDatasets(studentId) {
 
 export async function deleteStudentDataset(id, studentId) {
     console.log(`auth.js: deleteStudentDataset called with id: ${id}, studentId: ${studentId}`);
+    
+    // 1. Delete from DB and get the deleted row's data to find the file_url
     const { data, error, status, statusText } = await supabaseClient
         .from('student_datasets')
         .delete()
@@ -98,7 +100,70 @@ export async function deleteStudentDataset(id, studentId) {
         .eq('student_id', studentId)
         .select();
     
-    if (error) console.error('Supabase error:', error);
+    if (error) {
+        console.error('Supabase DB error:', error);
+        return { data, error, status, statusText };
+    }
+
+    // 2. If DB deletion was successful, also delete the file from Storage
+    if (data && data.length > 0) {
+        const deletedDs = data[0];
+        const fileUrl = deletedDs.file_url;
+
+        // Only attempt storage deletion if it's a internal storage path (not an external URL)
+        if (fileUrl && !fileUrl.startsWith('http')) {
+            console.log(`auth.js: Attempting to delete storage file: ${fileUrl}`);
+            const { error: storageError } = await supabaseClient.storage
+                .from('datasets')
+                .remove([fileUrl]);
+            
+            if (storageError) {
+                console.error('Supabase Storage deletion error:', storageError);
+                // We don't fail the whole operation if storage deletion fails, 
+                // but we should log it.
+            } else {
+                console.log('auth.js: Storage file deleted successfully.');
+            }
+        }
+    }
+    
     console.log('auth.js: deletion result data:', data);
     return { data, error, status, statusText };
+}
+
+/**
+ * Toggle the is_shared status of a dataset
+ */
+export async function toggleDatasetShare(id, isShared) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .update({ is_shared: isShared })
+        .eq('id', id)
+        .select();
+    return { data, error };
+}
+
+/**
+ * Fetch all shared datasets from OTHER students
+ */
+export async function fetchSharedDatasets(currentStudentId) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .eq('is_shared', true)
+        .neq('student_id', currentStudentId) // Exclude own shared datasets
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
+
+/**
+ * Update the name of a dataset
+ */
+export async function updateDatasetName(id, newName) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .update({ data_name: newName })
+        .eq('id', id)
+        .select();
+    return { data, error };
 }
