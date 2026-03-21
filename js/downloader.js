@@ -34,25 +34,37 @@ export async function autoLinkData(studentId, publicDataPk, publicDataDetailPk) 
 }
 
 export async function uploadManualFile(studentId, file, fileName) {
-    const filePath = `${studentId}/${Date.now()}_${fileName}`;
+    // 1. Storage Path: Use a safe ASCII-only path (TIMESTAMP.EXT) to avoid 'Invalid key' issues.
+    // The descriptive name is stored in the Database, so we don't need it in the physical path.
+    const ext = fileName.split('.').pop() || 'csv';
+    const filePath = `${studentId}/${Date.now()}.${ext}`;
     
-    // 1. Upload to Supabase Storage (Assumes 'datasets' bucket exists)
+    console.log(`Uploading to storage: datasets/${filePath}`);
+
+    // 2. Upload to Supabase Storage (Assumes 'datasets' bucket exists)
     const { data: storageData, error: storageError } = await supabaseClient.storage
         .from('datasets')
         .upload(filePath, file);
 
-    if (storageError) return { success: false, error: storageError.message };
+    if (storageError) {
+        console.error('Storage Upload Error:', storageError);
+        return { success: false, error: storageError.message };
+    }
 
-    // 2. Save metadata to Database
+    // 3. Save descriptive metadata to Database (Korean/Spaces work fine here)
     const { error: dbError } = await supabaseClient
         .from('student_datasets')
         .insert([{
             student_id: studentId,
-            data_name: fileName,
-            file_url: storageData.path,
+            data_name: fileName, // This is what the user sees in 'Data Management'
+            file_url: storageData.path, // Path to the file in storage
             size_kb: Math.round(file.size / 1024)
         }]);
 
-    if (dbError) return { success: false, error: dbError.message };
+    if (dbError) {
+        console.error('Database Save Error:', dbError);
+        return { success: false, error: dbError.message };
+    }
+    
     return { success: true };
 }

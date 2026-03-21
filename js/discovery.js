@@ -87,7 +87,12 @@ export function showCategoryDetails(catId, state, onDataSelected) {
             selectedFile = e.target.files[0];
             uploadStatus.innerText = `📄 ${selectedFile.name} (${Math.round(selectedFile.size/1024)}KB) 선택됨`;
             uploadStatus.style.display = 'block';
-            document.getElementById('found-data-name').value = selectedFile.name.split('.')[0];
+            
+            // Only fill if name is currently empty (prioritize metadata name from JSON)
+            const nameField = document.getElementById('found-data-name');
+            if (nameField && !nameField.value.trim()) {
+                nameField.value = selectedFile.name.split('.')[0];
+            }
         }
     };
 

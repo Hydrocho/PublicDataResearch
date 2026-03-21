@@ -52,6 +52,18 @@ toggleBtn.addEventListener('click', (e) => {
     lucide.createIcons();
 });
 
+// Local Session Check
+function checkSession() {
+    const savedUser = localStorage.getItem('app_user');
+    if (savedUser) {
+        state.user = JSON.parse(savedUser);
+        document.getElementById('user-display').innerText = `학번: ${state.user.student_id} (${state.user.name})`;
+        loginScreen.style.display = 'none';
+        appContent.style.display = 'block';
+        initApp();
+    }
+}
+
 // Auth Submit
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -74,6 +86,7 @@ loginForm.addEventListener('submit', async (e) => {
         toggleBtn.click();
     } else {
         state.user = result.user;
+        localStorage.setItem('app_user', JSON.stringify(state.user)); // Save Session
         document.getElementById('user-display').innerText = `학번: ${state.user.student_id} (${state.user.name})`;
         loginScreen.style.display = 'none';
         appContent.style.display = 'block';
@@ -107,13 +120,17 @@ async function onResetPin(studentId) {
 document.getElementById('guest-login-btn').addEventListener('click', (e) => {
     e.preventDefault();
     state.user = { student_id: 'Guest', name: '비회원' };
+    localStorage.setItem('app_user', JSON.stringify(state.user)); // Save Session (optional for guest)
     document.getElementById('user-display').innerText = '게스트: 비회원';
     loginScreen.style.display = 'none';
     appContent.style.display = 'block';
     initApp();
 });
 
-document.getElementById('logout-btn').addEventListener('click', () => location.reload());
+document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.removeItem('app_user'); // Clear Session
+    location.reload();
+});
 
 function initApp() {
     UI.renderStepsNav(state.currentStep, state.selectedTopic, changeStep);
@@ -149,3 +166,6 @@ window.onDataSelected = async (cat, dataInfo) => {
     }
     changeStep(1); 
 };
+
+// Start
+checkSession();

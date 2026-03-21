@@ -88,10 +88,16 @@ export async function fetchStudentDatasets(studentId) {
     return { data, error };
 }
 
-export async function deleteStudentDataset(id) {
-    const { error } = await supabaseClient
+export async function deleteStudentDataset(id, studentId) {
+    console.log(`auth.js: deleteStudentDataset called with id: ${id}, studentId: ${studentId}`);
+    const { data, error, status, statusText } = await supabaseClient
         .from('student_datasets')
         .delete()
-        .eq('id', id);
-    return { error };
+        .eq('id', id)
+        .eq('student_id', studentId)
+        .select();
+    
+    if (error) console.error('Supabase error:', error);
+    console.log('auth.js: deletion result data:', data);
+    return { data, error, status, statusText };
 }
