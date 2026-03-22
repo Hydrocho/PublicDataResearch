@@ -315,7 +315,18 @@ async function openDatasetModal(dataset) {
                 <tr>
                     <th class="portal-label">원본 출처</th>
                     <td class="portal-value" colspan="3">
-                        ${(getVal('url') || '#') !== '#' ? `<a href="${getVal('url')}" target="_blank" style="color: var(--primary); font-weight: bold;">[바로가기]</a>` : '-'}
+                        ${(() => {
+                            const url = getVal('url');
+                            const sourceLinks = rawMeta.source_links || [];
+                            if (url && url !== '#') {
+                                return `<a href="${url}" target="_blank" style="color: var(--primary); font-weight: bold;">[원본 사이트 바로가기]</a>`;
+                            } else if (sourceLinks.length > 0) {
+                                return sourceLinks.map((link, idx) => 
+                                    `<a href="${link}" target="_blank" style="color: var(--primary); font-weight: bold; margin-right: 15px;">[출처 ${idx + 1}]</a>`
+                                ).join('');
+                            }
+                            return '-';
+                        })()}
                     </td>
                 </tr>
             </tbody>

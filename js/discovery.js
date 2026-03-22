@@ -126,7 +126,18 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
                 <div id="upload-status" style="font-size: 0.8rem; color: var(--primary); margin-top: 8px; font-weight: 700;"></div>
             </div>
 
-            <!-- Step 3: Confirm -->
+            <!-- Step 3: Source Links (NEW) -->
+            <div class="glass" style="padding: 18px; background: rgba(255,255,255,0.4); border: 1px dashed var(--glass-border);">
+                <label style="display: block; font-size: 0.85rem; font-weight: 800; margin-bottom: 10px; color: #334155;">3단계: 자료 링크 주소 (선택)</label>
+                <div style="display: grid; gap: 8px;">
+                    <input type="text" id="data-link-1" placeholder="링크 1 (예: 포털 상세 페이지)" style="width: 100%; border: 1px solid var(--glass-border); padding: 8px; border-radius: 6px; font-size: 0.8rem;">
+                    <input type="text" id="data-link-2" placeholder="링크 2 (예: 원문 사이트)" style="width: 100%; border: 1px solid var(--glass-border); padding: 8px; border-radius: 6px; font-size: 0.8rem;">
+                    <input type="text" id="data-link-3" placeholder="링크 3 (기타 소스)" style="width: 100%; border: 1px solid var(--glass-border); padding: 8px; border-radius: 6px; font-size: 0.8rem;">
+                </div>
+                <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">* 1단계 JSON-LD에 정보가 있으면 자동으로 입력됩니다.</p>
+            </div>
+
+            <!-- Step 4: Confirm -->
             <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border);">
                 <div style="margin-bottom: 15px;">
                     <label style="font-size: 0.78rem; color: #64748b; font-weight: 700; display: block; margin-bottom: 6px;">최종 파일 데이터명</label>
@@ -167,8 +178,21 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             str = str.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"').replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
             const data = JSON.parse(str);
             extractedMeta = data;
+            
+            // Auto-fill Name
             const name = data.alternateName || data.name || '';
             if (name) document.getElementById('found-data-name').value = name;
+            
+            // Auto-fill Links (Logic for Public Data Portals)
+            if (data.url) {
+                document.getElementById('data-link-1').value = data.url;
+            }
+            if (data.distribution && Array.isArray(data.distribution) && data.distribution.length > 0) {
+                const dist = data.distribution[0];
+                const contentUrl = dist.contentUrl || dist.downloadUrl || '';
+                if (contentUrl) document.getElementById('data-link-2').value = contentUrl;
+            }
+            
             autoMsg.style.display = 'block';
         } catch (e) {
             autoMsg.style.display = 'none';
@@ -176,6 +200,13 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
     });
 
     document.getElementById('save-data-info').onclick = async () => {
+        const source_link_1 = document.getElementById('data-link-1').value.trim();
+        const source_link_2 = document.getElementById('data-link-2').value.trim();
+        const source_link_3 = document.getElementById('data-link-3').value.trim();
+        
+        const links = [source_link_1, source_link_2, source_link_3].filter(Boolean);
+        if (links.length === 0) return alert('최소 하나의 자료 링크 주소를 입력해 주세요. (1단계 JSON-LD를 붙여넣으면 자동 입력됩니다.)');
+
         const name = document.getElementById('found-data-name').value.trim();
         if (!name) return alert('데이터셋 이름을 입력해 주세요.');
         if (!selectedFile) return alert('업로드할 파일을 선택해 주세요.');
@@ -267,7 +298,10 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
         try {
             const dataInfo = {
                 name: name,
-                metadata: extractedMeta,
+                metadata: {
+                    ...extractedMeta,
+                    source_links: links
+                },
                 file_url: null,
                 uploaded_at: new Date().toISOString()
             };

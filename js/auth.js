@@ -1,5 +1,31 @@
 import { supabaseClient } from './config.js';
 
+export async function signInWithGoogle() {
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin + window.location.pathname
+        }
+    });
+    return { data, error };
+}
+
+export async function signOut() {
+    const { error } = await supabaseClient.auth.signOut();
+    return { error };
+}
+
+export async function isTeacherAuthorized(email) {
+    const { data, error } = await supabaseClient
+        .from('authorized_teachers')
+        .select('email')
+        .eq('email', email)
+        .single();
+    
+    if (error || !data) return false;
+    return true;
+}
+
 export async function hashPin(pin) {
     const encoder = new TextEncoder();
     const data = encoder.encode(pin);

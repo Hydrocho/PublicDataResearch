@@ -21,7 +21,7 @@
     <div id="login-screen">
         <div class="login-card glass card">
             <i data-lucide="log-in" size="48" class="icon-glow"></i>
-            <h1 id="auth-title" style="margin: 20px 0; background: linear-gradient(to right, #818cf8, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">로그인</h1>
+            <h1 id="auth-title" style="margin: 20px 0; background: linear-gradient(to right, #818cf8, #34d399); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">로그인</h1>
             <p class="text-muted" style="margin-bottom: 30px;">학번과 <strong>숫자 4자리</strong> PIN을 입력하세요</p>
             <form id="login-form">
                 <div class="input-group" id="name-group" style="display: none;">
@@ -43,7 +43,7 @@
                 </div>
                 <div style="margin-top: 25px; text-align: center; display: flex; flex-direction: column; gap: 10px;">
                     <a href="#" id="guest-login-btn" style="color: var(--secondary); font-size: 0.85rem; text-decoration: none; font-weight: 600;">비회원으로 체험하기</a>
-                    <a href="#" id="teacher-login-link" style="color: var(--text-muted); font-size: 0.75rem; text-decoration: none; opacity: 0.5;">교사 전용 페이지</a>
+                    <a href="#" id="teacher-login-link" style="color: var(--text-muted); font-size: 0.75rem; text-decoration: none; opacity: 0.5;">선생님인가요? 구글로 로그인</a>
                 </div>
             </form>
         </div>
@@ -98,7 +98,10 @@
     <section id="teacher-section" class="content-area" style="padding: 40px; display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1>👨‍🏫 교사용 관리 대시보드</h1>
-            <button class="btn-secondary" onclick="location.reload()">로그아웃</button>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span id="teacher-email-display" class="text-muted" style="font-size: 0.85rem;"></span>
+                <button id="teacher-logout-btn" class="btn-secondary">로그아웃</button>
+            </div>
         </div>
         <div class="glass card" style="padding: 30px;">
             <h3 style="margin-bottom: 20px;">학생 가입 현황 및 관리</h3>

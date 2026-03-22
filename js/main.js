@@ -1,4 +1,5 @@
-import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin } from './auth.js';
+import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, isTeacherAuthorized } from './auth.js';
+import { supabaseClient } from './config.js';
 import * as UI from './ui.js';
 import { showCategoryDetails } from './discovery.js';
 import { onLoadDatasets } from './management.js';
@@ -53,7 +54,8 @@ toggleBtn.addEventListener('click', (e) => {
 });
 
 // Local Session Check
-function checkSession() {
+async function checkSession() {
+    // 1. Check for Student Session (PIN)
     const savedUser = localStorage.getItem('app_user');
     if (savedUser) {
         state.user = JSON.parse(savedUser);
@@ -61,6 +63,22 @@ function checkSession() {
         loginScreen.style.display = 'none';
         appContent.style.display = 'block';
         initApp();
+        return;
+    }
+
+    // 2. Check for Teacher Session (Supabase Auth)
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        const email = session.user.email;
+        const authorized = await isTeacherAuthorized(email);
+        
+        if (authorized) {
+            showTeacherDashboard(email);
+        } else {
+            alert('승인되지 않은 계정입니다. 관리자에게 문의하세요.');
+            await signOut();
+            location.reload();
+        }
     }
 }
 
@@ -94,19 +112,26 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-document.getElementById('teacher-login-link').addEventListener('click', (e) => {
+document.getElementById('teacher-login-link').addEventListener('click', async (e) => {
     e.preventDefault();
-    const pw = prompt('관리자 비밀번호를 입력하세요:');
-    if (pw === 'admin') showTeacherDashboard();
-    else alert('비밀번호가 올바르지 않습니다.');
+    const { error } = await signInWithGoogle();
+    if (error) alert('구글 로그인 중 오류가 발생했습니다: ' + error.message);
 });
 
-async function showTeacherDashboard() {
+async function showTeacherDashboard(email) {
     loginScreen.style.display = 'none';
+    appContent.style.display = 'none'; // Ensure student app is hidden
     document.getElementById('teacher-section').style.display = 'block';
+    document.getElementById('teacher-email-display').innerText = email;
+    
     const { data } = await fetchAllStudents();
     if (data) UI.renderTeacherDashboard(data, onResetPin);
 }
+
+document.getElementById('teacher-logout-btn').addEventListener('click', async () => {
+    await signOut();
+    location.reload();
+});
 
 async function onResetPin(studentId) {
     if (!confirm(`${studentId} 학생의 PIN을 0000으로 초기화할까요?`)) return;
