@@ -231,9 +231,12 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             btn.innerText = '컬럼 분석 중...';
 
             let headers = [];
+            let fileEncoding = 'UTF-8';
             try {
                 const { parseCsvHeaders } = await import('./sampler.js');
-                headers = await parseCsvHeaders(fileToUpload);
+                const headerResult = await parseCsvHeaders(fileToUpload);
+                headers = headerResult.fields;
+                fileEncoding = headerResult.encoding;
             } catch(e) {
                 alert('파일 헤더를 읽는 중 오류가 발생했습니다: ' + e.message);
                 btn.disabled = false; btn.innerText = originalText; return;
@@ -243,7 +246,7 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             btn.innerText = originalText;
 
             // Build and show filter modal
-            const result = await showColumnFilterModal(fileToUpload, headers, selectedFile.size, uploadStatus);
+            const result = await showColumnFilterModal(fileToUpload, headers, selectedFile.size, uploadStatus, fileEncoding);
             if (!result) { // User cancelled
                 return;
             }
@@ -337,7 +340,7 @@ export function showCategoryDetails(catId, state, onDataSelected) {
  * Shows a modal UI for column-based CSV filtering.
  * Returns a Promise<{blob, rowCount, conditions}> or null if cancelled.
  */
-function showColumnFilterModal(file, headers, originalSizeBytes, uploadStatus) {
+function showColumnFilterModal(file, headers, originalSizeBytes, uploadStatus, encoding = 'UTF-8') {
     return new Promise((resolve) => {
         // Remove any existing modal
         const existingModal = document.getElementById('filter-modal-overlay');
@@ -450,7 +453,7 @@ function showColumnFilterModal(file, headers, originalSizeBytes, uploadStatus) {
                         if (uploadStatus) uploadStatus.innerText = msg;
                         const ra = overlay.querySelector('#fc-result-area');
                         if (ra) { ra.style.display = 'block'; ra.textContent = msg; }
-                    });
+                    }, encoding);
 
                     const sizeMB = r.blob.size / (1024 * 1024);
                     if (sizeMB > 49.5) {

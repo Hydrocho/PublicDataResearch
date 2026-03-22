@@ -52,8 +52,9 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
                 
                 prompt += `컬럼 구성: ${headers.join(', ')}\n`;
                 prompt += `데이터 샘플(JSON): ${JSON.stringify(sampleRows, null, 2)}\n`;
-                const rowCount = Number(ds.total_rows);
-                const rowCountStr = (rowCount > 1) ? `${rowCount.toLocaleString()}행` : '데이터 분석 중 (상세 샘플 참조)';
+                // Get row count from metadata (which reflects the actual CSV rows) or fallback to ds.total_rows
+                const rowCount = ds.metadata?.row_count ?? ds.total_rows;
+                const rowCountStr = (rowCount && Number(rowCount) > 0) ? `${Number(rowCount).toLocaleString()}행` : '데이터 분석 중 (상세 샘플 참조)';
                 prompt += `전체 데이터 행 수: ${rowCountStr}\n`;
             } else {
                 prompt += `(데이터 샘플을 불러올 수 없습니다.)\n`;
@@ -70,7 +71,8 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
 **[중요 지침: 대화 및 컨텍스트 유지]**
 1. 이번 답변에서는 **가장 승산 있는 1개의 아이디어만** 상세하게 제안해 주세요.
 2. 제안이 끝난 후에는 "또 다른 아이디어를 확인하시겠습니까?" 또는 "이 아이디어를 좀 더 구체화해 볼까요?"와 같이 연구자의 다음 행동을 묻는 질문으로 마무리해 주세요.
-3. 연구자가 추가 아이디어를 요청하더라도, 항상 위에서 제공된 **데이터 샘플(JSON) 및 컬럼 구성**을 연구의 절대적인 근거로 삼아야 합니다. 절대 임의의 가공 데이터를 상상하여 답변하지 마십시오.`;
+3. 전문가가 아닌 일반인도 이해할 수 있는 쉬운 용어를 사용해야 합니다.
+4. 연구자가 추가 아이디어를 요청하더라도, 항상 위에서 제공된 **데이터 샘플(JSON) 및 컬럼 구성**을 연구의 절대적인 근거로 삼아야 합니다. 절대 임의의 가공 데이터를 상상하여 답변하지 마십시오.`;
     
     return prompt;
 }

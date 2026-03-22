@@ -44,7 +44,7 @@ export async function sampleCsvByKeywords(file, keywordsStr, onProgress) {
  * @param {Array<{column: string, operator: string, value: string}>} conditions - Filter conditions (AND logic)
  * @param {Function} onProgress - Progress callback
  */
-export async function sampleCsvByConditions(file, conditions, onProgress) {
+export async function sampleCsvByConditions(file, conditions, onProgress, encoding = 'UTF-8') {
     return new Promise((resolve, reject) => {
         const matchedRows = [];
         let processedCount = 0;
@@ -52,6 +52,7 @@ export async function sampleCsvByConditions(file, conditions, onProgress) {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
+            encoding,
             step: function(results) {
                 processedCount++;
                 if (processedCount % 5000 === 0) {
@@ -96,15 +97,35 @@ export async function sampleCsvByConditions(file, conditions, onProgress) {
 }
 
 /**
+ * Detect CSV file encoding: returns 'EUC-KR' or 'UTF-8'.
+ * Checks UTF-8 BOM first, then tries decoding a sample chunk.
+ */
+export async function detectCsvEncoding(file) {
+    // 1. Check for UTF-8 BOM (EF BB BF)
+    const bom = await file.slice(0, 3).arrayBuffer();
+    const bytes = new Uint8Array(bom);
+    if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'UTF-8';
+
+    // 2. Try decoding a 500-byte sample as UTF-8; replacement char (\uFFFD) signals EUC-KR
+    const sample = await file.slice(0, 500).arrayBuffer();
+    const utf8Text = new TextDecoder('utf-8', { fatal: false }).decode(sample);
+    if (utf8Text.includes('\uFFFD')) return 'EUC-KR';
+    return 'UTF-8';
+}
+
+/**
  * Parse only the header row from a large CSV to get column names quickly.
+ * Auto-detects encoding (supports EUC-KR and UTF-8).
  */
 export async function parseCsvHeaders(file) {
+    const encoding = await detectCsvEncoding(file);
     return new Promise((resolve, reject) => {
         Papa.parse(file, {
             header: true,
-            preview: 1, // Only parse first data row
+            preview: 1,
             skipEmptyLines: true,
-            complete: (results) => resolve(results.meta.fields || []),
+            encoding,
+            complete: (results) => resolve({ fields: results.meta.fields || [], encoding }),
             error: (err) => reject(err)
         });
     });
