@@ -1,4 +1,4 @@
-import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, getTeacherRecord, requestTeacherAccess, fetchPendingTeachers, updateTeacherStatus } from './auth.js';
+import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, getTeacherRecord, requestTeacherAccess, fetchAllTeachers, updateTeacherStatus, fetchStudentProgressSnapshot, fetchStudentDetail } from './auth.js';
 import { supabaseClient } from './config.js';
 import * as UI from './ui.js';
 import { showCategoryDetails } from './discovery.js';
@@ -182,34 +182,54 @@ document.getElementById('teacher-login-link').addEventListener('click', async (e
 async function showTeacherDashboard(email) {
     hideAllSections();
     document.getElementById('teacher-section').style.display = 'block';
-    // Only update innerText if email arg is provided (login bypass might omit it)
     if (email) document.getElementById('teacher-email-display').innerText = email;
     
     // Setup tab switching
     const tabStudents = document.getElementById('tab-students');
+    const tabProgress = document.getElementById('tab-progress');
     const tabTeachers = document.getElementById('tab-teachers');
     const viewStudents = document.getElementById('teacher-students-view');
+    const viewProgress = document.getElementById('teacher-progress-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
     
+    const switchTab = (activeTab) => {
+        [tabStudents, tabProgress, tabTeachers].forEach(t => t.className = 'btn-secondary');
+        [viewStudents, viewProgress, viewTeachers].forEach(v => v.style.display = 'none');
+        activeTab.className = 'btn-primary';
+    };
+    
     tabStudents.onclick = () => {
-        tabStudents.className = 'btn-primary';
-        tabTeachers.className = 'btn-secondary';
+        switchTab(tabStudents);
         viewStudents.style.display = 'block';
-        viewTeachers.style.display = 'none';
+    };
+    
+    tabProgress.onclick = async () => {
+        switchTab(tabProgress);
+        viewProgress.style.display = 'block';
+        viewProgress.querySelector('#teacher-progress-list').innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { data } = await fetchStudentProgressSnapshot();
+        UI.renderStudentProgress(data, onViewStudentDetail);
     };
     
     tabTeachers.onclick = async () => {
-        tabTeachers.className = 'btn-primary';
-        tabStudents.className = 'btn-secondary';
+        switchTab(tabTeachers);
         viewTeachers.style.display = 'block';
-        viewStudents.style.display = 'none';
-        
-        const { data } = await fetchPendingTeachers();
+        const { data } = await fetchAllTeachers();
         UI.renderTeacherPermissions(data, onTeacherStatusUpdate);
     };
     
     const { data } = await fetchAllStudents();
     if (data) UI.renderTeacherDashboard(data, onResetPin);
+}
+
+async function onViewStudentDetail(studentId, studentName) {
+    // If no studentId, just refresh the progress list
+    if (!studentId) {
+        document.getElementById('tab-progress').click();
+        return;
+    }
+    const detail = await fetchStudentDetail(studentId);
+    await UI.showStudentDetailModal(studentName, detail);
 }
 
 document.getElementById('teacher-logout-btn').addEventListener('click', async () => {
@@ -232,12 +252,15 @@ async function onTeacherStatusUpdate(id, newStatus) {
     const action = newStatus === 'approved' ? '승인' : '거절';
     if (!confirm(`해당 가입 요청을 ${action} 처리하시겠습니까?`)) return;
     
-    const { error } = await updateTeacherStatus(id, newStatus);
+    const { data, error } = await updateTeacherStatus(id, newStatus);
     if (error) {
-        alert('처리 중 오류가 발생했습니다.');
+        alert('처리 중 오류가 발생했습니다: ' + error.message);
+    } else if (!data || data.length === 0) {
+        alert('권한이 없거나 대상을 찾을 수 없어 처리에 실패했습니다. (DB 보안 정책 확인 필요)');
     } else {
         alert(`요청이 ${action}되었습니다.`);
-        document.getElementById('tab-teachers').click();
+        const tabTeachers = document.getElementById('tab-teachers');
+        if (tabTeachers) tabTeachers.click();
     }
 }
 

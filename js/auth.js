@@ -33,21 +33,25 @@ export async function requestTeacherAccess(email, name, school, reason) {
     return { error };
 }
 
-export async function fetchPendingTeachers() {
+export async function fetchAllTeachers() {
     const { data, error } = await supabaseClient
         .from('authorized_teachers')
         .select('*')
-        .eq('status', 'pending')
+        .order('status', { ascending: true }) // pending first
         .order('created_at', { ascending: false });
     return { data, error };
 }
 
 export async function updateTeacherStatus(id, newStatus) {
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from('authorized_teachers')
-        .update({ status: newStatus })
-        .eq('id', id);
-    return { error };
+        .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .select();
+    return { data, error };
 }
 
 export async function hashPin(pin) {
@@ -90,6 +94,69 @@ export async function fetchAllStudents() {
         .select('student_id, name, created_at')
         .order('student_id', { ascending: true });
     return { data, error };
+}
+
+/** Teacher-only: fetch a quick progress snapshot for all students */
+export async function fetchStudentProgressSnapshot() {
+    // 1. Get all students
+    const { data: students, error: sErr } = await supabaseClient
+        .from('students')
+        .select('student_id, name, created_at')
+        .order('student_id', { ascending: true });
+    if (sErr) return { error: sErr };
+
+    // 2. Get all activity log entries (just student_id and step_id)
+    const { data: logs } = await supabaseClient
+        .from('activity_log')
+        .select('student_id, step_id, created_at');
+
+    // 3. Get dataset counts per student
+    const { data: datasets } = await supabaseClient
+        .from('student_datasets')
+        .select('student_id, id');
+
+    // 4. Merge: compute max step_id and dataset count per student
+    const logMap = {};
+    (logs || []).forEach(l => {
+        if (!logMap[l.student_id] || l.step_id > logMap[l.student_id].maxStep) {
+            logMap[l.student_id] = { maxStep: l.step_id, lastActivity: l.created_at };
+        }
+    });
+
+    const dsCountMap = {};
+    (datasets || []).forEach(d => {
+        dsCountMap[d.student_id] = (dsCountMap[d.student_id] || 0) + 1;
+    });
+
+    const merged = (students || []).map(s => ({
+        ...s,
+        maxStep: logMap[s.student_id]?.maxStep ?? -1,
+        lastActivity: logMap[s.student_id]?.lastActivity ?? null,
+        datasetCount: dsCountMap[s.student_id] ?? 0,
+    }));
+
+    return { data: merged };
+}
+
+/** Teacher-only: fetch all data for a specific student to show detail view */
+export async function fetchStudentDetail(studentId) {
+    const [logsRes, datasetsRes] = await Promise.all([
+        supabaseClient
+            .from('activity_log')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('created_at', { ascending: false }),
+        supabaseClient
+            .from('student_datasets')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('created_at', { ascending: false }),
+    ]);
+    return {
+        logs: logsRes.data || [],
+        datasets: datasetsRes.data || [],
+        error: logsRes.error || datasetsRes.error,
+    };
 }
 
 export async function resetStudentPin(studentId) {
