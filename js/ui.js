@@ -661,3 +661,51 @@ export function renderTeacherDashboard(students, onReset) {
         btn.onclick = () => onReset(btn.dataset.id);
     });
 }
+
+export function renderTeacherPermissions(teachers, onStatusUpdate) {
+    const listDiv = document.getElementById('teacher-pending-list');
+    if (!listDiv) return;
+    
+    if (!teachers || teachers.length === 0) {
+        listDiv.innerHTML = '<div style="text-align: center; padding: 40px;"><p class="text-muted">현재 대기 중인 가입 승인 요청이 없습니다.</p></div>';
+        return;
+    }
+
+    listDiv.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 12px;">이메일</th>
+                    <th style="padding: 12px;">이름</th>
+                    <th style="padding: 12px;">학교 / 소속</th>
+                    <th style="padding: 12px;">가입 사유</th>
+                    <th style="padding: 12px;">요청일</th>
+                    <th style="padding: 12px; text-align: center;">관리</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${teachers.map(t => `
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 12px; font-weight: 500;">${t.email}</td>
+                        <td style="padding: 12px;">${t.name || '-'}</td>
+                        <td style="padding: 12px;">${t.school || '-'}</td>
+                        <td style="padding: 12px; font-size: 0.9rem; color: #64748b;">${t.reason || '-'}</td>
+                        <td style="padding: 12px; font-size: 0.8rem;">${new Date(t.created_at).toLocaleDateString()}</td>
+                        <td style="padding: 12px; text-align: center; white-space: nowrap;">
+                            <button class="btn-primary approve-teacher-btn" data-id="${t.id}" style="font-size: 0.8rem; padding: 5px 10px; margin-right: 5px;">승인</button>
+                            <button class="btn-secondary reject-teacher-btn" data-id="${t.id}" style="font-size: 0.8rem; padding: 5px 10px; background: #fee2e2; color: #dc2626; border-color: #fecaca;">거절</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    document.querySelectorAll('.approve-teacher-btn').forEach(btn => {
+        btn.onclick = () => onStatusUpdate(btn.dataset.id, 'approved');
+    });
+    
+    document.querySelectorAll('.reject-teacher-btn').forEach(btn => {
+        btn.onclick = () => onStatusUpdate(btn.dataset.id, 'rejected');
+    });
+}

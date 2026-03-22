@@ -94,6 +94,57 @@
         </div>
     </div>
 
+    <!-- Teacher Registration / Status Sections -->
+    <section id="teacher-registration-section" class="content-area" style="padding: 40px; display: none; text-align: center;">
+        <div class="glass card" style="max-width: 500px; margin: 0 auto; padding: 40px;">
+            <i data-lucide="shield-question" size="48" style="color: var(--secondary); margin-bottom: 20px;"></i>
+            <h2 style="margin-bottom: 15px;">교사용 대시보드 접근 권한 신청</h2>
+            <p class="text-muted" style="margin-bottom: 30px; font-size: 0.95rem;">
+                현재 구글 계정(<span id="reg-email-display" style="font-weight:700; color:var(--text);"></span>)은 접근 권한이 없습니다.<br>아래 정보를 입력하여 승인을 요청해 주세요.
+            </p>
+            <form id="teacher-reg-form" style="display: flex; flex-direction: column; gap: 15px; text-align: left;">
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">이름</label>
+                    <input type="text" id="reg-name" placeholder="선생님 성함" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                </div>
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">학교명 / 소속</label>
+                    <input type="text" id="reg-school" placeholder="근무하시는 학교명" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                </div>
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">가입 사유 (선택)</label>
+                    <textarea id="reg-reason" placeholder="가입 사유를 간략히 적어주세요" style="width: 100%; height: 80px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top: 10px; padding: 12px; font-weight: 600;">승인 요청하기</button>
+            </form>
+            <div style="margin-top: 20px;">
+                <button id="cancel-reg-btn" class="btn-secondary" style="font-size: 0.85rem;">취소 (로그아웃)</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="teacher-pending-section" class="content-area" style="padding: 40px; display: none; text-align: center;">
+        <div class="glass card" style="max-width: 500px; margin: 0 auto; padding: 40px;">
+            <i data-lucide="clock" size="48" style="color: #f59e0b; margin-bottom: 20px;"></i>
+            <h2 style="margin-bottom: 15px;">승인 대기 중</h2>
+            <p class="text-muted" style="margin-bottom: 30px; font-size: 0.95rem; line-height: 1.6;">
+                구글 계정(<span id="pending-email-display" style="font-weight:700; color:var(--text);"></span>)의<br>가입 요청이 관리자 승인을 대기 중입니다.<br>승인 완료 후 다시 로그인해 주세요.
+            </p>
+            <button class="teacher-status-logout-btn btn-primary" style="padding: 10px 30px;">확인 (로그아웃)</button>
+        </div>
+    </section>
+
+    <section id="teacher-rejected-section" class="content-area" style="padding: 40px; display: none; text-align: center;">
+        <div class="glass card" style="max-width: 500px; margin: 0 auto; padding: 40px;">
+            <i data-lucide="x-circle" size="48" style="color: var(--accent); margin-bottom: 20px;"></i>
+            <h2 style="margin-bottom: 15px;">권한 거절됨</h2>
+            <p class="text-muted" style="margin-bottom: 30px; font-size: 0.95rem; line-height: 1.6;">
+                해당 구글 계정의 접근 요청이 거절되었습니다.<br>자세한 사항은 관리자에게 문의해 주세요.
+            </p>
+            <button class="teacher-status-logout-btn btn-primary" style="padding: 10px 30px;">확인 (로그아웃)</button>
+        </div>
+    </section>
+
     <!-- Teacher Dashboard Section -->
     <section id="teacher-section" class="content-area" style="padding: 40px; display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
@@ -103,10 +154,23 @@
                 <button id="teacher-logout-btn" class="btn-secondary">로그아웃</button>
             </div>
         </div>
-        <div class="glass card" style="padding: 30px;">
+
+        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+            <button id="tab-students" class="btn-primary" style="padding: 8px 20px;">학생 관리</button>
+            <button id="tab-teachers" class="btn-secondary" style="padding: 8px 20px;">교사 권한 관리</button>
+        </div>
+
+        <div id="teacher-students-view" class="glass card" style="padding: 30px;">
             <h3 style="margin-bottom: 20px;">학생 가입 현황 및 관리</h3>
             <div id="teacher-student-list" style="overflow-x: auto;">
                 <!-- Student table will be rendered here -->
+            </div>
+        </div>
+
+        <div id="teacher-permissions-view" class="glass card" style="padding: 30px; display: none;">
+            <h3 style="margin-bottom: 20px;">교사 신청 승인/관리</h3>
+            <div id="teacher-pending-list" style="overflow-x: auto;">
+                <!-- Pending teachers table will be rendered here -->
             </div>
         </div>
     </section>

@@ -1,4 +1,4 @@
-import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, isTeacherAuthorized } from './auth.js';
+import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, getTeacherRecord, requestTeacherAccess, fetchPendingTeachers, updateTeacherStatus } from './auth.js';
 import { supabaseClient } from './config.js';
 import * as UI from './ui.js';
 import { showCategoryDetails } from './discovery.js';
@@ -70,17 +70,78 @@ async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         const email = session.user.email;
-        const authorized = await isTeacherAuthorized(email);
+        const record = await getTeacherRecord(email);
         
-        if (authorized) {
+        if (record && record.status === 'approved') {
             showTeacherDashboard(email);
+        } else if (record && record.status === 'pending') {
+            showTeacherPendingUI(email);
+        } else if (record && record.status === 'rejected') {
+            showTeacherRejectedUI(email);
         } else {
-            alert('승인되지 않은 계정입니다. 관리자에게 문의하세요.');
-            await signOut();
-            location.reload();
+            showTeacherRegistrationUI(email);
         }
     }
 }
+
+function hideAllSections() {
+    loginScreen.style.display = 'none';
+    appContent.style.display = 'none';
+    document.getElementById('teacher-section').style.display = 'none';
+    document.getElementById('teacher-registration-section').style.display = 'none';
+    document.getElementById('teacher-pending-section').style.display = 'none';
+    document.getElementById('teacher-rejected-section').style.display = 'none';
+}
+
+function showTeacherRegistrationUI(email) {
+    hideAllSections();
+    document.getElementById('teacher-registration-section').style.display = 'block';
+    document.getElementById('reg-email-display').innerText = email;
+    
+    const form = document.getElementById('teacher-reg-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('reg-name').value;
+        const school = document.getElementById('reg-school').value;
+        const reason = document.getElementById('reg-reason').value;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = '요청 중...';
+        
+        const { error } = await requestTeacherAccess(email, name, school, reason);
+        if (error) {
+            alert('요청 중 오류가 발생했습니다: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.innerText = '승인 요청하기';
+        } else {
+            alert('요청이 제출되었습니다. 관리자 승인을 기다려주세요.');
+            showTeacherPendingUI(email);
+        }
+    };
+    
+    document.getElementById('cancel-reg-btn').onclick = async () => {
+        await signOut();
+        location.reload();
+    };
+}
+
+function showTeacherPendingUI(email) {
+    hideAllSections();
+    document.getElementById('teacher-pending-section').style.display = 'block';
+    document.getElementById('pending-email-display').innerText = email;
+}
+
+function showTeacherRejectedUI(email) {
+    hideAllSections();
+    document.getElementById('teacher-rejected-section').style.display = 'block';
+}
+
+document.querySelectorAll('.teacher-status-logout-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        await signOut();
+        location.reload();
+    });
+});
 
 // Auth Submit
 loginForm.addEventListener('submit', async (e) => {
@@ -119,10 +180,33 @@ document.getElementById('teacher-login-link').addEventListener('click', async (e
 });
 
 async function showTeacherDashboard(email) {
-    loginScreen.style.display = 'none';
-    appContent.style.display = 'none'; // Ensure student app is hidden
+    hideAllSections();
     document.getElementById('teacher-section').style.display = 'block';
-    document.getElementById('teacher-email-display').innerText = email;
+    // Only update innerText if email arg is provided (login bypass might omit it)
+    if (email) document.getElementById('teacher-email-display').innerText = email;
+    
+    // Setup tab switching
+    const tabStudents = document.getElementById('tab-students');
+    const tabTeachers = document.getElementById('tab-teachers');
+    const viewStudents = document.getElementById('teacher-students-view');
+    const viewTeachers = document.getElementById('teacher-permissions-view');
+    
+    tabStudents.onclick = () => {
+        tabStudents.className = 'btn-primary';
+        tabTeachers.className = 'btn-secondary';
+        viewStudents.style.display = 'block';
+        viewTeachers.style.display = 'none';
+    };
+    
+    tabTeachers.onclick = async () => {
+        tabTeachers.className = 'btn-primary';
+        tabStudents.className = 'btn-secondary';
+        viewTeachers.style.display = 'block';
+        viewStudents.style.display = 'none';
+        
+        const { data } = await fetchPendingTeachers();
+        UI.renderTeacherPermissions(data, onTeacherStatusUpdate);
+    };
     
     const { data } = await fetchAllStudents();
     if (data) UI.renderTeacherDashboard(data, onResetPin);
@@ -138,8 +222,23 @@ async function onResetPin(studentId) {
     const { error } = await resetStudentPin(studentId);
     if (!error) {
         alert('초기화 완료!');
-        showTeacherDashboard();
+        // Refresh dashboard (pass the current email to retain display)
+        const currentEmail = document.getElementById('teacher-email-display').innerText;
+        showTeacherDashboard(currentEmail);
     } else alert('초기화 실패');
+}
+
+async function onTeacherStatusUpdate(id, newStatus) {
+    const action = newStatus === 'approved' ? '승인' : '거절';
+    if (!confirm(`해당 가입 요청을 ${action} 처리하시겠습니까?`)) return;
+    
+    const { error } = await updateTeacherStatus(id, newStatus);
+    if (error) {
+        alert('처리 중 오류가 발생했습니다.');
+    } else {
+        alert(`요청이 ${action}되었습니다.`);
+        document.getElementById('tab-teachers').click();
+    }
 }
 
 document.getElementById('guest-login-btn').addEventListener('click', (e) => {

@@ -15,15 +15,39 @@ export async function signOut() {
     return { error };
 }
 
-export async function isTeacherAuthorized(email) {
+export async function getTeacherRecord(email) {
     const { data, error } = await supabaseClient
         .from('authorized_teachers')
-        .select('email')
+        .select('*')
         .eq('email', email)
         .single();
     
-    if (error || !data) return false;
-    return true;
+    if (error) return null;
+    return data;
+}
+
+export async function requestTeacherAccess(email, name, school, reason) {
+    const { error } = await supabaseClient
+        .from('authorized_teachers')
+        .insert([{ email, name, school, reason, status: 'pending' }]);
+    return { error };
+}
+
+export async function fetchPendingTeachers() {
+    const { data, error } = await supabaseClient
+        .from('authorized_teachers')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
+
+export async function updateTeacherStatus(id, newStatus) {
+    const { error } = await supabaseClient
+        .from('authorized_teachers')
+        .update({ status: newStatus })
+        .eq('id', id);
+    return { error };
 }
 
 export async function hashPin(pin) {
