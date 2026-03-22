@@ -56,13 +56,15 @@ toggleBtn.addEventListener('click', (e) => {
         card.classList.add('signup-mode');
         loginScreen.classList.add('signup-mode-active');
         icon.setAttribute('data-lucide', 'user-plus');
-        nameGroup.style.display = 'flex';
     } else {
         card.classList.remove('signup-mode');
         loginScreen.classList.remove('signup-mode-active');
         icon.setAttribute('data-lucide', 'log-in');
-        nameGroup.style.display = 'none';
     }
+    
+    nameGroup.style.display = isSignup ? 'flex' : 'none';
+    const consentGroup = document.getElementById('consent-group');
+    if (consentGroup) consentGroup.style.display = isSignup ? 'block' : 'none';
     
     authTitle.innerText = isSignup ? '회원가입' : '로그인';
     authSubmitBtn.innerText = isSignup ? '가입하기' : '시작하기';
@@ -171,6 +173,15 @@ loginForm.addEventListener('submit', async (e) => {
     if (id === 'teacher' && pw === '0000') {
         showTeacherDashboard();
         return;
+    }
+
+    if (isSignup) {
+        const consentCheckbox = document.getElementById('privacy-consent');
+        if (consentCheckbox && !consentCheckbox.checked) {
+            errorMsg.style.display = 'block';
+            errorMsg.innerText = '개인정보 처리방침에 동의해야 회원가입이 가능합니다.';
+            return;
+        }
     }
 
     const result = isSignup ? await handleSignup(id, pw, name) : await handleLogin(id, pw);
@@ -291,7 +302,12 @@ async function onDeleteStudent(studentId, studentName) {
         const { data } = await fetchAllStudents();
         if (data) UI.renderTeacherDashboard(data, onResetPin, onDeleteStudent);
     } else {
-        alert('삭제 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+        console.error('Delete Student failed for ID:', studentId, error);
+        let errorMsg = error?.message || '알 수 없는 오류';
+        if (errorMsg.includes('foreign key constraint')) {
+            errorMsg = '데이터 무결성 제약 조건으로 인해 삭제할 수 없습니다. (학생의 보존 대상 데이터가 남아있을 수 있습니다)';
+        }
+        alert('삭제 중 오류가 발생했습니다: ' + errorMsg);
     }
 }
 

@@ -37,6 +37,12 @@
                     <input type="password" id="password" placeholder="숫자 4자리 PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" required>
                 </div>
                 <p id="error-msg" style="color: var(--accent); display: none; margin-bottom: 15px; font-size: 0.9rem;"></p>
+                <div id="consent-group" style="display: none; margin-bottom: 20px; text-align: left;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text);">
+                        <input type="checkbox" id="privacy-consent" style="margin-top: 3px;">
+                        <span><a href="privacy_policy.html" target="_blank" style="color: var(--primary); text-decoration: underline;">개인정보 처리방침</a>에 동의합니다. (필수)</span>
+                    </label>
+                </div>
                 <button type="submit" id="auth-submit-btn" class="btn-primary" style="width: 100%;">시작하기</button>
                 <div style="margin-top: 20px;">
                     <button id="toggle-auth" class="btn-secondary" style="width: 100%; font-size: 0.85rem;">처음이신가요? 회원가입</button>
@@ -44,6 +50,7 @@
                 <div style="margin-top: 25px; text-align: center; display: flex; flex-direction: column; gap: 10px;">
                     <a href="#" id="guest-login-btn" style="color: var(--secondary); font-size: 0.85rem; text-decoration: none; font-weight: 600;">비회원으로 체험하기</a>
                     <a href="#" id="teacher-login-link" style="color: var(--text-muted); font-size: 0.75rem; text-decoration: none; opacity: 0.5;">선생님인가요? 구글로 로그인</a>
+                    <a href="privacy_policy.html" target="_blank" style="margin-top: 10px; color: var(--text-muted); font-size: 0.7rem; text-decoration: underline; opacity: 0.4;">개인정보 처리방침</a>
                 </div>
             </form>
         </div>

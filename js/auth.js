@@ -572,68 +572,100 @@ export async function updateDatasetName(id, newName, studentId) {
  * Shared datasets (is_shared = true) are preserved by nullifying (or marker) the owner ID.
  */
 export async function deleteStudentAccount(studentId) {
-    console.log(`auth.js: deleteStudentAccount called for ${studentId}`);
+    console.log(`auth.js: deleteStudentAccount START for ${studentId}`);
 
-    // 1. Handle datasets: Identify private vs shared
-    const { data: datasets, error: dsError } = await supabaseClient
-        .from('student_datasets')
-        .select('id, file_url, is_shared')
-        .eq('student_id', studentId);
-
-    if (dsError) return { error: dsError };
-
-    const sharedDs = datasets?.filter(d => d.is_shared) || [];
-    const privateDs = datasets?.filter(d => !d.is_shared) || [];
-
-    // 2. Preserve Shared Datasets: Reassign to a neutral marker
-    // Note: If student_id has a strict FK constraint to students table, 
-    // we should use a pre-existing 'DELETED' user account or set to null if allowed.
-    if (sharedDs.length > 0) {
-        const { error: updError } = await supabaseClient
+    try {
+        // 1. Handle datasets: Identify private vs shared
+        const { data: datasets, error: dsError } = await supabaseClient
             .from('student_datasets')
-            .update({ student_id: null }) 
-            .in('id', sharedDs.map(d => d.id));
-        
-        if (updError) console.error('auth.js: Error preserving shared datasets:', updError);
-    }
+            .select('id, file_url, is_shared')
+            .eq('student_id', studentId);
 
-    // 3. Delete Private Datasets and their Storage files
-    if (privateDs.length > 0) {
-        // Collect internal storage paths (exclude full URLs)
-        const filePaths = privateDs
-            .map(d => d.file_url)
-            .filter(url => url && !url.startsWith('http'))
-            .map(url => url.split('/').pop()); // Extract filename if needed, or follow remove([path]) rule
-            
-        // Delete records from DB first
-        const { error: delDbError } = await supabaseClient
-            .from('student_datasets')
-            .delete()
-            .in('id', privateDs.map(d => d.id));
-
-        if (delDbError) console.error('auth.js: Error deleting private dataset records:', delDbError);
-
-        // Delete from Storage
-        if (filePaths.length > 0) {
-            const { error: delStorageError } = await supabaseClient.storage
-                .from('datasets')
-                .remove(filePaths);
-            if (delStorageError) console.error('auth.js: Error deleting private dataset files:', delStorageError);
+        if (dsError) {
+            console.error('auth.js: Failed to fetch student datasets:', dsError);
+            return { success: false, error: dsError };
         }
+
+        const sharedDs = datasets?.filter(d => d.is_shared) || [];
+        const privateDs = datasets?.filter(d => !d.is_shared) || [];
+        console.log(`auth.js: Found ${datasets?.length || 0} datasets (${sharedDs.length} shared, ${privateDs.length} private)`);
+
+        // 2. Preserve Shared Datasets: Reassign to NULL
+        if (sharedDs.length > 0) {
+            console.log(`auth.js: Attempting to reassign ${sharedDs.length} shared datasets to NULL owner...`);
+            const { error: updError } = await supabaseClient
+                .from('student_datasets')
+                .update({ student_id: null }) 
+                .in('id', sharedDs.map(d => d.id));
+            
+            if (updError) {
+                console.error('auth.js: Error preserving shared datasets (likely NOT NULL constraint or RLS):', updError);
+                // If this fails and there's a FK constraint on students, the final delete WILL fail.
+            } else {
+                console.log('auth.js: Shared datasets reassigned successfully.');
+            }
+        }
+
+        // 3. Delete Private Datasets and their Storage files
+        if (privateDs.length > 0) {
+            console.log(`auth.js: Deleting ${privateDs.length} private datasets...`);
+            
+            // Fix: Collect FULL storage paths (studentId/filename)
+            const filePaths = privateDs
+                .map(d => d.file_url)
+                .filter(url => url && !url.startsWith('http'));
+            
+            console.log('auth.js: Storage files to remove:', filePaths);
+                
+            // Delete records from DB first
+            const { error: delDbError } = await supabaseClient
+                .from('student_datasets')
+                .delete()
+                .in('id', privateDs.map(d => d.id));
+
+            if (delDbError) {
+                console.error('auth.js: Error deleting private dataset records:', delDbError);
+                return { success: false, error: delDbError };
+            }
+
+            // Delete from Storage
+            if (filePaths.length > 0) {
+                const { error: delStorageError } = await supabaseClient.storage
+                    .from('datasets')
+                    .remove(filePaths);
+                if (delStorageError) console.error('auth.js: Error deleting private dataset files:', delStorageError);
+                else console.log('auth.js: Private dataset files removed from storage.');
+            }
+        }
+
+        // 4. Delete Activity Logs, Topic Selections, and Research Usage
+        console.log('auth.js: Deleting activity logs and other related records...');
+        const delResults = await Promise.all([
+            supabaseClient.from('activity_log').delete().eq('student_id', studentId),
+            supabaseClient.from('topic_selections').delete().eq('student_id', studentId),
+            supabaseClient.from('shared_research_use').delete().eq('student_id', studentId),
+        ]);
+
+        delResults.forEach((res, idx) => {
+            if (res.error) console.error(`auth.js: Error in Step 4 index ${idx}:`, res.error);
+        });
+
+        // 5. Finally delete the student record from students table
+        console.log(`auth.js: FINAL STEP - Deleting student record ${studentId} from students table...`);
+        const { error: finalError } = await supabaseClient
+            .from('students')
+            .delete()
+            .eq('student_id', studentId);
+
+        if (finalError) {
+            console.error('auth.js: FINAL DELETE FAILED:', finalError);
+            return { success: false, error: finalError };
+        }
+
+        console.log('auth.js: deleteStudentAccount COMPLETED SUCCESSFULLY.');
+        return { success: true };
+    } catch (err) {
+        console.error('auth.js: Unexpected error in deleteStudentAccount:', err);
+        return { success: false, error: err };
     }
-
-    // 4. Delete Activity Logs, Topic Selections, and Research Usage
-    await Promise.all([
-        supabaseClient.from('activity_log').delete().eq('student_id', studentId),
-        supabaseClient.from('topic_selections').delete().eq('student_id', studentId),
-        supabaseClient.from('shared_research_use').delete().eq('student_id', studentId),
-    ]);
-
-    // 5. Finally delete the student record from students table
-    const { error: finalError } = await supabaseClient
-        .from('students')
-        .delete()
-        .eq('student_id', studentId);
-
-    return { success: !finalError, error: finalError };
 }
