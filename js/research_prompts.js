@@ -1,4 +1,4 @@
-import { fetchDatasetPreview } from './management.js';
+import { fetchDatasetPreview } from './ui.js';
 
 /**
  * Generates a comprehensive prompt for AI based on research-selected datasets.

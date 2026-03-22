@@ -1,4 +1,22 @@
-import { handleLogin, handleSignup, fetchAllStudents, resetStudentPin, signInWithGoogle, signOut, getTeacherRecord, requestTeacherAccess, fetchAllTeachers, updateTeacherStatus, fetchStudentProgressSnapshot, fetchStudentDetail } from './auth.js';
+import { 
+    handleLogin, 
+    handleSignup, 
+    fetchAllStudents, 
+    resetStudentPin, 
+    signInWithGoogle, 
+    signOut, 
+    getTeacherRecord, 
+    requestTeacherAccess, 
+    fetchAllTeachers, 
+    updateTeacherStatus, 
+    fetchStudentProgressSnapshot, 
+    fetchStudentDetail, 
+    deleteStudentAccount,
+    fetchAllDatasetsForTeacher,
+    toggleDatasetShare,
+    toggleResearchUse,
+    fetchAllProblemDefinitionsForTeacher
+} from './auth.js';
 import { supabaseClient } from './config.js';
 import * as UI from './ui.js';
 import { showCategoryDetails } from './discovery.js';
@@ -184,42 +202,97 @@ async function showTeacherDashboard(email) {
     document.getElementById('teacher-section').style.display = 'block';
     if (email) document.getElementById('teacher-email-display').innerText = email;
     
-    // Setup tab switching
+    // Setup sidebar navigation
     const tabStudents = document.getElementById('tab-students');
     const tabProgress = document.getElementById('tab-progress');
+    const tabStep1 = document.getElementById('tab-step1');
+    const tabStep2 = document.getElementById('tab-step2');
+    const tabManagement = document.getElementById('tab-management');
     const tabTeachers = document.getElementById('tab-teachers');
     const viewStudents = document.getElementById('teacher-students-view');
     const viewProgress = document.getElementById('teacher-progress-view');
+    const viewStep1 = document.getElementById('teacher-step1-view');
+    const viewStep2 = document.getElementById('teacher-step2-view');
+    const viewManagement = document.getElementById('teacher-management-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
     
-    const switchTab = (activeTab) => {
-        [tabStudents, tabProgress, tabTeachers].forEach(t => t.className = 'btn-secondary');
-        [viewStudents, viewProgress, viewTeachers].forEach(v => v.style.display = 'none');
-        activeTab.className = 'btn-primary';
+    const switchTab = (activeTab, activeView) => {
+        // Reset all nav items
+        [tabStudents, tabProgress, tabManagement, tabStep1, tabStep2, tabTeachers].forEach(t => t.classList.remove('active'));
+        // Hide all views
+        [viewStudents, viewProgress, viewManagement, viewStep1, viewStep2, viewTeachers].forEach(v => v.style.display = 'none');
+        
+        // Activate current
+        activeTab.classList.add('active');
+        activeView.style.display = 'block';
     };
     
     tabStudents.onclick = () => {
-        switchTab(tabStudents);
-        viewStudents.style.display = 'block';
+        switchTab(tabStudents, viewStudents);
     };
     
     tabProgress.onclick = async () => {
-        switchTab(tabProgress);
-        viewProgress.style.display = 'block';
-        viewProgress.querySelector('#teacher-progress-list').innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        switchTab(tabProgress, viewProgress);
+        const progressList = viewProgress.querySelector('#teacher-progress-list');
+        if (progressList) progressList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { data } = await fetchStudentProgressSnapshot();
         UI.renderStudentProgress(data, onViewStudentDetail);
     };
+
+    tabStep1.onclick = async () => {
+        switchTab(tabStep1, viewStep1);
+        const step1List = viewStep1.querySelector('#teacher-step1-list');
+        if (step1List) step1List.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { data } = await fetchAllProblemDefinitionsForTeacher();
+        UI.renderTeacherProblemDefinitions(data || [], 'teacher-step1-list');
+    };
+
+    tabStep2.onclick = async () => {
+        switchTab(tabStep2, viewStep2);
+        const step2Content = viewStep2.querySelector('#teacher-step2-content');
+        if (step2Content) step2Content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { data } = await fetchAllProblemDefinitionsForTeacher();
+        UI.renderTeacherPreprocessing(data || [], 'teacher-step2-content');
+    };
+
+    tabManagement.onclick = async () => {
+        switchTab(tabManagement, viewManagement);
+        const datasetList = viewManagement.querySelector('#teacher-dataset-list');
+        if (datasetList) datasetList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { data, error } = await fetchAllDatasetsForTeacher();
+        if (!error) {
+            UI.renderTeacherDataManagement(data, onTeacherToggleShare, onTeacherToggleResearch);
+        }
+    };
     
     tabTeachers.onclick = async () => {
-        switchTab(tabTeachers);
-        viewTeachers.style.display = 'block';
+        switchTab(tabTeachers, viewTeachers);
         const { data } = await fetchAllTeachers();
         UI.renderTeacherPermissions(data, onTeacherStatusUpdate);
     };
     
+    // Initial Load: Students Tab
     const { data } = await fetchAllStudents();
-    if (data) UI.renderTeacherDashboard(data, onResetPin);
+    if (data) UI.renderTeacherDashboard(data, onResetPin, onDeleteStudent);
+
+    // Render icons for sidebar
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function onDeleteStudent(studentId, studentName) {
+    if (!confirm(`정말로 ${studentName} (${studentId}) 학생의 계정을 삭제하시겠습니까?\n\n* 공유된 데이터셋을 제외한 모든 활동 기록과 개인 데이터가 영구 삭제됩니다.`)) {
+        return;
+    }
+
+    const { success, error } = await deleteStudentAccount(studentId);
+    if (success) {
+        alert('학생 계정이 삭제되었습니다.');
+        // Refresh the list
+        const { data } = await fetchAllStudents();
+        if (data) UI.renderTeacherDashboard(data, onResetPin, onDeleteStudent);
+    } else {
+        alert('삭제 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+    }
 }
 
 async function onViewStudentDetail(studentId, studentName) {
@@ -236,6 +309,16 @@ document.getElementById('teacher-logout-btn').addEventListener('click', async ()
     await signOut();
     location.reload();
 });
+
+async function onTeacherToggleShare(id, isShared) {
+    const { error } = await toggleDatasetShare(id, isShared, null, true);
+    if (error) alert('오류: ' + error.message);
+}
+
+async function onTeacherToggleResearch(id, isUse) {
+    const { error } = await toggleResearchUse(id, isUse, null, false, true);
+    if (error) alert('오류: ' + error.message);
+}
 
 async function onResetPin(studentId) {
     if (!confirm(`${studentId} 학생의 PIN을 0000으로 초기화할까요?`)) return;

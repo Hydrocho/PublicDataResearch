@@ -193,6 +193,43 @@ export async function fetchActivityLogs(studentId, stepId) {
     return { data, error };
 }
 
+/**
+ * Teacher View: Fetch ALL Step 1 (Problem Definition) logs from all students
+ */
+export async function fetchAllProblemDefinitionsForTeacher() {
+    // 1. Get all logs for step_id = 3 (Step 1 internal ID)
+    const { data: logs, error: logsError } = await supabaseClient
+        .from('activity_log')
+        .select('*')
+        .eq('step_id', 3)
+        .order('created_at', { ascending: false });
+
+    if (logsError || !logs) return { data: logs, error: logsError };
+
+    // 2. Fetch student names separately
+    const studentIds = [...new Set(logs.map(l => l.student_id).filter(id => id))];
+    let nameMap = {};
+    if (studentIds.length > 0) {
+        const { data: students } = await supabaseClient
+            .from('students')
+            .select('student_id, name')
+            .in('student_id', studentIds);
+        
+        if (students) {
+            students.forEach(s => {
+                nameMap[s.student_id] = s.name;
+            });
+        }
+    }
+
+    const mergedData = logs.map(log => ({
+        ...log,
+        student_name: nameMap[log.student_id] || log.student_id
+    }));
+
+    return { data: mergedData, error: null };
+}
+
 export async function deleteActivityLog(logId, studentId) {
     console.log('auth.js: Attempting to delete log ID (UUID):', logId, 'for student:', studentId);
     
@@ -308,8 +345,11 @@ export async function deleteStudentDataset(id, studentId) {
 /**
  * Toggle the is_shared status of a dataset
  */
-export async function toggleDatasetShare(id, isShared, studentId) {
+export async function toggleDatasetShare(id, isShared, studentId, isTeacher = false) {
+    console.log(`auth.js: toggleDatasetShare called with id: ${id}, isShared: ${isShared}, studentId: ${studentId}, isTeacher: ${isTeacher}`);
+    
     // 0. Safety Check: If unsharing, is anyone else using this for research?
+    // (We'll still check this even for teachers as a data integrity measure)
     if (isShared === false) {
         const { data: usage, error: checkError } = await supabaseClient
             .from('shared_research_use')
@@ -325,18 +365,62 @@ export async function toggleDatasetShare(id, isShared, studentId) {
         }
     }
     
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
         .from('student_datasets')
         .update({ is_shared: isShared })
-        .eq('id', id)
-        .eq('student_id', studentId)
-        .select();
+        .eq('id', id);
+
+    // If NOT a teacher, enforce student ownership
+    if (!isTeacher) {
+        if (!studentId || studentId === 'Guest') {
+            return { error: { message: '수정 권한이 없습니다.' }, status: 403 };
+        }
+        query = query.eq('student_id', studentId);
+    }
+        
+    const { data, error } = await query.select();
         
     if (!error && (!data || data.length === 0)) {
         return { error: { message: 'DB 업데이트에 실패했습니다. (권한 또는 ID 확인 필요)' } };
     }
     
     return { data, error };
+}
+
+/**
+ * Fetch ALL datasets for teacher dashboard, including student names
+ */
+export async function fetchAllDatasetsForTeacher() {
+    // 1. Get all datasets
+    const { data: allDs, error: dsError } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (dsError || !allDs) return { data: allDs, error: dsError };
+
+    // 2. Fetch student names separately
+    const studentIds = [...new Set(allDs.map(d => d.student_id).filter(id => id))];
+    let nameMap = {};
+    if (studentIds.length > 0) {
+        const { data: students } = await supabaseClient
+            .from('students')
+            .select('student_id, name')
+            .in('student_id', studentIds);
+        
+        if (students) {
+            students.forEach(s => {
+                nameMap[s.student_id] = s.name;
+            });
+        }
+    }
+
+    const mergedData = allDs.map(ds => ({
+        ...ds,
+        students: nameMap[ds.student_id] ? { name: nameMap[ds.student_id] } : null
+    }));
+
+    return { data: mergedData, error: null };
 }
 
 /**
@@ -354,17 +438,34 @@ export async function fetchSharedDatasets(currentStudentId) {
 
     if (dsError || !sharedDs) return { data: sharedDs, error: dsError };
 
-    // 2. Get current student's research usage for these datasets
+    // 2. Fetch student names separately to avoid join relationship errors
+    const studentIds = [...new Set(sharedDs.map(d => d.student_id).filter(id => id))];
+    let nameMap = {};
+    if (studentIds.length > 0) {
+        const { data: students } = await supabaseClient
+            .from('students')
+            .select('student_id, name')
+            .in('student_id', studentIds);
+        
+        if (students) {
+            students.forEach(s => {
+                nameMap[s.student_id] = s.name;
+            });
+        }
+    }
+
+    // 3. Get current student's research usage for these datasets
     const { data: usageData, error: usageError } = await supabaseClient
         .from('shared_research_use')
         .select('dataset_id, is_research_use')
         .eq('student_id', currentStudentId);
 
-    // 3. Merge usage data into shared datasets
+    // 4. Merge usage data and owner names into shared datasets
     const mergedData = sharedDs.map(ds => {
         const usage = usageData?.find(u => u.dataset_id === ds.id);
         return {
             ...ds,
+            students: nameMap[ds.student_id] ? { name: nameMap[ds.student_id] } : null,
             is_research_use: usage ? usage.is_research_use : false
         };
     });
@@ -375,15 +476,19 @@ export async function fetchSharedDatasets(currentStudentId) {
 /**
  * Update 'Use for Research' status immediately
  */
-export async function toggleResearchUse(datasetId, isUse, studentId, isOwner) {
-    if (isOwner) {
-        // Owner updates their own dataset record
-        const { data, error } = await supabaseClient
+export async function toggleResearchUse(datasetId, isUse, studentId, isOwner, isTeacher = false) {
+    if (isOwner || isTeacher) {
+        // Owner or Teacher updates the dataset record directly
+        let query = supabaseClient
             .from('student_datasets')
             .update({ is_research_use: isUse })
-            .eq('id', datasetId)
-            .eq('student_id', studentId)
-            .select();
+            .eq('id', datasetId);
+        
+        if (!isTeacher) {
+            query = query.eq('student_id', studentId);
+        }
+
+        const { data, error } = await query.select();
         return { data, error };
     } else {
         // Shared user updates their preference in a separate table
@@ -460,4 +565,75 @@ export async function updateDatasetName(id, newName, studentId) {
         .eq('student_id', studentId)
         .select();
     return { data, error };
+}
+
+/**
+ * Deletes a student account and associated private data.
+ * Shared datasets (is_shared = true) are preserved by nullifying (or marker) the owner ID.
+ */
+export async function deleteStudentAccount(studentId) {
+    console.log(`auth.js: deleteStudentAccount called for ${studentId}`);
+
+    // 1. Handle datasets: Identify private vs shared
+    const { data: datasets, error: dsError } = await supabaseClient
+        .from('student_datasets')
+        .select('id, file_url, is_shared')
+        .eq('student_id', studentId);
+
+    if (dsError) return { error: dsError };
+
+    const sharedDs = datasets?.filter(d => d.is_shared) || [];
+    const privateDs = datasets?.filter(d => !d.is_shared) || [];
+
+    // 2. Preserve Shared Datasets: Reassign to a neutral marker
+    // Note: If student_id has a strict FK constraint to students table, 
+    // we should use a pre-existing 'DELETED' user account or set to null if allowed.
+    if (sharedDs.length > 0) {
+        const { error: updError } = await supabaseClient
+            .from('student_datasets')
+            .update({ student_id: null }) 
+            .in('id', sharedDs.map(d => d.id));
+        
+        if (updError) console.error('auth.js: Error preserving shared datasets:', updError);
+    }
+
+    // 3. Delete Private Datasets and their Storage files
+    if (privateDs.length > 0) {
+        // Collect internal storage paths (exclude full URLs)
+        const filePaths = privateDs
+            .map(d => d.file_url)
+            .filter(url => url && !url.startsWith('http'))
+            .map(url => url.split('/').pop()); // Extract filename if needed, or follow remove([path]) rule
+            
+        // Delete records from DB first
+        const { error: delDbError } = await supabaseClient
+            .from('student_datasets')
+            .delete()
+            .in('id', privateDs.map(d => d.id));
+
+        if (delDbError) console.error('auth.js: Error deleting private dataset records:', delDbError);
+
+        // Delete from Storage
+        if (filePaths.length > 0) {
+            const { error: delStorageError } = await supabaseClient.storage
+                .from('datasets')
+                .remove(filePaths);
+            if (delStorageError) console.error('auth.js: Error deleting private dataset files:', delStorageError);
+        }
+    }
+
+    // 4. Delete Activity Logs, Topic Selections, and Research Usage
+    await Promise.all([
+        supabaseClient.from('activity_log').delete().eq('student_id', studentId),
+        supabaseClient.from('topic_selections').delete().eq('student_id', studentId),
+        supabaseClient.from('shared_research_use').delete().eq('student_id', studentId),
+    ]);
+
+    // 5. Finally delete the student record from students table
+    const { error: finalError } = await supabaseClient
+        .from('students')
+        .delete()
+        .eq('student_id', studentId);
+
+    return { success: !finalError, error: finalError };
 }

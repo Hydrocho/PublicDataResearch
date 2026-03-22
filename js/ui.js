@@ -172,7 +172,10 @@ export function renderStepContent(stepId, state, onStepChange) {
                         <div id="ai-prompt-result" style="display: none; margin-top: 25px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <h4 style="margin: 0;">✨ 생성된 연구 가이드 프롬프트</h4>
-                                <button id="copy-prompt-btn" class="btn-secondary" style="font-size: 0.75rem; padding: 5px 12px;">클립보드 복사</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="save-step1-btn" class="btn-primary" style="font-size: 0.75rem; padding: 5px 12px; background: #059669; border-color: #059669;">기록 저장하기</button>
+                                    <button id="copy-prompt-btn" class="btn-secondary" style="font-size: 0.75rem; padding: 5px 12px;">클립보드 복사</button>
+                                </div>
                             </div>
                             <textarea id="ai-prompt-text" readonly style="width: 100%; height: 280px; background: #0f172a; color: #f8fafc; border: 1px solid var(--glass-border); border-radius: 8px; padding: 18px; font-family: 'Consolas', monospace; font-size: 0.9rem; line-height: 1.6; font-weight: 500;"></textarea>
                             <p style="font-size: 0.8rem; color: var(--primary); margin-top: 10px;">
@@ -217,6 +220,32 @@ export function renderStepContent(stepId, state, onStepChange) {
                                 copyBtn.innerText = '복사 완료!';
                                 setTimeout(() => copyBtn.innerText = originalText, 2000);
                             });
+                        };
+                    }
+
+                    const saveBtn = document.getElementById('save-step1-btn');
+                    if (saveBtn) {
+                        saveBtn.onclick = async () => {
+                            const promptArea = document.getElementById('ai-prompt-text');
+                            const opinionArea = document.getElementById('researcher-opinion-text');
+                            const prompt = promptArea ? promptArea.value : '';
+                            const opinion = opinionArea ? opinionArea.value : '';
+                            
+                            if (!prompt) return alert('생성된 프롬프트가 없습니다.');
+                            
+                            const originalHtml = saveBtn.innerHTML;
+                            saveBtn.disabled = true;
+                            saveBtn.innerHTML = '<i class="spinner-sm"></i> 저장 중...';
+                            
+                            try {
+                                const { onSaveRecord } = await import('./research.js');
+                                await onSaveRecord(3, { answer: prompt, opinion: opinion }, state);
+                            } catch (err) {
+                                alert('저장 중 오류가 발생했습니다: ' + err.message);
+                            } finally {
+                                saveBtn.disabled = false;
+                                saveBtn.innerHTML = originalHtml;
+                            }
                         };
                     }
                 }, 50);
@@ -624,7 +653,7 @@ export function renderStepContent(stepId, state, onStepChange) {
     }
 }
 
-export function renderTeacherDashboard(students, onReset) {
+export function renderTeacherDashboard(students, onReset, onDelete) {
     const listDiv = document.getElementById('teacher-student-list');
     if (!listDiv) return;
     if (!students || students.length === 0) {
@@ -648,8 +677,9 @@ export function renderTeacherDashboard(students, onReset) {
                         <td style="padding: 12px;">${s.student_id}</td>
                         <td style="padding: 12px;">${s.name || '-'}</td>
                         <td style="padding: 12px; font-size: 0.8rem;">${new Date(s.created_at).toLocaleDateString()}</td>
-                        <td style="padding: 12px; text-align: right;">
-                            <button class="btn-secondary reset-pin-btn" data-id="${s.student_id}" style="font-size: 0.8rem; padding: 5px 10px;">PIN 초기화(0000)</button>
+                        <td style="padding: 12px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            <button class="btn-secondary reset-pin-btn" data-id="${s.student_id}" style="font-size: 0.8rem; padding: 5px 12px;">PIN 초기화(0000)</button>
+                            <button class="btn-secondary delete-student-btn" data-id="${s.student_id}" data-name="${s.name || s.student_id}" style="font-size: 0.8rem; padding: 5px 12px; color: #dc2626; border-color: #fecaca; background: #fff1f2;">삭제</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -660,6 +690,317 @@ export function renderTeacherDashboard(students, onReset) {
     document.querySelectorAll('.reset-pin-btn').forEach(btn => {
         btn.onclick = () => onReset(btn.dataset.id);
     });
+    document.querySelectorAll('.delete-student-btn').forEach(btn => {
+        btn.onclick = () => onDelete(btn.dataset.id, btn.dataset.name);
+    });
+}
+
+/**
+ * Teacher View: Render ALL datasets from ALL students
+ */
+export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch) {
+    const container = document.getElementById('teacher-dataset-list');
+    if (!container) return;
+    
+    if (!datasets || datasets.length === 0) {
+        container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 40px;">수집된 데이터셋이 없습니다.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 12px;">데이터셋 이름</th>
+                    <th style="padding: 12px;">작성 학생</th>
+                    <th style="padding: 12px; text-align: center;">연구 활용</th>
+                    <th style="padding: 12px; text-align: center;">공유</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${datasets.map(ds => {
+                    const ownerName = ds.students?.name || (ds.student_id ? `${ds.student_id}` : '탈퇴한 사용자');
+                    return `
+                    <tr class="clickable-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="file-spreadsheet" size="18" style="color: var(--primary);"></i>
+                                <strong>${ds.data_name}</strong>
+                            </div>
+                        </td>
+                        <td style="padding: 12px; font-size: 0.85rem; color: #4b5563;">${ownerName}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <input type="checkbox" class="teacher-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            <label class="switch">
+                                <input type="checkbox" class="teacher-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    // Add row click listener (for details)
+    container.querySelectorAll('.clickable-row').forEach(row => {
+        row.onclick = (e) => {
+            // Don't trigger if clicking toggle/switch
+            if (e.target.closest('input') || e.target.closest('.switch')) return;
+            const ds = datasets.find(d => String(d.id) === row.dataset.id);
+            if (ds) openDatasetModal(ds);
+        };
+    });
+
+    // Add event listeners for toggles
+    container.querySelectorAll('.teacher-research-toggle').forEach(chk => {
+        chk.onchange = (e) => onToggleResearch(chk.dataset.id, chk.checked);
+    });
+    container.querySelectorAll('.teacher-share-toggle').forEach(chk => {
+        chk.onchange = (e) => onToggleShare(chk.dataset.id, chk.checked);
+    });
+    
+    if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Common: Open dataset details modal with metadata and preview
+ */
+export async function openDatasetModal(dataset) {
+    const modal = document.getElementById('dataset-modal');
+    if (!modal) return;
+    
+    const nameEl = document.getElementById('modal-data-name');
+    const bodyInner = document.getElementById('modal-body-inner');
+    const closeBtn = document.getElementById('close-modal');
+
+    if (nameEl) nameEl.innerText = dataset.data_name;
+    
+    // Core Meta Mapping
+    const rawMeta = dataset.metadata || {};
+    const getVal = (path, obj = rawMeta) => {
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    };
+
+    // Pairs for 2x2 grid (Label-Value-Label-Value)
+    const metaPairs = [
+        [
+            { label: '제공 기관', value: getVal('creator.name') || getVal('provider') || '-' },
+            { label: '분류 체계', value: getVal('additionalType') || '-' }
+        ],
+        [
+            { label: '관리부서', value: getVal('creator.contactPoint.contactType') || '-' },
+            { label: '문의처', value: getVal('creator.contactPoint.telephone') || '-' }
+        ],
+        [
+            { label: '업데이트 주기', value: getVal('datasetTimeInterval') || getVal('cycle') || '-' },
+            { label: '보유근거', value: getVal('source') || '-' }
+        ],
+        [
+            { label: '등록일', value: getVal('dateCreated') || '-' },
+            { label: '수정일', value: getVal('dateModified') || '-' }
+        ]
+    ];
+
+    const desc = getVal('description');
+    const keywords = getVal('keywords');
+    const format = getVal('encodingFormat') || dataset.data_name.split('.').pop().toUpperCase();
+    const sizeVal = Number(dataset.size_kb);
+    const size = sizeVal ? (sizeVal >= 1024 ? `${(sizeVal / 1024).toFixed(1)} MB (${sizeVal.toLocaleString()} KB)` : `${sizeVal.toLocaleString()} KB`) : '-';
+
+    if (bodyInner) {
+        bodyInner.innerHTML = `
+            <table class="portal-meta-table">
+                <tbody>
+                    <tr>
+                        <th class="portal-label">데이터명</th>
+                        <td class="portal-value" colspan="3" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">
+                            ${dataset.data_name}
+                        </td>
+                    </tr>
+                    ${metaPairs.map(pair => `
+                        <tr>
+                            <th class="portal-label">${pair[0].label}</th>
+                            <td class="portal-value">${pair[0].value}</td>
+                            <th class="portal-label">${pair[1].label}</th>
+                            <td class="portal-value">${pair[1].value}</td>
+                        </tr>
+                    `).join('')}
+                    <tr>
+                        <th class="portal-label">확장자</th>
+                        <td class="portal-value">${format}</td>
+                        <th class="portal-label">파일 크기</th>
+                        <td class="portal-value">${size}</td>
+                    </tr>
+                    <tr>
+                        <th class="portal-label">데이터 설명</th>
+                        <td class="portal-value portal-value-full" colspan="3">
+                            ${desc || '설명이 표시되지 않았습니다.'}
+                        </td>
+                    </tr>
+                    ${keywords ? `
+                    <tr>
+                        <th class="portal-label">키워드</th>
+                        <td class="portal-value" colspan="3">
+                            <div class="portal-keywords-wrapper">
+                                ${(typeof keywords === 'string' ? keywords.split(',') : keywords).map(kw => 
+                                    `<span class="badge-portal"># ${kw.trim()}</span>`
+                                ).join('')}
+                            </div>
+                        </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                        <th class="portal-label">원본 출처</th>
+                        <td class="portal-value" colspan="3">
+                            ${(() => {
+                                const url = getVal('url');
+                                const sourceLinks = rawMeta.source_links || [];
+                                if (url && url !== '#') {
+                                    return `<a href="${url}" target="_blank" style="color: var(--primary); font-weight: bold;">[원본 사이트 바로가기]</a>`;
+                                } else if (sourceLinks.length > 0) {
+                                    return sourceLinks.map((link, idx) => 
+                                        `<a href="${link}" target="_blank" style="color: var(--primary); font-weight: bold; margin-right: 15px;">[출처 ${idx + 1}]</a>`
+                                    ).join('');
+                                }
+                                return '-';
+                            })()}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="preview-table-card">
+                <div class="preview-table-header">
+                    📄 데이터 미리보기 (상위 20개 행)
+                    <span class="badge-outline" style="background: #fee2e2; color: #b91c1c; border: none; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">CSV 전용</span>
+                </div>
+                <div id="modal-data-preview" class="data-preview-table-container">
+                    <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                        데이터를 읽어오는 중입니다...
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    modal.style.display = 'flex';
+    
+    // Preview Loading Logic
+    const previewEl = document.getElementById('modal-data-preview');
+    if (previewEl) {
+        if (dataset.file_url) {
+            try {
+                const previewData = await fetchDatasetPreview(dataset.file_url, dataset.data_name);
+                renderPreviewTable(previewData, previewEl);
+            } catch (err) {
+                previewEl.innerHTML = `<div style="padding: 30px; text-align: center; color: #ef4444;">❌ 데이터를 불러오지 못했습니다: ${err.message}</div>`;
+            }
+        } else {
+            previewEl.innerHTML = `<div style="padding: 30px; text-align: center; color: var(--text-muted);">연동된 파일이 없습니다.</div>`;
+        }
+    }
+
+    // Close logic
+    if (closeBtn) closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
+
+/**
+ * Fetches and parses CSV or Excel data
+ */
+export async function fetchDatasetPreview(fileUrl, fileName = '') {
+    let finalUrl = fileUrl;
+    if (!fileUrl.startsWith('http')) {
+        const { data } = supabaseClient.storage.from('datasets').getPublicUrl(fileUrl);
+        finalUrl = data.publicUrl;
+    }
+
+    const isExcel = fileName.toLowerCase().endsWith('.xlsx') || fileName.toLowerCase().endsWith('.xls') || 
+                  fileUrl.toLowerCase().endsWith('.xlsx') || fileUrl.toLowerCase().endsWith('.xls');
+
+    try {
+        const response = await fetch(finalUrl);
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        
+        const buffer = await response.arrayBuffer();
+        
+        if (isExcel) {
+            // Handle Excel via SheetJS
+            const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+            
+            if (jsonData.length > 0) {
+                const fields = jsonData[0]; // Header row
+                const dataRows = jsonData.slice(1, 21).map(row => {
+                    const obj = {};
+                    fields.forEach((f, i) => obj[f] = row[i]);
+                    return obj;
+                });
+                return { data: dataRows, fields: fields };
+            } else {
+                throw new Error('엑셀 파일에 데이터가 없습니다.');
+            }
+        } else {
+            // Handle CSV via PapaParse
+            let text;
+            try {
+                const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                text = utf8Decoder.decode(buffer);
+            } catch (e) {
+                const euckrDecoder = new TextDecoder('euc-kr');
+                text = euckrDecoder.decode(buffer);
+            }
+
+            return new Promise((resolve, reject) => {
+                Papa.parse(text, {
+                    header: true,
+                    preview: 20,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        if (results.data && results.data.length > 0) {
+                            resolve({ data: results.data, fields: results.meta.fields });
+                        } else {
+                            reject(new Error('데이터가 비어있거나 읽을 수 없는 형식입니다.'));
+                        }
+                    },
+                    error: (err) => reject(new Error(err.message || '파일 파킹 실패'))
+                });
+            });
+        }
+    } catch (err) {
+        throw new Error(`파일을 가져오는 중 오류 발생: ${err.message}`);
+    }
+}
+
+/**
+ * Renders the parsed data into a stylish table
+ */
+function renderPreviewTable(previewResult, container) {
+    const { data, fields } = previewResult;
+    const headers = fields || (data.length > 0 ? Object.keys(data[0]) : []);
+
+    if (headers.length === 0) {
+        container.innerHTML = '<div style="padding: 30px; text-align: center;">표시할 데이터 컬럼이 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table class="preview-table">
+            <thead>
+                <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+                ${data.map(row => `
+                    <tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 export function renderTeacherPermissions(teachers, onStatusUpdate) {
@@ -891,4 +1232,325 @@ export async function showStudentDetailModal(studentName, detail) {
 
     close.onclick = () => modal.style.display = 'none';
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
+
+/**
+ * Teacher View: Renders all Step 1 (Problem Definition) logs
+ */
+export function renderTeacherProblemDefinitions(logs, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 1단계 기록이 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+            ${logs.map(log => {
+                let data = { answer: '', opinion: '' };
+                try {
+                    data = JSON.parse(log.content);
+                } catch (e) {
+                    data.answer = log.content;
+                }
+
+                return `
+                <div class="glass card clickable-card step1-log-card" data-id="${log.id}" 
+                     style="padding: 20px; transition: all 0.2s; cursor: pointer; border-left: 4px solid #f59e0b;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <span style="font-size: 0.8rem; color: var(--primary); font-weight: 500;">
+                            <i data-lucide="clock" size="12" style="vertical-align: middle;"></i> ${new Date(log.created_at).toLocaleString()}
+                        </span>
+                        <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem;">${log.student_name}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">분석 관점:</strong>
+                        <p style="font-size: 0.95rem; line-height: 1.4; color: var(--text); margin:0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            ${data.opinion || '의견 없음'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">AI 제안 요약:</strong>
+                        <p style="font-size: 0.9rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin:0;">
+                            ${data.answer.replace(/#|<br>|---/g, '')}
+                        </p>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 15px;">
+                        <button class="btn-primary" style="font-size: 0.8rem; padding: 6px 15px;">상세보기</button>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    // Click listener for details
+    container.querySelectorAll('.step1-log-card').forEach(card => {
+        card.onclick = () => {
+            const log = logs.find(l => String(l.id) === card.dataset.id);
+            if (log) showProblemDefinitionDetailModal(log);
+        };
+    });
+}
+
+/**
+ * Shows the full detail of a student's Step 1 record
+ */
+export function showProblemDefinitionDetailModal(log) {
+    const modal = document.getElementById('step1-detail-modal');
+    const studentEl = document.getElementById('step1-modal-student');
+    const titleEl = document.getElementById('step1-modal-title');
+    const bodyEl = document.getElementById('step1-modal-body');
+    const closeBtn = document.getElementById('close-step1-modal');
+
+    studentEl.innerText = `${log.student_name} 학생 | ${new Date(log.created_at).toLocaleString()}`;
+    
+    let data = { answer: '', opinion: '' };
+    try {
+        data = JSON.parse(log.content);
+    } catch (e) {
+        data.answer = log.content;
+    }
+
+    titleEl.innerText = data.opinion || '연구 주제 상세 보기';
+
+    bodyEl.innerHTML = `
+        <div style="margin-bottom: 30px;">
+            <h4 style="color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="message-square" size="18"></i> 연구자의 핵심 의견 (Student Opinion)
+            </h4>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.95rem; line-height: 1.6; color: #1e293b; font-weight: 500;">
+                ${data.opinion || '<span class="text-muted">입력된 의견이 없습니다.</span>'}
+            </div>
+        </div>
+
+        <div style="border-top: 1px dashed #cbd5e1; padding-top: 30px;">
+            <h4 style="color: #f59e0b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="bot" size="18"></i> AI 제안 내용 (AI Response)
+            </h4>
+            <div style="font-size: 0.95rem; line-height: 1.7; color: #334155; white-space: pre-wrap;">
+                ${data.answer}
+            </div>
+        </div>
+    `;
+
+    if (window.lucide) lucide.createIcons();
+    modal.style.display = 'flex';
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
+
+/**
+ * Teacher View: Renders the initial list of all student Step 1 logs for Step 2 Preprocessing monitoring
+ */
+export function renderTeacherPreprocessing(logs, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 1단계 기록이 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+            ${logs.map(log => {
+                let data = { answer: '', opinion: '' };
+                try {
+                    data = JSON.parse(log.content);
+                } catch (e) {
+                    data.answer = log.content;
+                }
+
+                return `
+                <div class="glass card clickable-card teacher-step2-card" data-id="${log.id}" 
+                     style="padding: 20px; transition: all 0.2s; cursor: pointer; border-left: 4px solid #0ea5e9;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <span style="font-size: 0.8rem; color: var(--primary); font-weight: 500;">
+                            <i data-lucide="clock" size="12" style="vertical-align: middle;"></i> ${new Date(log.created_at).toLocaleString()}
+                        </span>
+                        <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 0.7rem;">${log.student_name}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <strong style="display: block; font-size: 0.85rem; color: var(--secondary); margin-bottom: 5px;">연구 주제:</strong>
+                        <p style="font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: var(--text); margin:0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            ${data.opinion || '연구 주제'}
+                        </p>
+                    </div>
+
+                    <div style="text-align: right; margin-top: 15px;">
+                        <button class="btn-primary" style="font-size: 0.8rem; padding: 6px 15px; background: #0ea5e9; border-color: #0ea5e9;">전처리 가이드 보기</button>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    if (window.lucide) lucide.createIcons();
+
+    // Click listener to drill down
+    container.querySelectorAll('.teacher-step2-card').forEach(card => {
+        card.onclick = () => {
+            const log = logs.find(l => String(l.id) === card.dataset.id);
+            if (log) renderTeacherPreprocessingDetail(log, containerId, logs);
+        };
+    });
+}
+
+/**
+ * Teacher View: Renders the detailed Step 2 (Preprocessing) dashboard for a specific student log
+ */
+export async function renderTeacherPreprocessingDetail(selectedLog, containerId, allLogs) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let data;
+    try {
+        data = JSON.parse(selectedLog.content);
+    } catch(e) {
+        data = { answer: selectedLog.content };
+    }
+
+    container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <div>
+                <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
+                    <i data-lucide="user" style="color: var(--primary);"></i> ${selectedLog.student_name} 학생의 2단계 전처리
+                </h2>
+                <p class="text-muted" style="font-size: 0.9rem;">선택된 연구 주제에 최적화된 전처리 가이드를 확인합니다.</p>
+            </div>
+            <button id="back-to-step2-list-btn" class="btn-secondary" style="font-size: 0.85rem;">전체 목록으로</button>
+        </div>
+
+        <div class="glass" style="padding: 25px; margin-bottom: 25px; border-left: 4px solid #0ea5e9; background: white;">
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: var(--secondary); margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="lightbulb" size="18"></i> 연구자의 핵심 의견
+                </h4>
+                <div style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; color: var(--text);">
+                    ${data.opinion || '의견 없음'}
+                </div>
+            </div>
+
+            <div>
+                <h4 style="color: var(--secondary); margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="bot" size="18"></i> AI 제안 내용 요약
+                </h4>
+                <div style="padding: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 1rem; line-height: 1.7; color: var(--text); min-height: 150px; white-space: pre-wrap;">${data.answer}</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; padding: 40px; border: 2px dashed #cbd5e1; border-radius: 15px; background: rgba(14, 165, 233, 0.05); margin-bottom: 25px;">
+            <h3 style="margin-bottom: 10px; color: var(--secondary);">🛠️ 데이터 전처리 가이드 생성</h3>
+            <p class="text-muted" style="margin-bottom: 20px;">학생과 동일하게 Python(Pandas) 전처리 코드를 생성해 볼 수 있습니다.</p>
+            <button id="teacher-generate-colab-btn" class="btn-primary" style="background: #059669; border-color: #059669; padding: 12px 25px;">
+                <i data-lucide="code" style="vertical-align: middle; margin-right: 8px;"></i> 구글 코랩(Colab) 전처리 프롬프트 생성 (테스트)
+            </button>
+        </div>
+
+        <div id="teacher-colab-result" style="display: none; background: #0f172a; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #f8fafc; margin: 0; font-size: 1rem;">💻 생성된 구글 코랩용 프롬프트</h4>
+                <button id="teacher-copy-colab-btn" class="btn-secondary" style="font-size: 0.75rem; padding: 5px 12px; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: white;">복사하기</button>
+            </div>
+            <textarea id="teacher-colab-text" readonly style="width: 100%; height: 300px; background: rgba(0,0,0,0.3); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; font-family: 'Consolas', monospace; font-size: 0.85rem; line-height: 1.6;"></textarea>
+        </div>
+
+        <div id="teacher-download-center" style="display: none; background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 25px; box-shadow: var(--shadow-sm);">
+            <h3 style="margin: 0 0 20px 0; color: var(--secondary); font-size: 1.15rem;">
+                <i data-lucide="download-cloud" style="vertical-align: middle; margin-right: 8px;"></i> 학생이 가공해야 할 원본 데이터
+            </h3>
+            <div id="teacher-files-list" style="display: grid; gap: 12px;"></div>
+        </div>
+    `;
+
+    lucide.createIcons();
+
+    // Back listener
+    document.getElementById('back-to-step2-list-btn').onclick = () => renderTeacherPreprocessing(allLogs, containerId);
+
+    // Generator logic
+    const genBtn = document.getElementById('teacher-generate-colab-btn');
+    if (genBtn) {
+        genBtn.onclick = async () => {
+            genBtn.disabled = true;
+            genBtn.innerHTML = '<i class="spinner-sm"></i> 가이드 생성 중...';
+            
+            const { fetchAllResearchDatasets } = await import('./auth.js');
+            const { generateColabPreprocessingPrompt } = await import('./research_prompts.js');
+            
+            try {
+                // Fetch datasets for THIS SPECIFIC student
+                const { data: allDatasets, error: fetchErr } = await fetchAllResearchDatasets(selectedLog.student_id);
+                if (fetchErr) throw fetchErr;
+                
+                const researchText = data.answer || "";
+                const datasets = (allDatasets || []).filter(ds => {
+                    const baseName = ds.data_name.replace(/\.(csv|xlsx|xls|json)$/i, "").trim();
+                    const lowerText = researchText.toLowerCase();
+                    return lowerText.includes(baseName.toLowerCase()) || 
+                           lowerText.includes(ds.data_name.toLowerCase());
+                });
+
+                const colabPrompt = await generateColabPreprocessingPrompt(selectedLog, datasets);
+                
+                const resultArea = document.getElementById('teacher-colab-result');
+                const promptTextArea = document.getElementById('teacher-colab-text');
+                resultArea.style.display = 'block';
+                promptTextArea.value = colabPrompt;
+
+                // Render Downloads
+                const downloadCenter = document.getElementById('teacher-download-center');
+                const filesList = document.getElementById('teacher-files-list');
+                if (downloadCenter && filesList) {
+                    downloadCenter.style.display = 'block';
+                    if (datasets.length === 0) {
+                        filesList.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">(이 연구를 위해 선택된 데이터셋이 없습니다.)</div>';
+                    } else {
+                        filesList.innerHTML = datasets.map(ds => {
+                            let fileName = ds.data_name.trim();
+                            if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
+                            return `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <i data-lucide="file-spreadsheet" style="color: #059669;"></i>
+                                        <div style="font-weight: 600; font-size: 0.95rem; color: #1e293b;">${fileName}</div>
+                                    </div>
+                                    <button class="btn-secondary" disabled style="font-size: 0.75rem; padding: 4px 10px; opacity: 0.6;">교사용 미리보기 전용</button>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                alert('가이드 생성 중 오류: ' + err.message);
+            } finally {
+                genBtn.disabled = false;
+                genBtn.innerHTML = '<i data-lucide="code" style="vertical-align: middle; margin-right: 8px;"></i> 구글 코랩(Colab) 전처리 프롬프트 생성 (테스트)';
+                lucide.createIcons();
+            }
+        };
+    }
+
+    // Copy listener
+    const copyBtn = document.getElementById('teacher-copy-colab-btn');
+    if (copyBtn) {
+        copyBtn.onclick = () => {
+            const text = document.getElementById('teacher-colab-text').value;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = '복사 완료!';
+                setTimeout(() => copyBtn.innerText = originalText, 2000);
+            });
+        };
+    }
 }

@@ -146,45 +146,119 @@
     </section>
 
     <!-- Teacher Dashboard Section -->
-    <section id="teacher-section" class="content-area" style="padding: 40px; display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-            <h1>👨‍🏫 교사용 관리 대시보드</h1>
-            <div style="display: flex; align-items: center; gap: 15px;">
+    <section id="teacher-section" style="display: none; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh;">
+        <header class="app-header glass">
+            <div class="logo" style="font-weight: 700; font-size: 1.2rem;">👨‍🏫 교사용 관리 대시보드</div>
+            <div class="user-info" style="display: flex; align-items: center; gap: 20px;">
                 <span id="teacher-email-display" class="text-muted" style="font-size: 0.85rem;"></span>
                 <button id="teacher-logout-btn" class="btn-secondary">로그아웃</button>
             </div>
-        </div>
+        </header>
 
-        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-            <button id="tab-students" class="btn-primary" style="padding: 8px 20px;">학생 관리</button>
-            <button id="tab-progress" class="btn-secondary" style="padding: 8px 20px;">📊 학생 진행 모니터링</button>
-            <button id="tab-teachers" class="btn-secondary" style="padding: 8px 20px;">교사 권한 관리</button>
-        </div>
+        <div class="main-layout" style="width: 100%; max-width: none; padding: 0;">
+            <nav class="side-nav glass" style="height: calc(100vh - 70px); top: 70px; border-radius: 0; border-top: none; border-bottom: none; border-left: none;">
+                <div class="nav-header" style="margin-bottom: 30px; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">관리 메뉴</div>
+                <div id="teacher-nav-items">
+                    <div id="tab-students" class="nav-item active">
+                        <i data-lucide="users"></i>
+                        <span>학생 계정 관리</span>
+                    </div>
+                    <div id="tab-progress" class="nav-item">
+                        <i data-lucide="bar-chart-3"></i>
+                        <span>학생 진행 모니터링</span>
+                    </div>
+                    <div id="tab-management" class="nav-item">
+                        <i data-lucide="database"></i>
+                        <span>데이터 관리</span>
+                    </div>
+                    <div id="tab-step1" class="nav-item">
+                        <i data-lucide="lightbulb"></i>
+                        <span>1단계: 문제 정의</span>
+                    </div>
+                    <div id="tab-step2" class="nav-item">
+                        <i data-lucide="cog"></i>
+                        <span>2단계: 전처리</span>
+                    </div>
+                    <div id="tab-teachers" class="nav-item">
+                        <i data-lucide="shield-check"></i>
+                        <span>교사 권한 관리</span>
+                    </div>
+                </div>
+            </nav>
 
-        <div id="teacher-students-view" class="glass card" style="padding: 30px;">
-            <h3 style="margin-bottom: 20px;">학생 가입 현황 및 관리</h3>
-            <div id="teacher-student-list" style="overflow-x: auto;">
-                <!-- Student table will be rendered here -->
-            </div>
-        </div>
+            <main class="content-area" style="padding: 40px; overflow-y: auto; height: calc(100vh - 70px);">
+                <!-- Views -->
+                <div id="teacher-students-view" class="view-section">
+                    <div class="glass card" style="padding: 30px;">
+                        <h3 style="margin-bottom: 20px;">학생 가입 현황 및 관리</h3>
+                        <div id="teacher-student-list" style="overflow-x: auto;">
+                            <!-- Student table rendered here -->
+                        </div>
+                    </div>
+                </div>
 
-        <div id="teacher-progress-view" class="glass card" style="padding: 30px; display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h3>학생별 학습 진행도</h3>
-                <button id="refresh-progress-btn" class="btn-secondary" style="padding: 6px 15px; font-size: 0.85rem;">
-                    <i data-lucide="refresh-cw" size="14" style="vertical-align:middle; margin-right:4px;"></i>새로고침
-                </button>
-            </div>
-            <div id="teacher-progress-list">
-                <!-- Progress cards rendered here -->
-            </div>
-        </div>
+                <div id="teacher-progress-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                            <h3>학생별 학습 진행도</h3>
+                            <button id="refresh-progress-btn" class="btn-secondary" style="padding: 6px 15px; font-size: 0.85rem;">
+                                <i data-lucide="refresh-cw" size="14" style="vertical-align:middle; margin-right:4px;"></i>새로고침
+                            </button>
+                        </div>
+                        <div id="teacher-progress-list">
+                            <!-- Progress cards rendered here -->
+                        </div>
+                    </div>
+                </div>
 
-        <div id="teacher-permissions-view" class="glass card" style="padding: 30px; display: none;">
-            <h3 style="margin-bottom: 20px;">교사 신청 승인/관리</h3>
-            <div id="teacher-pending-list" style="overflow-x: auto;">
-                <!-- Pending teachers table will be rendered here -->
-            </div>
+                <!-- Teacher View: Data Management -->
+                <div id="teacher-management-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h2 style="margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="database" style="color: var(--primary);"></i> 전체 데이터 관리
+                        </h2>
+                        <p class="text-muted" style="margin-bottom: 20px;">모든 학생이 수집한 데이터를 확인하고 공유/활용 설정을 관리할 수 있습니다.</p>
+                        <div id="teacher-dataset-list"></div>
+                    </div>
+                </div>
+
+                <!-- Teacher View: Step 1 Problem Definition Monitoring -->
+                <div id="teacher-step1-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h3 style="margin-bottom: 5px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="lightbulb" style="color: #f59e0b;"></i>
+                            학생별 연구 주제 (1단계)
+                        </h3>
+                        <p class="text-muted" style="margin-bottom: 25px; font-size: 0.9rem;">학생들이 AI와 함께 발굴한 연구 주제와 개인 의견을 확인합니다.</p>
+                        <div id="teacher-step1-list">
+                            <!-- Step 1 blocks rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teacher View: Step 2 Preprocessing Monitoring -->
+                <div id="teacher-step2-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h3 style="margin-bottom: 5px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="cog" style="color: #0ea5e9;"></i>
+                            학생별 전처리 가이드 (2단계)
+                        </h3>
+                        <p class="text-muted" style="margin-bottom: 25px; font-size: 0.9rem;">학생들이 실제 분석을 위해 준비한 전처리 프롬프트와 데이터셋을 확인합니다.</p>
+                        <div id="teacher-step2-content">
+                            <!-- Step 2 content (List or Details) rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="teacher-permissions-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h3 style="margin-bottom: 20px;">교사 신청 승인/관리</h3>
+                        <div id="teacher-pending-list" style="overflow-x: auto;">
+                            <!-- Pending teachers table rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </section>
 
@@ -198,6 +272,24 @@
             <div class="modal-body">
                 <div id="student-detail-body" class="modal-body-inner" style="padding: 20px;">
                     <!-- student detail rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1 Detail Modal -->
+    <div id="step1-detail-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+            <div class="modal-header">
+                <div>
+                    <span id="step1-modal-student" style="font-size: 0.85rem; color: var(--primary); font-weight: 600;">학생 이름</span>
+                    <h2 id="step1-modal-title" style="margin-top: 5px;">연구 주제</h2>
+                </div>
+                <button id="close-step1-modal" class="btn" style="padding: 5px 12px; font-size: 1.5rem; background:none; border:none; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0; overflow-y: auto;">
+                <div id="step1-modal-body" class="modal-body-inner" style="padding: 30px;">
+                    <!-- Step 1 detail content here -->
                 </div>
             </div>
         </div>
