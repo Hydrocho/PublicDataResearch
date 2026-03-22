@@ -19,7 +19,8 @@ export function renderCategories(onCategoryClick, selectedId) {
     });
 }
 
-export function renderStepsNav(currentStep, selectedTopic, onStepChange) {
+export function renderStepsNav(currentStep, state, onStepChange) {
+    const selectedTopic = state?.selectedTopic;
     const steps = [
         { id: 0, title: "데이터 탐색", icon: "search" },
         { id: 1, title: "데이터 저장", icon: "download" },
@@ -44,7 +45,10 @@ export function renderStepsNav(currentStep, selectedTopic, onStepChange) {
 
     document.querySelectorAll('.nav-item').forEach(item => {
         item.onclick = () => {
-            onStepChange(parseInt(item.dataset.id));
+            const stepId = parseInt(item.dataset.id);
+            // reset selected research when navigating to step 4 via menu
+            if (stepId === 4) state.selectedResearchId = null;
+            onStepChange(stepId);
         };
     });
 }
@@ -332,23 +336,21 @@ export function renderStepContent(stepId, state, onStepChange) {
                                         colabBtn.disabled = true;
                                         colabBtn.innerHTML = '<i class="spinner-sm"></i> 프롬프트 생성 중...';
                                         
-                                        const { fetchStudentDatasets, fetchSharedDatasets } = await import('./auth.js');
+                                        const { fetchAllResearchDatasets } = await import('./auth.js');
                                         const { generateColabPreprocessingPrompt } = await import('./research_prompts.js');
                                         
                                         try {
-                                            const [ownRes, sharedRes] = await Promise.all([
-                                                fetchStudentDatasets(state.user.student_id),
-                                                fetchSharedDatasets(state.user.student_id)
-                                            ]);
-                                            const allDatasets = [...(ownRes.data || []), ...(sharedRes.data || [])];
+                                            const { data: allDatasets, error: fetchErr } = await fetchAllResearchDatasets(state.user.student_id);
+                                            if (fetchErr) throw fetchErr;
                                             
                                             // [Smart Filter] Only show datasets mentioned in the AI research guide
                                             const researchText = data.answer || "";
-                                            const datasets = allDatasets.filter(ds => {
+                                            const datasets = (allDatasets || []).filter(ds => {
                                                 const baseName = ds.data_name.replace(/\.(csv|xlsx|xls|json)$/i, "").trim();
-                                                // Check if the AI mentioned the filename or base name in its logic
-                                                return researchText.toLowerCase().includes(baseName.toLowerCase()) || 
-                                                       researchText.toLowerCase().includes(ds.data_name.toLowerCase());
+                                                const lowerText = researchText.toLowerCase();
+                                                // Check if AI mentioned the filename or the name without extension
+                                                return lowerText.includes(baseName.toLowerCase()) || 
+                                                       lowerText.includes(ds.data_name.toLowerCase());
                                             });
 
                                             console.log('Step 2: Filtered datasets for download:', datasets);

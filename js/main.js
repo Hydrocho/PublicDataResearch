@@ -136,7 +136,7 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 window.changeStep = changeStep;
 
 function initApp() {
-    UI.renderStepsNav(state.currentStep, state.selectedTopic, changeStep);
+    UI.renderStepsNav(state.currentStep, state, changeStep);
     
     if (state.currentStep === 0) {
         const root = document.getElementById('explorer-root');
@@ -175,7 +175,7 @@ function changeStep(id) {
         document.getElementById('step-content-section').classList.add('active');
         UI.renderStepContent(id, state, changeStep);
     }
-    UI.renderStepsNav(id, state.selectedTopic, changeStep);
+    UI.renderStepsNav(id, state, changeStep);
 }
 
 // Start
