@@ -250,8 +250,12 @@ async function showTeacherDashboard(email) {
         activeView.style.display = 'block';
     };
     
-    tabStudents.onclick = () => {
+    tabStudents.onclick = async () => {
         switchTab(tabStudents, viewStudents);
+        const list = viewStudents.querySelector('#teacher-student-list');
+        if (list) list.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { data } = await fetchAllStudents();
+        UI.renderTeacherDashboard(data || [], onResetPin, onDeleteStudent);
     };
     
     tabProgress.onclick = async () => {

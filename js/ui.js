@@ -635,11 +635,11 @@ export function renderStepContent(stepId, state, onStepChange) {
                             <div class="glass" style="padding: 30px; border-left: 4px solid var(--accent);">
                                 <form id="competition-form">
                                     <div id="team-members-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
-                                    <div style="margin-top: 20px; display: flex; gap: 10px;">
-                                        <button type="button" id="add-member-btn" class="btn-secondary" style="font-size: 0.9rem; padding: 8px 15px;">
+                                    <div style="margin-top: 20px; display: flex; flex-direction: ${window.innerWidth <= 768 ? 'column' : 'row'}; gap: 10px;">
+                                        <button type="button" id="add-member-btn" class="btn-secondary" style="font-size: 0.9rem; padding: 8px 15px; width: ${window.innerWidth <= 768 ? '100%' : 'auto'}; justify-content: center;">
                                             <i data-lucide="plus" style="vertical-align: middle; margin-right: 5px;"></i> 팀원 추가
                                         </button>
-                                        <button type="submit" id="submit-comp-btn" class="btn-primary" style="font-size: 0.9rem; padding: 8px 30px;" disabled>
+                                        <button type="submit" id="submit-comp-btn" class="btn-primary" style="font-size: 0.9rem; padding: 8px 30px; width: ${window.innerWidth <= 768 ? '100%' : 'auto'}; justify-content: center;" disabled>
                                             ${isEdit ? '수정 내용 저장' : '신청서 제출'}
                                         </button>
                                     </div>
