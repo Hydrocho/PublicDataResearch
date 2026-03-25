@@ -681,7 +681,7 @@ export function renderStepContent(stepId, state, onStepChange) {
                                     <h4 style="color: var(--secondary); margin: 0; font-size: 0.95rem;">학생 ${rows.length} ${isFirst ? '(대표)' : ''}</h4>
                                     ${!isFirst ? `<button type="button" class="btn-remove-member" style="background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; font-weight: 600;">삭제</button>` : ''}
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 15px;">
+                                <div style="display: grid; grid-template-columns: ${window.innerWidth <= 768 ? '1fr' : '1fr 1fr 2fr'}; gap: 15px;">
                                     <div>
                                         <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">학번</label>
                                         <input type="text" id="comp-id-${rowId}" placeholder="학번" value="${preData?.student_id || (isFirst ? state.user?.student_id : '')}" ${isFirst ? 'readonly' : ''} style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
@@ -855,7 +855,7 @@ export function renderStepContent(stepId, state, onStepChange) {
     canvas.innerHTML = `
         <div style="display: flex; flex-direction: column; height: 100%;">
             <div style="flex: 1;">${content}</div>
-            <div class="step-footer" style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <div class="step-footer" style="margin-top: 30px; display: ${window.innerWidth <= 768 && stepId === 8 ? 'none' : 'flex'}; justify-content: space-between;">
                 <button class="btn-secondary" id="prev-step">이전 단계</button>
                 <button class="btn-primary" id="next-step">${stepId === 7 ? '처음으로' : '다음 단계로'}</button>
             </div>
