@@ -22,6 +22,7 @@ export function renderCategories(onCategoryClick, selectedId) {
 export function renderStepsNav(currentStep, state, onStepChange) {
     const selectedTopic = state?.selectedTopic;
     const steps = [
+        { id: 8, title: "대회 참가 신청", icon: "users" },
         { id: 0, title: "데이터 탐색", icon: "search" },
         { id: 1, title: "데이터 저장", icon: "download" },
         { id: 2, title: "데이터 관리", icon: "list" },
@@ -34,13 +35,24 @@ export function renderStepsNav(currentStep, state, onStepChange) {
     
     const navItems = document.getElementById('nav-items');
     if (!navItems) return;
-    navItems.innerHTML = steps.map(step => `
-        <div class="nav-item ${currentStep === step.id ? 'active' : ''}" 
-             data-id="${step.id}">
-            <i data-lucide="${step.icon}" size="18"></i>
-            <span>${step.title}</span>
-        </div>
-    `).join('');
+    navItems.innerHTML = steps.map(step => {
+        const isActive = currentStep === step.id;
+        const isComp = step.id === 8;
+        let styleStr = '';
+        if (isComp) {
+            styleStr = isActive 
+                ? 'background: var(--accent); color: white;' 
+                : 'background: #fff1f2; color: var(--accent); border: 1px solid #fecaca; margin-bottom: 12px; font-weight: 700;';
+        }
+        return `
+            <div class="nav-item ${isActive ? 'active' : ''}" 
+                 data-id="${step.id}" 
+                 ${styleStr ? `style="${styleStr}"` : ''}>
+                <i data-lucide="${step.icon}" size="18"></i>
+                <span>${step.title}</span>
+            </div>
+        `;
+    }).join('');
     if (window.lucide) lucide.createIcons();
 
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -60,7 +72,7 @@ export function renderStepContent(stepId, state, onStepChange) {
     const topic = state.selectedTopic;
 
     // Steps 3+ require a selected topic (Step IDs 5, 6, 7)
-    if (!topic && stepId > 4) {
+    if (!topic && stepId >= 5 && stepId <= 7) {
         content = `
             <div style="text-align: center; padding: 60px 20px;">
                 <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
@@ -594,11 +606,233 @@ export function renderStepContent(stepId, state, onStepChange) {
             case 7: // Old 6: Step 5
                 content = `<h2>5단계: 정책 및 인사이트 제안</h2><div class="glass" style="padding:30px;"><p>최종 제안서 작성 단계입니다.</p></div>`;
                 break;
+            case 8: // Competition Application
+                content = '<div id="competition-root" style="min-height: 400px;"></div>';
+                setTimeout(async () => {
+                    const root = document.getElementById('competition-root');
+                    if (!root) return;
+                    
+                    root.innerHTML = '<div style="text-align: center; padding: 40px;"><p class="text-muted">신청 내역을 확인하는 중입니다...</p></div>';
+                    
+                    const { fetchCompetitionApplicationByStudent, submitCompetitionApplication, updateCompetitionApplication, deleteCompetitionApplication } = await import('./auth.js');
+                    const { data: existingApp } = await fetchCompetitionApplicationByStudent(state.user.student_id);
+                    
+                    const renderApplyMode = (initialData = null) => {
+                        const isEdit = !!initialData;
+                        const initialTeam = initialData ? initialData.team_data : [];
+                        
+                        root.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                                <div>
+                                    <h2>🏆 대회 참가 신청 ${isEdit ? '(수정)' : ''}</h2>
+                                    <p class="text-muted" style="margin-top: 5px;">최대 3명까지 한 팀으로 신청할 수 있습니다. 각 학생의 정확한 학번, 이름, 이메일 주소(~~@goedu.kr)를 입력해주세요.</p>
+                                </div>
+                                ${isEdit ? `<button id="cancel-edit-btn" class="btn-secondary" style="font-size: 0.85rem;">취소</button>` : ''}
+                            </div>
+                            <div class="glass" style="padding: 30px; border-left: 4px solid var(--accent);">
+                                <form id="competition-form">
+                                    <div id="team-members-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
+                                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                                        <button type="button" id="add-member-btn" class="btn-secondary" style="font-size: 0.9rem; padding: 8px 15px;">
+                                            <i data-lucide="plus" style="vertical-align: middle; margin-right: 5px;"></i> 팀원 추가
+                                        </button>
+                                        <button type="submit" id="submit-comp-btn" class="btn-primary" style="font-size: 0.9rem; padding: 8px 30px;" disabled>
+                                            ${isEdit ? '수정 내용 저장' : '신청서 제출'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        `;
+                        
+                        let rows = [];
+                        const container = document.getElementById('team-members-container');
+                        const addBtn = document.getElementById('add-member-btn');
+                        const submitBtn = document.getElementById('submit-comp-btn');
+                        const cancelBtn = document.getElementById('cancel-edit-btn');
+                        
+                        const validateForm = () => {
+                            // Keep the button enabled so we can show alerts on click
+                            submitBtn.disabled = false;
+                            
+                            rows.forEach(row => {
+                                const emailVal = document.getElementById('comp-email-' + row.id).value.trim();
+                                const warning = document.getElementById('email-warning-' + row.id);
+                                if (warning) {
+                                    if (emailVal && !emailVal.endsWith('@goedu.kr')) {
+                                        warning.style.display = 'block';
+                                    } else {
+                                        warning.style.display = 'none';
+                                    }
+                                }
+                            });
+                        };
+
+                        const createMemberRow = (isFirst = false, preData = null) => {
+                            const rowId = Math.random().toString(36).substr(2, 9);
+                            rows.push({ id: rowId });
+                            const div = document.createElement('div');
+                            div.className = 'member-row';
+                            div.style = 'padding: 20px; background: rgba(255, 255, 255, 0.5); border: 1px solid #e2e8f0; border-radius: 8px;';
+                            div.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                    <h4 style="color: var(--secondary); margin: 0; font-size: 0.95rem;">학생 ${rows.length} ${isFirst ? '(대표)' : ''}</h4>
+                                    ${!isFirst ? `<button type="button" class="btn-remove-member" style="background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; font-weight: 600;">삭제</button>` : ''}
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 15px;">
+                                    <div>
+                                        <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">학번</label>
+                                        <input type="text" id="comp-id-${rowId}" placeholder="학번" value="${preData?.student_id || (isFirst ? state.user?.student_id : '')}" ${isFirst ? 'readonly' : ''} style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">이름</label>
+                                        <input type="text" id="comp-name-${rowId}" placeholder="이름" value="${preData?.name || (isFirst ? state.user?.name : '')}" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">이메일</label>
+                                        <input type="email" id="comp-email-${rowId}" placeholder="~~@goedu.kr" value="${preData?.email || ''}" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                        <small id="email-warning-${rowId}" style="color: var(--accent); display: none; margin-top: 4px;">@goedu.kr 이메일이 필요합니다.</small>
+                                    </div>
+                                </div>
+                            `;
+                            div.querySelectorAll('input').forEach(inp => inp.addEventListener('input', validateForm));
+                            if (!isFirst) {
+                                div.querySelector('.btn-remove-member').onclick = () => {
+                                    div.remove();
+                                    rows = rows.filter(r => r.id !== rowId);
+                                    addBtn.style.display = 'inline-block';
+                                    validateForm();
+                                };
+                            }
+                            return div;
+                        };
+
+                        if (isEdit && initialTeam.length > 0) {
+                            initialTeam.forEach((m, i) => container.appendChild(createMemberRow(i === 0, m)));
+                            if (initialTeam.length >= 3) addBtn.style.display = 'none';
+                        } else {
+                            container.appendChild(createMemberRow(true));
+                        }
+                        
+                        addBtn.onclick = () => {
+                            if (rows.length < 3) {
+                                container.appendChild(createMemberRow(false));
+                                if (rows.length >= 3) addBtn.style.display = 'none';
+                                validateForm();
+                            }
+                        };
+                        
+                        if (cancelBtn) cancelBtn.onclick = () => onStepChange(stepId);
+                        
+                        document.getElementById('competition-form').onsubmit = async (e) => {
+                            e.preventDefault();
+                            
+                            // Check for missing data
+                            let errors = [];
+                            const teamData = rows.map((r, i) => {
+                                const stId = document.getElementById('comp-id-' + r.id).value.trim();
+                                const name = document.getElementById('comp-name-' + r.id).value.trim();
+                                const email = document.getElementById('comp-email-' + r.id).value.trim();
+                                
+                                if (!stId) errors.push(`학생 ${i + 1}의 학번을 입력해주세요.`);
+                                if (!name) errors.push(`학생 ${i + 1}의 이름을 입력해주세요.`);
+                                if (!email) errors.push(`학생 ${i + 1}의 이메일을 입력해주세요.`);
+                                else if (!email.endsWith('@goedu.kr')) errors.push(`학생 ${i + 1}의 이메일은 반드시 @goedu.kr 로 끝나야 합니다.`);
+                                
+                                return { student_id: stId, name, email };
+                            });
+
+                            if (errors.length > 0) {
+                                alert('신청서를 제출할 수 없습니다.\n\n' + errors.join('\n'));
+                                return;
+                            }
+
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = '<i class="spinner-sm"></i> 처리 중...';
+                            
+                            try {
+                                const { error } = isEdit 
+                                    ? await updateCompetitionApplication(initialData.id, teamData) 
+                                    : await submitCompetitionApplication(teamData, state.user.student_id);
+                                if (error) throw error;
+                                alert(isEdit ? '신청 내용이 수정되었습니다.' : '대회 참가 신청이 완료되었습니다!');
+                                onStepChange(stepId);
+                            } catch (err) {
+                                alert('오류: ' + err.message);
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = isEdit ? '수정 내용 저장' : '신청서 제출';
+                            }
+                        };
+                        
+                        validateForm();
+                        if (window.lucide) lucide.createIcons();
+                    };
+
+                    const renderViewMode = (app) => {
+                        const team = app.team_data || [];
+                        const isCompleted = app.status === 'completed';
+                        
+                        root.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                                <div>
+                                    <h2>${isCompleted ? '🔒 접수 완료 (수정 불가)' : '✅ 대회 참가 신청 완료'}</h2>
+                                    <p class="text-muted" style="margin-top: 5px;">
+                                        ${isCompleted 
+                                            ? '<span style="color: var(--secondary); font-weight: 700;">선생님께서 접수를 완료 처리하셨습니다. 이제 수정이나 삭제가 불가능합니다.</span>' 
+                                            : '현재 신청하신 팀 정보입니다. 수정이나 삭제를 하려면 아래 버튼을 이용하세요.'}
+                                    </p>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="edit-app-btn" class="btn-primary" style="font-size: 0.85rem; padding: 8px 20px; ${isCompleted ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${isCompleted ? 'disabled' : ''}>수정하기</button>
+                                    <button id="delete-app-btn" class="btn-secondary" style="font-size: 0.85rem; padding: 8px 20px; color: var(--accent); border-color: var(--accent); ${isCompleted ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${isCompleted ? 'disabled' : ''}>신청 취소</button>
+                                </div>
+                            </div>
+                            <div class="glass" style="padding: 30px; border-top: 4px solid ${isCompleted ? 'var(--secondary)' : 'var(--accent)'}; opacity: ${isCompleted ? '0.8' : '1'};">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                                    ${team.map((m, i) => `
+                                        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; position: relative; overflow: hidden;">
+                                            <div style="position: absolute; top:0; left:0; width:4px; height:100%; background: ${i === 0 ? (isCompleted ? 'var(--secondary)' : 'var(--accent)') : '#cbd5e1'};"></div>
+                                            <h4 style="margin: 0 0 15px 0; color: var(--secondary); font-size: 0.9rem;">학생 ${i + 1} ${i === 0 ? '(대표)' : ''}</h4>
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                <div style="font-weight: 700; font-size: 1.1rem;">${m.name}</div>
+                                                <div style="color: #64748b; font-size: 0.85rem;">학번: ${m.student_id}</div>
+                                                <div style="color: #64748b; font-size: 0.85rem; display: flex; align-items: center; gap: 5px;">
+                                                    <i data-lucide="mail" size="14"></i> ${m.email}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div style="margin-top: 25px; padding-top: 20px; border-top: 1px dashed #e2e8f0; font-size: 0.85rem; color: #94a3b8; text-align: right; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>상태: <strong style="color: ${isCompleted ? 'var(--secondary)' : 'var(--accent)'}">${isCompleted ? '접수 완료 (잠김)' : '대기 중'}</strong></span>
+                                    <span>신청 일시: ${new Date(app.created_at).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        if (!isCompleted) {
+                            document.getElementById('edit-app-btn').onclick = () => renderApplyMode(app);
+                            document.getElementById('delete-app-btn').onclick = async () => {
+                                if (!confirm('신청을 정말로 취소하시겠습니까? 신청 내역이 즉시 삭제됩니다.')) return;
+                                const { error } = await deleteCompetitionApplication(app.id);
+                                if (error) alert('삭제 실패: ' + error.message);
+                                else {
+                                    alert('신청이 취소되었습니다.');
+                                    onStepChange(stepId);
+                                }
+                            };
+                        }
+                        if (window.lucide) lucide.createIcons();
+                    };
+
+                    if (existingApp) renderViewMode(existingApp);
+                    else renderApplyMode();
+                }, 50);
+                break;
             default:
                 content = `<h2>개발 준비 중인 단계입니다.</h2>`;
         }
 
-        if (stepId >= 3) {
+        if (stepId >= 3 && stepId !== 8) {
             const isStep1 = stepId === 3;
             content += `
                 <div class="glass" style="margin-top: 40px; padding: 25px; border-top: 1px solid var(--glass-border);">
@@ -630,8 +864,25 @@ export function renderStepContent(stepId, state, onStepChange) {
     const prevBtn = document.getElementById('prev-step');
     const nextBtn = document.getElementById('next-step');
     
-    if (prevBtn) prevBtn.onclick = () => onStepChange(stepId - 1);
-    if (nextBtn) nextBtn.onclick = () => onStepChange(stepId === 7 ? 0 : stepId + 1);
+    // Determine the next and prev step IDs based on the visual order
+    const orderedStepIds = [8, 0, 1, 2, 3, 4, 5, 6, 7];
+    const currentIndex = orderedStepIds.indexOf(stepId);
+    
+    if (prevBtn) {
+        if (currentIndex > 0) {
+            prevBtn.onclick = () => onStepChange(orderedStepIds[currentIndex - 1]);
+        } else {
+            prevBtn.style.display = 'none'; // hide previous button on first step
+        }
+    }
+    
+    if (nextBtn) {
+        if (currentIndex < orderedStepIds.length - 1) {
+            nextBtn.onclick = () => onStepChange(orderedStepIds[currentIndex + 1]);
+        } else {
+            nextBtn.onclick = () => onStepChange(orderedStepIds[0]);
+        }
+    }
 
     const saveBtn = document.getElementById('save-memo-btn');
     if (saveBtn) {
@@ -1553,4 +1804,99 @@ export async function renderTeacherPreprocessingDetail(selectedLog, containerId,
             });
         };
     }
+}
+
+/**
+ * Teacher View: Renders all competition applications
+ */
+export function renderTeacherCompetitionApplications(data, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 접수된 대회 참가 신청이 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 20px;">
+            ${data.map(app => {
+                const team = app.team_data || [];
+                const dateStr = new Date(app.created_at).toLocaleString();
+                const isCompleted = app.status === 'completed';
+                
+                return `
+                    <div class="glass card" style="padding: 25px; border-top: 4px solid ${isCompleted ? '#059669' : 'var(--accent)'}; transition: all 0.3s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                            <div>
+                                <h4 style="margin: 0; color: var(--secondary); display: flex; align-items: center; gap: 8px;">
+                                    <i data-lucide="users" size="18"></i> 참가 팀 명단 (${team.length}명)
+                                </h4>
+                                <small class="text-muted">${dateStr}</small>
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="tag" style="background: ${isCompleted ? 'rgba(5, 150, 105, 0.1)' : 'rgba(225, 29, 72, 0.1)'}; color: ${isCompleted ? '#059669' : 'var(--accent)'}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">
+                                    ${isCompleted ? '접수 완료' : '대기 중'}
+                                </span>
+                                <button class="btn-status-toggle" data-id="${app.id}" data-status="${app.status || 'pending'}" style="font-size: 0.7rem; background: none; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 8px; cursor: pointer; color: #475569;">
+                                    ${isCompleted ? '접수 취소하기' : '접수 완료하기'}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 15px; opacity: ${isCompleted ? '0.7' : '1'};">
+                            ${team.map((member, idx) => `
+                                <div style="display: flex; align-items: center; gap: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <div style="width: 32px; height: 32px; background: ${idx === 0 ? 'var(--secondary)' : '#cbd5e1'}; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 0.8rem;">
+                                        ${idx + 1}
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; color: var(--text); font-size: 0.95rem;">${member.name} <span style="font-weight: 400; color: #64748b; font-size: 0.8rem;">(${member.student_id})</span></div>
+                                        <div style="font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 5px;">
+                                            <i data-lucide="mail" size="12"></i> ${member.email}
+                                        </div>
+                                    </div>
+                                    ${idx === 0 ? '<span style="font-size: 0.7rem; background: var(--secondary); color: white; padding: 2px 6px; border-radius: 4px;">대표</span>' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #e2e8f0; text-align: right;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">신청 ID: ${app.id.substring(0, 8)}...</span>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    // Add status toggle events
+    container.querySelectorAll('.btn-status-toggle').forEach(btn => {
+        btn.onclick = async () => {
+            const id = btn.dataset.id;
+            const currentStatus = btn.dataset.status;
+            const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+            
+            if (!confirm(`신청 상태를 [${newStatus === 'completed' ? '접수 완료' : '대기 중'}]으로 변경하시겠습니까?`)) return;
+            
+            btn.disabled = true;
+            btn.innerText = '처리 중...';
+            
+            const { updateApplicationStatus } = await import('./auth.js');
+            const { error } = await updateApplicationStatus(id, newStatus);
+            
+            if (error) {
+                alert('상태 변경 실패: ' + error.message);
+                btn.disabled = false;
+                btn.innerText = currentStatus === 'completed' ? '접수 취소하기' : '접수 완료하기';
+            } else {
+                // Refresh the entire teacher view
+                const { fetchAllCompetitionApplications } = await import('./auth.js');
+                const { data: updatedData } = await fetchAllCompetitionApplications();
+                renderTeacherCompetitionApplications(updatedData, containerId);
+            }
+        };
+    });
+
+    if (window.lucide) lucide.createIcons();
 }

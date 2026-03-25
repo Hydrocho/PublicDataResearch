@@ -27,7 +27,7 @@ lucide.createIcons();
 
 let state = {
     user: null,
-    currentStep: 0,
+    currentStep: 8,
     selectedTopic: null,
     onSaveRecord: (stepId, content) => onSaveRecord(stepId, content, state),
     onLoadDatasets: () => onLoadDatasets(state, changeStep)
@@ -218,20 +218,22 @@ async function showTeacherDashboard(email) {
     const tabProgress = document.getElementById('tab-progress');
     const tabStep1 = document.getElementById('tab-step1');
     const tabStep2 = document.getElementById('tab-step2');
+    const tabCompetitions = document.getElementById('tab-competitions');
     const tabManagement = document.getElementById('tab-management');
     const tabTeachers = document.getElementById('tab-teachers');
     const viewStudents = document.getElementById('teacher-students-view');
     const viewProgress = document.getElementById('teacher-progress-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
     const viewStep2 = document.getElementById('teacher-step2-view');
+    const viewCompetitions = document.getElementById('teacher-competitions-view');
     const viewManagement = document.getElementById('teacher-management-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
     
     const switchTab = (activeTab, activeView) => {
         // Reset all nav items
-        [tabStudents, tabProgress, tabManagement, tabStep1, tabStep2, tabTeachers].forEach(t => t.classList.remove('active'));
+        [tabStudents, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
         // Hide all views
-        [viewStudents, viewProgress, viewManagement, viewStep1, viewStep2, viewTeachers].forEach(v => v.style.display = 'none');
+        [viewStudents, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
         
         // Activate current
         activeTab.classList.add('active');
@@ -266,6 +268,22 @@ async function showTeacherDashboard(email) {
         UI.renderTeacherPreprocessing(data || [], 'teacher-step2-content');
     };
 
+    const loadCompetitions = async () => {
+        const list = viewCompetitions.querySelector('#teacher-competitions-list');
+        if (list) list.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { fetchAllCompetitionApplications } = await import('./auth.js');
+        const { data } = await fetchAllCompetitionApplications();
+        UI.renderTeacherCompetitionApplications(data || [], 'teacher-competitions-list');
+    };
+
+    tabCompetitions.onclick = async () => {
+        switchTab(tabCompetitions, viewCompetitions);
+        await loadCompetitions();
+    };
+
+    const refreshCompBtn = document.getElementById('refresh-competitions-btn');
+    if (refreshCompBtn) refreshCompBtn.onclick = loadCompetitions;
+
     tabManagement.onclick = async () => {
         switchTab(tabManagement, viewManagement);
         const datasetList = viewManagement.querySelector('#teacher-dataset-list');
@@ -282,9 +300,8 @@ async function showTeacherDashboard(email) {
         UI.renderTeacherPermissions(data, onTeacherStatusUpdate);
     };
     
-    // Initial Load: Students Tab
-    const { data } = await fetchAllStudents();
-    if (data) UI.renderTeacherDashboard(data, onResetPin, onDeleteStudent);
+    // Initial Load: Competitions Tab (New Default)
+    if (tabCompetitions) tabCompetitions.click();
 
     // Render icons for sidebar
     if (window.lucide) window.lucide.createIcons();
@@ -382,14 +399,7 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 window.changeStep = changeStep;
 
 function initApp() {
-    UI.renderStepsNav(state.currentStep, state, changeStep);
-    
-    if (state.currentStep === 0) {
-        const root = document.getElementById('explorer-root');
-        if (root) {
-            import('./discovery.js').then(m => m.renderDataExplorer(root, state, window.onDataSelected));
-        }
-    }
+    changeStep(state.currentStep);
 }
 
 // Global callback for data selection
@@ -412,13 +422,20 @@ window.onDataSelected = (cat, dataInfo) => {
 
 function changeStep(id) {
     state.currentStep = id;
-    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    
+    const s0 = document.getElementById('step-0');
+    const sContent = document.getElementById('step-content-section');
+    if (s0) s0.classList.remove('active');
+    if (sContent) sContent.classList.remove('active');
     
     if (id === 0) {
-        document.getElementById('step-0').classList.add('active');
-        initApp(); // Re-render explorer
+        if (s0) s0.classList.add('active');
+        const root = document.getElementById('explorer-root');
+        if (root) {
+            import('./discovery.js').then(m => m.renderDataExplorer(root, state, window.onDataSelected));
+        }
     } else {
-        document.getElementById('step-content-section').classList.add('active');
+        if (sContent) sContent.classList.add('active');
         UI.renderStepContent(id, state, changeStep);
     }
     UI.renderStepsNav(id, state, changeStep);

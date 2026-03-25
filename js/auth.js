@@ -669,3 +669,57 @@ export async function deleteStudentAccount(studentId) {
         return { success: false, error: err };
     }
 }
+
+export async function submitCompetitionApplication(teamData, studentId) {
+    const { data, error } = await supabaseClient
+        .from('competition_applications')
+        .insert([{
+            team_data: teamData,
+            created_by: studentId
+        }])
+        .select();
+    return { data, error };
+}
+
+export async function fetchCompetitionApplicationByStudent(studentId) {
+    const { data, error } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('created_by', studentId)
+        .maybeSingle();
+    return { data, error };
+}
+
+export async function updateCompetitionApplication(id, teamData) {
+    const { data, error } = await supabaseClient
+        .from('competition_applications')
+        .update({ team_data: teamData })
+        .eq('id', id)
+        .select();
+    return { data, error };
+}
+
+export async function deleteCompetitionApplication(id) {
+    const { error } = await supabaseClient
+        .from('competition_applications')
+        .delete()
+        .eq('id', id);
+    return { error };
+}
+
+export async function updateApplicationStatus(id, status) {
+    const { data, error } = await supabaseClient
+        .from('competition_applications')
+        .update({ status: status })
+        .eq('id', id)
+        .select();
+    return { data, error };
+}
+
+export async function fetchAllCompetitionApplications() {
+    const { data, error } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
