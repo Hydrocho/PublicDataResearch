@@ -363,6 +363,7 @@ textarea:focus, input[type="text"]:focus {
     color: var(--text);
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     line-height: 1.4;
 }
@@ -721,4 +722,107 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(18px);
+}
+/* Responsive Mobile Styles */
+@media (max-width: 768px) {
+    /* Login Page Mobile */
+    .login-card {
+        padding: 25px 20px;
+        max-width: 90%;
+        margin: 20px auto;
+    }
+    
+    #login-screen {
+        overflow-y: auto;
+        display: block; /* Allow scrolling on long login forms */
+        padding: 40px 0;
+    }
+
+    #auth-title {
+        font-size: 1.8rem;
+    }
+
+    /* Dashboard Layout Mobile */
+    .app-header {
+        padding: 0 15px;
+        flex-direction: column;
+        height: auto;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        gap: 10px;
+    }
+
+    .main-layout {
+        flex-direction: column;
+        width: 100%;
+        padding: 0;
+    }
+
+    .side-nav {
+        width: 100%;
+        height: auto;
+        position: static;
+        padding: 10px;
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .nav-header {
+        display: none; /* Hide 'PROJECT STEPS' label on mobile */
+    }
+
+    #nav-items, #teacher-nav-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .nav-item {
+        margin-bottom: 0;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        flex: 1 1 calc(50% - 10px); /* 2 items per row */
+        justify-content: center;
+    }
+
+    .content-area {
+        padding: 20px 15px;
+    }
+
+    .step-container {
+        padding: 20px;
+        min-height: auto;
+    }
+
+    h2 { font-size: 1.4rem; }
+    h3 { font-size: 1.2rem; }
+
+    /* Forms on Mobile */
+    .input-group input {
+        padding: 12px;
+    }
+
+    /* Modal Mobile */
+    .modal-content {
+        width: 98%;
+        max-height: 95vh;
+    }
+
+    .meta-layout-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-header {
+        padding: 15px;
+    }
+
+    .modal-body-inner {
+        padding: 15px;
+    }
+
+    /* Hide non-essential desktop elements */
+    #selected-topic-box {
+        display: none !important;
+    }
 }

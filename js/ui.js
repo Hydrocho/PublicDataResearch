@@ -33,9 +33,12 @@ export function renderStepsNav(currentStep, state, onStepChange) {
         { id: 7, title: "5단계: 정책 제안", icon: "file-text" },
     ];
     
+    const isMobile = window.innerWidth <= 768;
+    const finalSteps = isMobile ? steps.filter(s => s.id === 8) : steps;
+    
     const navItems = document.getElementById('nav-items');
     if (!navItems) return;
-    navItems.innerHTML = steps.map(step => {
+    navItems.innerHTML = finalSteps.map(step => {
         const isActive = currentStep === step.id;
         const isComp = step.id === 8;
         let styleStr = '';

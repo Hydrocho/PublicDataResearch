@@ -40,6 +40,10 @@
                     <i data-lucide="lock"></i>
                     <input type="password" id="password" placeholder="숫자 4자리 PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" required>
                 </div>
+                <div class="input-group" id="confirm-password-group" style="display: none;">
+                    <i data-lucide="lock-keyhole"></i>
+                    <input type="password" id="confirm-password" placeholder="PIN 다시 입력" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+                </div>
                 <p id="error-msg" style="color: var(--accent); display: none; margin-bottom: 15px; font-size: 0.9rem;"></p>
                 <div id="consent-group" style="display: none; margin-bottom: 20px; text-align: left;">
                     <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text);">

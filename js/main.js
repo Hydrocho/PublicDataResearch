@@ -63,6 +63,9 @@ toggleBtn.addEventListener('click', (e) => {
     }
     
     nameGroup.style.display = isSignup ? 'flex' : 'none';
+    const confirmGroup = document.getElementById('confirm-password-group');
+    if (confirmGroup) confirmGroup.style.display = isSignup ? 'flex' : 'none';
+    
     const consentGroup = document.getElementById('consent-group');
     if (consentGroup) consentGroup.style.display = isSignup ? 'block' : 'none';
     
@@ -176,6 +179,13 @@ loginForm.addEventListener('submit', async (e) => {
     }
 
     if (isSignup) {
+        const confirmPw = document.getElementById('confirm-password').value;
+        if (pw !== confirmPw) {
+            errorMsg.style.display = 'block';
+            errorMsg.innerText = '비밀번호(PIN)가 일치하지 않습니다.';
+            return;
+        }
+
         const consentCheckbox = document.getElementById('privacy-consent');
         if (consentCheckbox && !consentCheckbox.checked) {
             errorMsg.style.display = 'block';
@@ -421,6 +431,9 @@ window.onDataSelected = (cat, dataInfo) => {
 };
 
 function changeStep(id) {
+    if (window.innerWidth <= 768 && id !== 8) {
+        id = 8; // Force Step 8 on mobile
+    }
     state.currentStep = id;
     
     const s0 = document.getElementById('step-0');
