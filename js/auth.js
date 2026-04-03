@@ -169,6 +169,15 @@ export async function resetStudentPin(studentId) {
     return { error };
 }
 
+export async function updateStudentPin(studentId, newPin) {
+    const hashedPw = await hashPin(newPin);
+    const { error } = await supabaseClient
+        .from('students')
+        .update({ password: hashedPw })
+        .eq('student_id', studentId);
+    return { error };
+}
+
 export async function saveTopicSelection(studentId, topicId) {
     const { error } = await supabaseClient
         .from('topic_selections')
@@ -191,6 +200,58 @@ export async function fetchActivityLogs(studentId, stepId) {
         .eq('step_id', stepId)
         .order('created_at', { ascending: false });
     return { data, error };
+}
+
+export async function fetchTeamActivityLogs(currentStudentId, stepId) {
+    // 1. Find approved team
+    const { data: allApps, error: appError } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('status', 'completed');
+
+    if (appError || !allApps) return { data: [], error: appError };
+
+    const myApp = allApps.find(app => {
+        if (app.created_by === currentStudentId) return true;
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        return members.some(m => m.student_id === currentStudentId);
+    });
+
+    if (!myApp) return { data: [], error: null };
+
+    const members = Array.isArray(myApp.team_data) ? myApp.team_data : [];
+    const allMemberIds = [myApp.created_by, ...members.map(m => m.student_id)]
+        .filter(id => id && id !== currentStudentId);
+    const uniqueMemberIds = [...new Set(allMemberIds)];
+    if (uniqueMemberIds.length === 0) return { data: [], error: null };
+
+    // 2. Fetch activity logs from team members
+    const { data: logs, error } = await supabaseClient
+        .from('activity_log')
+        .select('*')
+        .in('student_id', uniqueMemberIds)
+        .eq('step_id', stepId)
+        .order('created_at', { ascending: false });
+
+    if (error || !logs) return { data: [], error };
+
+    // 3. Fetch member names
+    const { data: students } = await supabaseClient
+        .from('students')
+        .select('student_id, name')
+        .in('student_id', uniqueMemberIds);
+
+    const nameMap = {};
+    (students || []).forEach(s => { nameMap[s.student_id] = s.name; });
+
+    return {
+        data: logs.map(log => ({
+            ...log,
+            _memberName: nameMap[log.student_id] || log.student_id,
+            _isTeam: true
+        })),
+        error: null
+    };
 }
 
 /**
@@ -505,6 +566,85 @@ export async function toggleResearchUse(datasetId, isUse, studentId, isOwner, is
 }
 
 /**
+ * Fetch team member datasets that are relevant for research (4단계):
+ * Includes team member datasets where the member set is_research_use=true,
+ * OR where the current student checked them via shared_research_use.
+ */
+export async function fetchTeamResearchDatasets(studentId) {
+    // 1. Find the approved team
+    const { data: allApps, error: appError } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('status', 'completed');
+
+    if (appError || !allApps) return { data: [], error: appError };
+
+    const myApp = allApps.find(app => {
+        if (app.created_by === studentId) return true;
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        return members.some(m => m.student_id === studentId);
+    });
+
+    if (!myApp) return { data: [], error: null };
+
+    const members = Array.isArray(myApp.team_data) ? myApp.team_data : [];
+    const allMemberIds = [myApp.created_by, ...members.map(m => m.student_id)]
+        .filter(id => id && id !== studentId);
+    const uniqueMemberIds = [...new Set(allMemberIds)];
+    if (uniqueMemberIds.length === 0) return { data: [], error: null };
+
+    // 2. Team member datasets where the member marked is_research_use=true
+    const { data: ownerMarked, error: dsError } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .in('student_id', uniqueMemberIds)
+        .eq('is_research_use', true);
+
+    if (dsError) return { data: [], error: dsError };
+
+    // 3. Team member datasets the current student explicitly marked via shared_research_use
+    const { data: usageData } = await supabaseClient
+        .from('shared_research_use')
+        .select('dataset_id')
+        .eq('student_id', studentId)
+        .eq('is_research_use', true);
+
+    let studentMarked = [];
+    if (usageData && usageData.length > 0) {
+        const markedIds = usageData.map(u => u.dataset_id);
+        const { data: sDs } = await supabaseClient
+            .from('student_datasets')
+            .select('*')
+            .in('id', markedIds)
+            .in('student_id', uniqueMemberIds);
+        studentMarked = sDs || [];
+    }
+
+    // 4. Merge and deduplicate
+    const merged = [...(ownerMarked || [])];
+    const seen = new Set(merged.map(d => d.id));
+    for (const ds of studentMarked) {
+        if (!seen.has(ds.id)) { merged.push(ds); seen.add(ds.id); }
+    }
+    if (merged.length === 0) return { data: [], error: null };
+
+    // 5. Fetch member names
+    const { data: students } = await supabaseClient
+        .from('students').select('student_id, name').in('student_id', uniqueMemberIds);
+    const nameMap = {};
+    (students || []).forEach(s => { nameMap[s.student_id] = s.name; });
+
+    return {
+        data: merged.map(ds => ({
+            ...ds,
+            students: nameMap[ds.student_id] ? { name: nameMap[ds.student_id] } : null,
+            _isTeam: true
+        })),
+        error: null
+    };
+}
+
+/**
  * Fetch ALL datasets marked for 'Research Use' by the current student
  * (Both own datasets and shared datasets from others)
  */
@@ -690,6 +830,24 @@ export async function fetchCompetitionApplicationByStudent(studentId) {
     return { data, error };
 }
 
+export async function fetchCompetitionApplicationAsMember(studentId) {
+    // Fetch all applications and find one where studentId appears in team_data
+    const { data: allApps, error } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error || !allApps) return { data: null, error };
+
+    const found = allApps.find(app => {
+        if (app.created_by === studentId) return false; // skip own apps
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        return members.some(m => m.student_id === studentId);
+    });
+
+    return { data: found || null, error: null };
+}
+
 export async function updateCompetitionApplication(id, teamData) {
     const { data, error } = await supabaseClient
         .from('competition_applications')
@@ -722,4 +880,67 @@ export async function fetchAllCompetitionApplications() {
         .select('*')
         .order('created_at', { ascending: false });
     return { data, error };
+}
+
+export async function fetchTeamDatasets(currentStudentId) {
+    // 1. Find the approved team that includes this student
+    const { data: allApps, error: appError } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('status', 'completed');
+
+    if (appError || !allApps) return { data: [], error: appError };
+
+    const myApp = allApps.find(app => {
+        if (app.created_by === currentStudentId) return true;
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        return members.some(m => m.student_id === currentStudentId);
+    });
+
+    if (!myApp) return { data: [], error: null };
+
+    // 2. Collect team member IDs (excluding self)
+    const members = Array.isArray(myApp.team_data) ? myApp.team_data : [];
+    const allMemberIds = [myApp.created_by, ...members.map(m => m.student_id)]
+        .filter(id => id && id !== currentStudentId);
+    const uniqueMemberIds = [...new Set(allMemberIds)];
+
+    if (uniqueMemberIds.length === 0) return { data: [], error: null };
+
+    // 3. Fetch all datasets from team members regardless of is_shared
+    const { data: teamDs, error: dsError } = await supabaseClient
+        .from('student_datasets')
+        .select('*')
+        .in('student_id', uniqueMemberIds)
+        .order('created_at', { ascending: false });
+
+    if (dsError || !teamDs) return { data: [], error: dsError };
+
+    // 4. Fetch member names
+    const { data: students } = await supabaseClient
+        .from('students')
+        .select('student_id, name')
+        .in('student_id', uniqueMemberIds);
+
+    const nameMap = {};
+    (students || []).forEach(s => { nameMap[s.student_id] = s.name; });
+
+    // 5. Get current student's research usage for these datasets
+    const { data: usageData } = await supabaseClient
+        .from('shared_research_use')
+        .select('dataset_id, is_research_use')
+        .eq('student_id', currentStudentId);
+
+    // 6. Merge
+    const mergedData = teamDs.map(ds => {
+        const usage = usageData?.find(u => u.dataset_id === ds.id);
+        return {
+            ...ds,
+            students: nameMap[ds.student_id] ? { name: nameMap[ds.student_id] } : null,
+            is_research_use: usage ? usage.is_research_use : false,
+            _isTeam: true
+        };
+    });
+
+    return { data: mergedData, teamMemberIds: uniqueMemberIds, error: null };
 }

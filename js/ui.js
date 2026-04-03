@@ -23,14 +23,14 @@ export function renderStepsNav(currentStep, state, onStepChange) {
     const selectedTopic = state?.selectedTopic;
     const steps = [
         { id: 8, title: "대회 참가 신청", icon: "users" },
-        { id: 0, title: "데이터 탐색", icon: "search" },
-        { id: 1, title: "데이터 저장", icon: "download" },
-        { id: 2, title: "데이터 관리", icon: "list" },
-        { id: 3, title: "1단계: 문제 정의", icon: "database" },
-        { id: 4, title: "2단계: 전처리", icon: "map" },
-        { id: 5, title: "3단계: AI 분석", icon: "brain" },
-        { id: 6, title: "4단계: 시각화", icon: "bar-chart" },
-        { id: 7, title: "5단계: 정책 제안", icon: "file-text" },
+        { id: 0, title: "1단계: 데이터 탐색", icon: "search" },
+        { id: 1, title: "2단계: 데이터 저장", icon: "download" },
+        { id: 2, title: "3단계: 데이터 관리", icon: "list" },
+        { id: 3, title: "4단계: 문제 정의", icon: "database" },
+        { id: 4, title: "5단계: 전처리", icon: "map" },
+        { id: 5, title: "6단계: AI 분석", icon: "brain" },
+        { id: 6, title: "7단계: 시각화", icon: "bar-chart" },
+        { id: 7, title: "8단계: 정책 제안", icon: "file-text" },
     ];
     
     const isMobile = window.innerWidth <= 768;
@@ -74,18 +74,7 @@ export function renderStepContent(stepId, state, onStepChange) {
     let content = '';
     const topic = state.selectedTopic;
 
-    // Steps 3+ require a selected topic (Step IDs 5, 6, 7)
-    if (!topic && stepId >= 5 && stepId <= 7) {
-        content = `
-            <div style="text-align: center; padding: 60px 20px;">
-                <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
-                <h3 style="font-size: 1.5rem; margin-bottom: 10px;">프로젝트 주제를 먼저 선택해주세요!</h3>
-                <p class="text-muted">왼쪽 메뉴의 [데이터 탐색] 단계에서 관심 있는 주제를 고르면<br>해당 주제에 맞춤화된 단계별 가이드와 코드 템플릿이 나타납니다.</p>
-                <button class="btn-primary" style="margin-top: 30px;" onclick="window.changeStep(0)">데이터 탐색으로 가기</button>
-            </div>
-        `;
-    } else {
-        switch(stepId) {
+    switch(stepId) {
             case 0:
                 content = `<div style="text-align:center; padding: 40px;"><h2>데이터 탐색 단계입니다.</h2><p>왼쪽 메뉴를 이용하거나 홈으로 가세요.</p></div>`;
                 break;
@@ -106,12 +95,28 @@ export function renderStepContent(stepId, state, onStepChange) {
                     import('./discovery.js').then(m => m.showSaveInstructions(initialName, state, window.onDataSelected));
                 }, 50);
                 break;
-            case 2: // Old 1: Management
+            case 2: // 3단계: 데이터 관리
                 content = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h2>📋 데이터 관리</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>📋 3단계: 데이터 관리</h2>
                         <span class="text-muted" style="font-size: 0.9rem;">수집한 데이터셋을 확인하고 관리할 수 있습니다.</span>
                     </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 25px;">
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #16a34a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">3단계 역할</div>
+                            <div style="font-size: 0.88rem; color: #166534; line-height: 1.55;">저장된 데이터셋을 한눈에 확인하고, 연구에 쓸 파일을 선택하거나 공유 여부를 설정합니다. 4단계(문제 정의)로 넘어가기 전에 반드시 완료하세요.</div>
+                        </div>
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 18px;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #1d4ed8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">연구 활용 체크박스</div>
+                            <div style="font-size: 0.88rem; color: #1e3a8a; line-height: 1.55;">체크하면 해당 데이터셋이 <strong>4단계 문제 정의</strong>의 AI 분석 대상으로 포함됩니다. 연구에 필요한 파일만 선택하세요. 체크하지 않은 파일은 AI가 참고하지 않습니다.</div>
+                        </div>
+                        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 16px 18px;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #7c3aed; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">공유 토글</div>
+                            <div style="font-size: 0.88rem; color: #4c1d95; line-height: 1.55;"><strong>켜짐(파란색)</strong>: 같은 반 친구들도 이 데이터를 내려받아 활용할 수 있습니다.<br><strong>꺼짐(회색)</strong>: 나만 볼 수 있는 비공개 상태가 됩니다.</div>
+                        </div>
+                    </div>
+
                     <div id="datasets-list-container" class="glass" style="padding: 20px; min-height: 300px;">
                         <div style="text-align: center; padding: 40px;">
                             <p class="text-muted">데이터를 불러오는 중입니다...</p>
@@ -122,7 +127,7 @@ export function renderStepContent(stepId, state, onStepChange) {
                     setTimeout(() => state.onLoadDatasets(), 100);
                 }
                 break;
-            case 3: // 1단계: 프로젝트 기획 (Step 1)
+            case 3: // 4단계: 문제 정의 (Step 1)
                 content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
                 setTimeout(async () => {
                     const canvasInner = document.getElementById('step-inner-content');
@@ -132,9 +137,9 @@ export function renderStepContent(stepId, state, onStepChange) {
                     
                     const { fetchAllResearchDatasets } = await import('./auth.js');
                     const { generateProblemDefinitionPrompt } = await import('./research_prompts.js');
-                    
+
                     const { data: datasets, error } = await fetchAllResearchDatasets(state.user.student_id);
-                    
+
                     if (error || !datasets || datasets.length === 0) {
                         canvasInner.innerHTML = `
                             <div style="text-align: center; padding: 50px 20px;">
@@ -148,11 +153,26 @@ export function renderStepContent(stepId, state, onStepChange) {
                     }
 
                     canvasInner.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                            <h2>1단계: 문제 정의 및 가설 설정</h2>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>4단계: 문제 정의 및 가설 설정</h2>
                             <span class="tag" style="background: var(--primary-glow); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;">분석 준비 완료</span>
                         </div>
-                        
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 25px;">
+                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: #16a34a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">4단계 역할</div>
+                                <div style="font-size: 0.88rem; color: #166534; line-height: 1.55;">3단계에서 선택한 데이터를 바탕으로 <strong>연구 주제와 가설</strong>을 AI와 함께 구체화합니다. 여기서 저장한 연구 주제가 5단계 전처리의 출발점이 됩니다.</div>
+                            </div>
+                            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 18px;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: #1d4ed8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">사용 방법</div>
+                                <div style="font-size: 0.88rem; color: #1e3a8a; line-height: 1.55;">① 분석 관점(나의 아이디어)을 입력 → ② <strong>AI 프롬프트 생성</strong> 클릭 → ③ ChatGPT 등에 붙여넣어 답변 받기 → ④ 답변을 복사해 저장</div>
+                            </div>
+                            <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 16px 18px;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: #7c3aed; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">기록 저장</div>
+                                <div style="font-size: 0.88rem; color: #4c1d95; line-height: 1.55;">AI 답변을 받은 뒤 <strong>기록 저장하기</strong>를 눌러야 5단계에서 해당 연구 주제를 선택할 수 있습니다. 저장 전에는 5단계로 넘어가도 목록에 표시되지 않습니다.</div>
+                            </div>
+                        </div>
+
                         <div class="glass" style="padding: 25px; border-left: 4px solid var(--primary); margin-bottom: 25px;">
                             <h4 style="color: var(--secondary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
                                 <i data-lucide="database" size="18"></i> 선택된 연구 데이터 (${datasets.length}건)
@@ -265,34 +285,37 @@ export function renderStepContent(stepId, state, onStepChange) {
                     }
                 }, 50);
                 break;
-            case 4: // 2단계: 데이터 전처리 (Step 2)
+            case 4: // 5단계: 데이터 전처리 (Step 2)
                 content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
                 setTimeout(async () => {
                     const canvasInner = document.getElementById('step-inner-content');
                     if (!canvasInner) return;
                     
-                    canvasInner.innerHTML = '<div style="text-align: center; padding: 40px;"><p class="text-muted">1단계 연구 기록을 불러오는 중입니다...</p></div>';
+                    canvasInner.innerHTML = '<div style="text-align: center; padding: 40px;"><p class="text-muted">4단계 연구 기록을 불러오는 중입니다...</p></div>';
                     
-                    const { fetchActivityLogs } = await import('./auth.js');
-                    console.log('Step 2: Fetching logs for student:', state.user.student_id);
-                    const { data: logs, error } = await fetchActivityLogs(state.user.student_id, 3);
-                    console.log('Step 2: Fetched logs:', logs);
-                    
-                    if (error || !logs || logs.length === 0) {
+                    const { fetchActivityLogs, fetchTeamActivityLogs } = await import('./auth.js');
+                    const [{ data: logs, error }, { data: teamLogs }] = await Promise.all([
+                        fetchActivityLogs(state.user.student_id, 3),
+                        fetchTeamActivityLogs(state.user.student_id, 3)
+                    ]);
+                    const hasOwn = logs && logs.length > 0;
+                    const hasTeam = teamLogs && teamLogs.length > 0;
+
+                    if (error || (!hasOwn && !hasTeam)) {
                         canvasInner.innerHTML = `
                             <div style="text-align: center; padding: 50px 20px;">
                                 <div style="font-size: 3rem; margin-bottom: 20px;">📝</div>
-                                <h3 style="margin-bottom: 10px;">1단계에서 저장된 연구 주제가 없습니다.</h3>
-                                <p class="text-muted">먼저 [1단계: 문제 정의]에서 AI 프롬프트를 생성하고<br>답변 내용을 저장해 주세요.</p>
-                                <button class="btn-secondary" style="margin-top: 20px;" onclick="window.changeStep(3)">1단계로 가기</button>
+                                <h3 style="margin-bottom: 10px;">4단계에서 저장된 연구 주제가 없습니다.</h3>
+                                <p class="text-muted">먼저 [4단계: 문제 정의]에서 AI 프롬프트를 생성하고<br>답변 내용을 저장해 주세요.</p>
+                                <button class="btn-secondary" style="margin-top: 20px;" onclick="window.changeStep(3)">4단계로 가기</button>
                             </div>
                         `;
                         return;
                     }
 
-                        console.log('Step 2: Checking selectedResearchId:', state.selectedResearchId);
                         if (state.selectedResearchId) {
-                            const selectedLog = logs.find(l => String(l.id) === String(state.selectedResearchId));
+                            const allLogs = [...(logs || []), ...(teamLogs || [])];
+                            const selectedLog = allLogs.find(l => String(l.id) === String(state.selectedResearchId));
                             console.log('Step 2: Found selectedLog:', selectedLog);
                             if (selectedLog) {
                                 let data;
@@ -306,7 +329,8 @@ export function renderStepContent(stepId, state, onStepChange) {
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                                         <div>
                                             <h2 style="display: flex; align-items: center; gap: 10px;">
-                                                <i data-lucide="check-circle-2" style="color: var(--primary);"></i> 2단계: 데이터 전처리
+                                                <i data-lucide="check-circle-2" style="color: var(--primary);"></i> 5단계: 데이터 전처리
+                                                ${selectedLog._isTeam ? `<span style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border-radius: 6px; padding: 3px 10px; font-weight: 600;">팀원: ${selectedLog._memberName}</span>` : ''}
                                             </h2>
                                             <p class="text-muted">선택하신 연구 주제의 상세 내용을 확인하고 전처리를 준비합니다.</p>
                                         </div>
@@ -492,32 +516,39 @@ export function renderStepContent(stepId, state, onStepChange) {
                         }
 
                         canvasInner.innerHTML = `
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                                <div>
-                                    <h2>2단계: 데이터 전처리 및 정제</h2>
-                                    <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px;">선택한 연구 주제에 맞춰 데이터를 분석 가능한 형태로 가공합니다.</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h2>5단계: 데이터 전처리 및 정제</h2>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 25px;">
+                                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px;">
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #16a34a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">5단계 역할</div>
+                                    <div style="font-size: 0.88rem; color: #166534; line-height: 1.55;">4단계에서 저장한 연구 주제를 선택하고, 해당 주제에 맞는 <strong>데이터 전처리 코드</strong>를 AI의 도움으로 생성합니다. 생성된 코드는 구글 코랩(Colab)에서 바로 사용할 수 있습니다.</div>
+                                </div>
+                                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 18px;">
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #1d4ed8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">사용 방법</div>
+                                    <div style="font-size: 0.88rem; color: #1e3a8a; line-height: 1.55;">① 아래 목록에서 연구 주제 <strong>선택하기</strong> → ② <strong>코랩 전처리 프롬프트 생성</strong> 클릭 → ③ 생성된 프롬프트를 ChatGPT 등에 붙여넣어 코드 받기 → ④ 코랩에서 실행</div>
+                                </div>
+                                <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 16px 18px;">
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #7c3aed; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">연구 주제 추가</div>
+                                    <div style="font-size: 0.88rem; color: #4c1d95; line-height: 1.55;">목록에 주제가 없거나 새 주제를 추가하려면 <strong>4단계: 문제 정의</strong>에서 AI 답변을 저장해 주세요. 저장된 항목이 이 목록에 자동으로 나타납니다.</div>
                                 </div>
                             </div>
 
                             <div style="margin-bottom: 20px;">
                                 <h4 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                                    <i data-lucide="list-checks" size="18"></i> 분석할 연구 주제 선택
+                                    <i data-lucide="list-checks" size="18"></i> 내 연구 주제
                                 </h4>
+                                ${!hasOwn ? '<p class="text-muted" style="padding: 15px; background: #f8fafc; border-radius: 8px;">저장된 내 연구 주제가 없습니다.</p>' : `
                                 <div style="display: grid; gap: 15px;">
-                                    ${logs.map(log => {
-                                        console.log('Step 2: Rendering Log Object:', log, 'Current Student:', state.user.student_id);
+                                    ${(logs || []).map(log => {
                                         let data;
-                                        try {
-                                            data = JSON.parse(log.content);
-                                        } catch(e) {
-                                            data = { answer: log.content };
-                                        }
+                                        try { data = JSON.parse(log.content); } catch(e) { data = { answer: log.content }; }
                                         const dateStr = new Date(log.created_at).toLocaleString();
-                                        const isSelected = state.selectedResearchId === log.id;
-                                        
+                                        const isSelected = String(state.selectedResearchId) === String(log.id);
                                         return `
-                                            <div class="glass card research-log-card ${isSelected ? 'active' : ''}" 
-                                                 data-id="${log.id}" 
+                                            <div class="glass card research-log-card ${isSelected ? 'active' : ''}"
+                                                 data-id="${log.id}"
                                                  style="padding: 20px; cursor: pointer; border-left: 4px solid ${isSelected ? 'var(--primary)' : 'var(--glass-border)'}; transition: all 0.2s;">
                                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                                     <span style="font-size: 0.8rem; color: var(--primary); font-weight: 500;">
@@ -527,27 +558,62 @@ export function renderStepContent(stepId, state, onStepChange) {
                                                 </div>
                                                 <div style="margin-bottom: 12px;">
                                                     <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">분석 관점:</strong>
-                                                    <p style="font-size: 0.95rem; line-height: 1.4; color: var(--text); margin:0;">
-                                                        ${data.opinion || '의견 없음'}
-                                                    </p>
+                                                    <p style="font-size: 0.95rem; line-height: 1.4; color: var(--text); margin:0;">${data.opinion || '의견 없음'}</p>
                                                 </div>
                                                 <div>
                                                     <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">AI 제안 요약:</strong>
-                                                    <p style="font-size: 0.9rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin:0;">
-                                                        ${data.answer}
-                                                    </p>
+                                                    <p style="font-size: 0.9rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin:0;">${data.answer}</p>
                                                 </div>
                                                 <div style="text-align: right; margin-top: 15px;">
                                                     <button class="btn-secondary delete-research-btn" data-id="${log.id}" style="font-size: 0.8rem; padding: 6px 15px; background: #fee2e2; color: #dc2626; border-color: #fecaca; margin-right: 8px;">삭제</button>
-                                                    <button class="btn-primary select-research-btn" data-id="${log.id}" style="font-size: 0.8rem; padding: 6px 15px;">
-                                                        ${isSelected ? '현재 선택됨' : '선택하기'}
-                                                    </button>
+                                                    <button class="btn-primary select-research-btn" data-id="${log.id}" style="font-size: 0.8rem; padding: 6px 15px;">${isSelected ? '현재 선택됨' : '선택하기'}</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>`}
+                            </div>
+
+                            ${hasTeam ? `
+                            <div style="margin-top: 35px; padding-top: 25px; border-top: 1px dashed #cbd5e1;">
+                                <h4 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #0369a1;">
+                                    <i data-lucide="users-round" size="18"></i> 팀원의 연구 주제
+                                </h4>
+                                <div style="display: grid; gap: 15px;">
+                                    ${(teamLogs || []).map(log => {
+                                        let data;
+                                        try { data = JSON.parse(log.content); } catch(e) { data = { answer: log.content }; }
+                                        const dateStr = new Date(log.created_at).toLocaleString();
+                                        const isSelected = String(state.selectedResearchId) === String(log.id);
+                                        return `
+                                            <div class="glass card research-log-card ${isSelected ? 'active' : ''}"
+                                                 data-id="${log.id}"
+                                                 style="padding: 20px; cursor: pointer; border-left: 4px solid ${isSelected ? '#0284c7' : '#bae6fd'}; background: #f0f9ff; transition: all 0.2s;">
+                                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span style="font-size: 0.8rem; color: #0369a1; font-weight: 500;">
+                                                            <i data-lucide="clock" size="12" style="vertical-align: middle;"></i> ${dateStr}
+                                                        </span>
+                                                        <span style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border-radius: 4px; padding: 1px 8px; font-weight: 600;">${log._memberName}</span>
+                                                    </div>
+                                                    ${isSelected ? '<span class="tag" style="background: #0284c7; color: white; scale: 0.8;">선택됨</span>' : ''}
+                                                </div>
+                                                <div style="margin-bottom: 12px;">
+                                                    <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">분석 관점:</strong>
+                                                    <p style="font-size: 0.95rem; line-height: 1.4; color: var(--text); margin:0;">${data.opinion || '의견 없음'}</p>
+                                                </div>
+                                                <div>
+                                                    <strong style="display: block; font-size: 0.9rem; color: var(--secondary); margin-bottom: 5px;">AI 제안 요약:</strong>
+                                                    <p style="font-size: 0.9rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; margin:0;">${data.answer}</p>
+                                                </div>
+                                                <div style="text-align: right; margin-top: 15px;">
+                                                    <button class="btn-primary select-research-btn" data-id="${log.id}" style="font-size: 0.8rem; padding: 6px 15px; background: #0284c7; border-color: #0284c7;">${isSelected ? '현재 선택됨' : '선택하기'}</button>
                                                 </div>
                                             </div>
                                         `;
                                     }).join('')}
                                 </div>
-                            </div>
+                            </div>` : ''}
                         `;
                     
                     lucide.createIcons();
@@ -600,14 +666,271 @@ export function renderStepContent(stepId, state, onStepChange) {
                     });
                 }, 50);
                 break;
-            case 5: // Old 4: Step 3
-                content = `<h2>3단계: AI 데이터 분석</h2><div class="glass" style="padding:30px;"><p>패턴 탐색 및 예측 모델링 단계입니다.</p></div>`;
+            case 5: // 6단계: AI 분석
+                content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
+                setTimeout(async () => {
+                    const canvasInner = document.getElementById('step-inner-content');
+                    if (!canvasInner) return;
+                    canvasInner.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">4단계 연구 기록을 불러오는 중입니다...</p></div>';
+
+                    const { fetchActivityLogs, fetchAllResearchDatasets } = await import('./auth.js');
+                    const { data: logs, error } = await fetchActivityLogs(state.user.student_id, 3);
+
+                    if (error || !logs || logs.length === 0) {
+                        canvasInner.innerHTML = `
+                            <div style="text-align:center;padding:50px 20px;">
+                                <div style="font-size:3rem;margin-bottom:20px;">🔬</div>
+                                <h3 style="margin-bottom:10px;">4단계에서 저장된 연구 주제가 없습니다.</h3>
+                                <p class="text-muted">먼저 [4단계: 문제 정의]에서 AI 프롬프트를 생성하고<br>답변 내용을 저장해 주세요.</p>
+                                <button class="btn-secondary" style="margin-top:20px;" onclick="window.changeStep(3)">4단계로 가기</button>
+                            </div>`;
+                        return;
+                    }
+
+                    if (state.step6ResearchId) {
+                        const selectedLog = logs.find(l => String(l.id) === String(state.step6ResearchId));
+                        if (selectedLog) {
+                            let resData;
+                            try { resData = JSON.parse(selectedLog.content); } catch(e) { resData = { answer: selectedLog.content }; }
+
+                            canvasInner.innerHTML = `
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                                    <h2>6단계: AI 데이터 분석</h2>
+                                    <button id="reset-step6-btn" class="btn-secondary" style="font-size:0.85rem;">다른 주제 선택</button>
+                                </div>
+
+                                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
+                                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
+                                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">6단계 역할</div>
+                                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">5단계에서 전처리된 데이터를 바탕으로 <strong>분석 코드를 생성</strong>하고, 결과를 해석해 가설을 검증합니다. 8단계 정책 제안의 근거가 됩니다.</div>
+                                    </div>
+                                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
+                                        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 A: 분석 코드</div>
+                                        <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">① 분석 유형 선택 → ② <strong>분석 코드 프롬프트 생성</strong> → ③ ChatGPT에 붙여넣어 코드 받기 → ④ 코랩에서 실행</div>
+                                    </div>
+                                    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
+                                        <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 B: 결과 해석</div>
+                                        <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">코랩 분석 후 결과 수치·내용을 입력하면 AI가 <strong>가설 지지/기각 여부</strong>와 정책 시사점을 해석해 줍니다.</div>
+                                    </div>
+                                </div>
+
+                                <div class="glass" style="padding:20px;border-left:4px solid var(--primary);margin-bottom:25px;">
+                                    <h4 style="color:var(--secondary);margin-bottom:8px;font-size:0.95rem;">📌 선택된 연구 주제</h4>
+                                    <p style="font-size:0.9rem;color:#475569;line-height:1.5;margin:0;">${resData.opinion || resData.answer?.slice(0, 150) + '...'}</p>
+                                </div>
+
+                                <!-- 파트 A: 분석 코드 생성 -->
+                                <div style="border:2px dashed #cbd5e1;border-radius:15px;padding:30px;background:rgba(255,255,255,0.4);margin-bottom:25px;">
+                                    <h3 style="margin-bottom:6px;color:var(--secondary);">🧪 파트 A: 분석 코드 생성</h3>
+                                    <p class="text-muted" style="margin-bottom:20px;font-size:0.88rem;">분석 유형을 선택하고 코랩용 분석 코드 프롬프트를 생성하세요.</p>
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+                                        ${['상관관계','집계·비교','회귀분석','군집분석'].map(t => `
+                                            <label style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:500;transition:all 0.15s;" class="analysis-type-label">
+                                                <input type="radio" name="analysis-type" value="${t}" style="accent-color:var(--primary);"> ${t}
+                                            </label>`).join('')}
+                                    </div>
+                                    <button id="gen-analysis-btn" class="btn-primary" style="background:#059669;border-color:#059669;padding:10px 22px;">
+                                        <i data-lucide="code" style="vertical-align:middle;margin-right:8px;"></i> 분석 코드 프롬프트 생성
+                                    </button>
+                                </div>
+
+                                <div id="analysis-prompt-result" style="display:none;background:#0f172a;border-radius:12px;padding:25px;margin-bottom:25px;position:relative;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                                        <h4 style="color:#f8fafc;margin:0;font-size:1rem;">💻 분석 코드 생성 프롬프트</h4>
+                                        <button id="copy-analysis-btn" class="btn-secondary" style="font-size:0.75rem;padding:5px 12px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;">복사하기</button>
+                                    </div>
+                                    <textarea id="analysis-prompt-text" readonly style="width:100%;height:300px;background:rgba(0,0,0,0.3);color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:15px;font-family:'Consolas',monospace;font-size:0.85rem;line-height:1.6;box-sizing:border-box;"></textarea>
+                                    <p style="color:#94a3b8;font-size:0.8rem;margin-top:10px;"><i data-lucide="info" size="13" style="vertical-align:middle;margin-right:4px;"></i> 복사 후 ChatGPT 등에 붙여넣으면 분석 코드를 받을 수 있습니다.</p>
+                                </div>
+
+                                <!-- 파트 B: 결과 해석 & 가설 검증 -->
+                                <div style="border:2px dashed #c4b5fd;border-radius:15px;padding:30px;background:rgba(250,245,255,0.4);margin-bottom:25px;">
+                                    <h3 style="margin-bottom:6px;color:#7c3aed;">🔍 파트 B: 결과 해석 & 가설 검증</h3>
+                                    <p class="text-muted" style="margin-bottom:18px;font-size:0.88rem;">코랩에서 분석을 실행한 후, 결과(수치·패턴·그래프 설명 등)를 아래에 입력하세요.</p>
+                                    <textarea id="analysis-result-input" placeholder="예: 상관계수 0.72로 강한 양의 상관관계 확인. 버스 정류장 수가 많을수록 혼잡도가 높게 나타남. 군집 3개 중 2번 군집이 가장 혼잡..." style="width:100%;height:120px;background:#ffffff;border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;font-size:0.95rem;line-height:1.5;box-sizing:border-box;"></textarea>
+                                    <button id="gen-interp-btn" class="btn-primary" style="margin-top:14px;background:#7c3aed;border-color:#7c3aed;padding:10px 22px;">
+                                        <i data-lucide="sparkles" style="vertical-align:middle;margin-right:8px;"></i> 결과 해석 & 가설 검증 프롬프트 생성
+                                    </button>
+                                </div>
+
+                                <div id="interp-prompt-result" style="display:none;background:#0f172a;border-radius:12px;padding:25px;margin-bottom:25px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                                        <h4 style="color:#f8fafc;margin:0;font-size:1rem;">✨ 결과 해석 프롬프트</h4>
+                                        <button id="copy-interp-btn" class="btn-secondary" style="font-size:0.75rem;padding:5px 12px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;">복사하기</button>
+                                    </div>
+                                    <textarea id="interp-prompt-text" readonly style="width:100%;height:280px;background:rgba(0,0,0,0.3);color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:15px;font-family:'Consolas',monospace;font-size:0.85rem;line-height:1.6;box-sizing:border-box;"></textarea>
+                                    <p style="color:#94a3b8;font-size:0.8rem;margin-top:10px;"><i data-lucide="info" size="13" style="vertical-align:middle;margin-right:4px;"></i> 복사 후 ChatGPT에 붙여넣어 가설 검증 해석을 받으세요.</p>
+                                </div>
+
+                                <div id="step6-save-area" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:22px;margin-bottom:10px;">
+                                    <h4 style="margin-bottom:12px;font-size:0.95rem;color:var(--secondary);">📝 AI 해석 결과 저장</h4>
+                                    <textarea id="step6-interp-answer" placeholder="ChatGPT 등에서 받은 해석 결과를 여기에 붙여넣어 저장하세요..." style="width:100%;height:140px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;font-size:0.93rem;line-height:1.5;box-sizing:border-box;"></textarea>
+                                    <div style="text-align:right;margin-top:12px;">
+                                        <button id="save-step6-btn" class="btn-primary" style="font-size:0.85rem;padding:8px 28px;background:#7c3aed;border-color:#7c3aed;">기록 저장하기</button>
+                                    </div>
+                                </div>
+                            `;
+
+                            lucide.createIcons();
+
+                            document.getElementById('reset-step6-btn').onclick = () => {
+                                state.step6ResearchId = null;
+                                onStepChange(stepId);
+                            };
+
+                            // 라디오 버튼 스타일
+                            canvasInner.querySelectorAll('.analysis-type-label').forEach(label => {
+                                label.querySelector('input').addEventListener('change', () => {
+                                    canvasInner.querySelectorAll('.analysis-type-label').forEach(l => l.style.borderColor = '#e2e8f0');
+                                    label.style.borderColor = 'var(--primary)';
+                                    label.style.background = 'var(--primary-glow)';
+                                });
+                            });
+
+                            // 파트 A: 분석 코드 프롬프트 생성
+                            document.getElementById('gen-analysis-btn').onclick = async () => {
+                                const typeInput = canvasInner.querySelector('input[name="analysis-type"]:checked');
+                                if (!typeInput) { alert('분석 유형을 선택해 주세요.'); return; }
+                                const btn = document.getElementById('gen-analysis-btn');
+                                btn.disabled = true; btn.innerHTML = '<i class="spinner-sm"></i> 생성 중...';
+                                try {
+                                    const { fetchAllResearchDatasets } = await import('./auth.js');
+                                    const { generateAnalysisCodePrompt } = await import('./research_prompts.js');
+                                    const { data: datasets } = await fetchAllResearchDatasets(state.user.student_id);
+                                    const prompt = await generateAnalysisCodePrompt(selectedLog, datasets || [], typeInput.value);
+                                    const resultEl = document.getElementById('analysis-prompt-result');
+                                    resultEl.style.display = 'block';
+                                    document.getElementById('analysis-prompt-text').value = prompt;
+                                    resultEl.scrollIntoView({ behavior: 'smooth' });
+                                    lucide.createIcons();
+                                } catch(err) {
+                                    alert('프롬프트 생성 오류: ' + err.message);
+                                } finally {
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<i data-lucide="code" style="vertical-align:middle;margin-right:8px;"></i> 분석 코드 프롬프트 생성';
+                                    lucide.createIcons();
+                                }
+                            };
+
+                            document.getElementById('copy-analysis-btn').onclick = () => {
+                                navigator.clipboard.writeText(document.getElementById('analysis-prompt-text').value).then(() => {
+                                    const btn = document.getElementById('copy-analysis-btn');
+                                    btn.innerText = '복사 완료!';
+                                    setTimeout(() => btn.innerText = '복사하기', 2000);
+                                });
+                            };
+
+                            // 파트 B: 결과 해석 프롬프트 생성
+                            document.getElementById('gen-interp-btn').onclick = async () => {
+                                const result = document.getElementById('analysis-result-input').value.trim();
+                                if (!result) { alert('분석 결과를 먼저 입력해 주세요.'); return; }
+                                const btn = document.getElementById('gen-interp-btn');
+                                btn.disabled = true; btn.innerHTML = '<i class="spinner-sm"></i> 생성 중...';
+                                try {
+                                    const { generateInterpretationPrompt } = await import('./research_prompts.js');
+                                    const prompt = generateInterpretationPrompt(selectedLog, result);
+                                    const resultEl = document.getElementById('interp-prompt-result');
+                                    resultEl.style.display = 'block';
+                                    document.getElementById('interp-prompt-text').value = prompt;
+                                    document.getElementById('step6-save-area').style.display = 'block';
+                                    resultEl.scrollIntoView({ behavior: 'smooth' });
+                                    lucide.createIcons();
+                                } catch(err) {
+                                    alert('프롬프트 생성 오류: ' + err.message);
+                                } finally {
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<i data-lucide="sparkles" style="vertical-align:middle;margin-right:8px;"></i> 결과 해석 & 가설 검증 프롬프트 생성';
+                                    lucide.createIcons();
+                                }
+                            };
+
+                            document.getElementById('copy-interp-btn').onclick = () => {
+                                navigator.clipboard.writeText(document.getElementById('interp-prompt-text').value).then(() => {
+                                    const btn = document.getElementById('copy-interp-btn');
+                                    btn.innerText = '복사 완료!';
+                                    setTimeout(() => btn.innerText = '복사하기', 2000);
+                                });
+                            };
+
+                            // 저장
+                            document.getElementById('save-step6-btn').onclick = () => {
+                                const answer = document.getElementById('step6-interp-answer').value.trim();
+                                const analysisResult = document.getElementById('analysis-result-input').value.trim();
+                                const typeInput = canvasInner.querySelector('input[name="analysis-type"]:checked');
+                                if (!answer) { alert('저장할 내용을 입력해 주세요.'); return; }
+                                state.onSaveRecord(stepId, JSON.stringify({
+                                    researchLogId: state.step6ResearchId,
+                                    analysisType: typeInput?.value || '',
+                                    analysisResult,
+                                    interpretationAnswer: answer
+                                }));
+                            };
+
+                            return;
+                        }
+                    }
+
+                    // 목록 화면
+                    canvasInner.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                            <h2>6단계: AI 데이터 분석</h2>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
+                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
+                                <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">6단계 역할</div>
+                                <div style="font-size:0.88rem;color:#166534;line-height:1.55;">5단계의 전처리 데이터를 분석하고 결과를 해석해 <strong>가설을 검증</strong>합니다. 8단계 정책 제안의 핵심 근거가 됩니다.</div>
+                            </div>
+                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
+                                <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 A</div>
+                                <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">분석 유형(상관관계/집계·비교/회귀/군집) 선택 → <strong>코랩 분석 코드 프롬프트</strong> 생성</div>
+                            </div>
+                            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
+                                <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 B</div>
+                                <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">분석 결과 입력 → AI가 <strong>가설 지지/기각</strong> 및 정책 시사점 해석 프롬프트 생성</div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:20px;">
+                            <h4 style="margin-bottom:15px;display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="list-checks" size="18"></i> 분석할 연구 주제 선택
+                            </h4>
+                            <div style="display:grid;gap:15px;">
+                                ${logs.map(log => {
+                                    let d; try { d = JSON.parse(log.content); } catch(e) { d = { answer: log.content }; }
+                                    const dateStr = new Date(log.created_at).toLocaleString();
+                                    return `
+                                        <div class="glass card" data-id="${log.id}" style="padding:20px;cursor:pointer;border-left:4px solid var(--glass-border);transition:all 0.2s;">
+                                            <span style="font-size:0.8rem;color:var(--primary);font-weight:500;">
+                                                <i data-lucide="clock" size="12" style="vertical-align:middle;"></i> ${dateStr}
+                                            </span>
+                                            <div style="margin:10px 0 8px;">
+                                                <strong style="font-size:0.9rem;color:var(--secondary);">분석 관점:</strong>
+                                                <p style="font-size:0.95rem;margin:4px 0 0;color:var(--text);">${d.opinion || '의견 없음'}</p>
+                                            </div>
+                                            <p style="font-size:0.88rem;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0;">${d.answer}</p>
+                                            <div style="text-align:right;margin-top:14px;">
+                                                <button class="btn-primary step6-select-btn" data-id="${log.id}" style="font-size:0.8rem;padding:6px 15px;">선택하기</button>
+                                            </div>
+                                        </div>`;
+                                }).join('')}
+                            </div>
+                        </div>`;
+
+                    lucide.createIcons();
+
+                    canvasInner.querySelectorAll('.step6-select-btn').forEach(btn => {
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            state.step6ResearchId = btn.dataset.id;
+                            onStepChange(stepId);
+                        };
+                    });
+                }, 50);
                 break;
-            case 6: // Old 5: Step 4
-                content = `<h2>4단계: 시각화</h2><div class="glass" style="padding:30px;"><p>분석 데이터의 시각적 요약 단계입니다.</p></div>`;
+            case 6: // 7단계: 시각화
+                content = `<h2>7단계: 시각화</h2><div class="glass" style="padding:30px;"><p>분석 데이터의 시각적 요약 단계입니다.</p></div>`;
                 break;
-            case 7: // Old 6: Step 5
-                content = `<h2>5단계: 정책 및 인사이트 제안</h2><div class="glass" style="padding:30px;"><p>최종 제안서 작성 단계입니다.</p></div>`;
+            case 7: // 8단계: 정책 제안
+                content = `<h2>8단계: 정책 및 인사이트 제안</h2><div class="glass" style="padding:30px;"><p>최종 제안서 작성 단계입니다.</p></div>`;
                 break;
             case 8: // Competition Application
                 content = '<div id="competition-root" style="min-height: 400px;"></div>';
@@ -617,8 +940,9 @@ export function renderStepContent(stepId, state, onStepChange) {
                     
                     root.innerHTML = '<div style="text-align: center; padding: 40px;"><p class="text-muted">신청 내역을 확인하는 중입니다...</p></div>';
                     
-                    const { fetchCompetitionApplicationByStudent, submitCompetitionApplication, updateCompetitionApplication, deleteCompetitionApplication } = await import('./auth.js');
+                    const { fetchCompetitionApplicationByStudent, fetchCompetitionApplicationAsMember, submitCompetitionApplication, updateCompetitionApplication, deleteCompetitionApplication } = await import('./auth.js');
                     const { data: existingApp } = await fetchCompetitionApplicationByStudent(state.user.student_id);
+                    const { data: memberApp } = existingApp ? { data: null } : await fetchCompetitionApplicationAsMember(state.user.student_id);
                     
                     const renderApplyMode = (initialData = null) => {
                         const isEdit = !!initialData;
@@ -770,24 +1094,27 @@ export function renderStepContent(stepId, state, onStepChange) {
                         if (window.lucide) lucide.createIcons();
                     };
 
-                    const renderViewMode = (app) => {
+                    const renderViewMode = (app, isMemberView = false) => {
                         const team = app.team_data || [];
                         const isCompleted = app.status === 'completed';
-                        
+
                         root.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                                 <div>
-                                    <h2>${isCompleted ? '🔒 접수 완료 (수정 불가)' : '✅ 대회 참가 신청 완료'}</h2>
+                                    <h2>${isMemberView ? '👥 우리 팀 참가 신청 현황' : isCompleted ? '🔒 접수 완료 (수정 불가)' : '✅ 대회 참가 신청 완료'}</h2>
                                     <p class="text-muted" style="margin-top: 5px;">
-                                        ${isCompleted 
-                                            ? '<span style="color: var(--secondary); font-weight: 700;">선생님께서 접수를 완료 처리하셨습니다. 이제 수정이나 삭제가 불가능합니다.</span>' 
-                                            : '현재 신청하신 팀 정보입니다. 수정이나 삭제를 하려면 아래 버튼을 이용하세요.'}
+                                        ${isMemberView
+                                            ? '<span style="color: #0369a1; font-weight: 600;">팀 대표가 신청한 팀 정보입니다. 수정이나 취소는 팀 대표만 가능합니다.</span>'
+                                            : isCompleted
+                                                ? '<span style="color: var(--secondary); font-weight: 700;">선생님께서 접수를 완료 처리하셨습니다. 이제 수정이나 삭제가 불가능합니다.</span>'
+                                                : '현재 신청하신 팀 정보입니다. 수정이나 삭제를 하려면 아래 버튼을 이용하세요.'}
                                     </p>
                                 </div>
+                                ${!isMemberView ? `
                                 <div style="display: flex; gap: 10px;">
                                     <button id="edit-app-btn" class="btn-primary" style="font-size: 0.85rem; padding: 8px 20px; ${isCompleted ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${isCompleted ? 'disabled' : ''}>수정하기</button>
                                     <button id="delete-app-btn" class="btn-secondary" style="font-size: 0.85rem; padding: 8px 20px; color: var(--accent); border-color: var(--accent); ${isCompleted ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${isCompleted ? 'disabled' : ''}>신청 취소</button>
-                                </div>
+                                </div>` : ''}
                             </div>
                             <div class="glass" style="padding: 30px; border-top: 4px solid ${isCompleted ? 'var(--secondary)' : 'var(--accent)'}; opacity: ${isCompleted ? '0.8' : '1'};">
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
@@ -812,7 +1139,7 @@ export function renderStepContent(stepId, state, onStepChange) {
                             </div>
                         `;
                         
-                        if (!isCompleted) {
+                        if (!isMemberView && !isCompleted) {
                             document.getElementById('edit-app-btn').onclick = () => renderApplyMode(app);
                             document.getElementById('delete-app-btn').onclick = async () => {
                                 if (!confirm('신청을 정말로 취소하시겠습니까? 신청 내역이 즉시 삭제됩니다.')) return;
@@ -828,6 +1155,7 @@ export function renderStepContent(stepId, state, onStepChange) {
                     };
 
                     if (existingApp) renderViewMode(existingApp);
+                    else if (memberApp) renderViewMode(memberApp, true);
                     else renderApplyMode();
                 }, 50);
                 break;
@@ -850,42 +1178,14 @@ export function renderStepContent(stepId, state, onStepChange) {
                 </div>
             `;
         }
-    }
 
     canvas.innerHTML = `
         <div style="display: flex; flex-direction: column; height: 100%;">
             <div style="flex: 1;">${content}</div>
-            <div class="step-footer" style="margin-top: 30px; display: ${window.innerWidth <= 768 && stepId === 8 ? 'none' : 'flex'}; justify-content: space-between;">
-                <button class="btn-secondary" id="prev-step">이전 단계</button>
-                <button class="btn-primary" id="next-step">${stepId === 7 ? '처음으로' : '다음 단계로'}</button>
-            </div>
         </div>
     `;
-    
+
     if (window.lucide) lucide.createIcons();
-    
-    const prevBtn = document.getElementById('prev-step');
-    const nextBtn = document.getElementById('next-step');
-    
-    // Determine the next and prev step IDs based on the visual order
-    const orderedStepIds = [8, 0, 1, 2, 3, 4, 5, 6, 7];
-    const currentIndex = orderedStepIds.indexOf(stepId);
-    
-    if (prevBtn) {
-        if (currentIndex > 0) {
-            prevBtn.onclick = () => onStepChange(orderedStepIds[currentIndex - 1]);
-        } else {
-            prevBtn.style.display = 'none'; // hide previous button on first step
-        }
-    }
-    
-    if (nextBtn) {
-        if (currentIndex < orderedStepIds.length - 1) {
-            nextBtn.onclick = () => onStepChange(orderedStepIds[currentIndex + 1]);
-        } else {
-            nextBtn.onclick = () => onStepChange(orderedStepIds[0]);
-        }
-    }
 
     const saveBtn = document.getElementById('save-memo-btn');
     if (saveBtn) {
@@ -1339,14 +1639,14 @@ export function renderStudentProgress(students, onViewDetail) {
         return;
     }
 
-    // step_id 3=Step1, 4=Step2, 5=Step3, 6=Step4, 7=Step5
+    // step_id 3=4단계, 4=5단계, 5=6단계, 6=7단계, 7=8단계
     const STEPS = [
         { id: -1, label: '미시작',   color: '#94a3b8', bg: '#f1f5f9' },
-        { id: 3,  label: '1단계 완료', color: '#6366f1', bg: '#ede9fe' },
-        { id: 4,  label: '2단계 완료', color: '#0ea5e9', bg: '#e0f2fe' },
-        { id: 5,  label: '3단계 완료', color: '#10b981', bg: '#dcfce7' },
-        { id: 6,  label: '4단계 완료', color: '#f59e0b', bg: '#fef9c3' },
-        { id: 7,  label: '5단계 완료', color: '#ef4444', bg: '#fee2e2' },
+        { id: 3,  label: '4단계 완료', color: '#6366f1', bg: '#ede9fe' },
+        { id: 4,  label: '5단계 완료', color: '#0ea5e9', bg: '#e0f2fe' },
+        { id: 5,  label: '6단계 완료', color: '#10b981', bg: '#dcfce7' },
+        { id: 6,  label: '7단계 완료', color: '#f59e0b', bg: '#fef9c3' },
+        { id: 7,  label: '8단계 완료', color: '#ef4444', bg: '#fee2e2' },
     ];
 
     const getStepInfo = (maxStep) => {
@@ -1496,7 +1796,7 @@ export function renderTeacherProblemDefinitions(logs, containerId) {
     if (!container) return;
 
     if (!logs || logs.length === 0) {
-        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 1단계 기록이 없습니다.</div>';
+        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 4단계 기록이 없습니다.</div>';
         return;
     }
 
@@ -1608,7 +1908,7 @@ export function renderTeacherPreprocessing(logs, containerId) {
     if (!container) return;
 
     if (!logs || logs.length === 0) {
-        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 1단계 기록이 없습니다.</div>';
+        container.innerHTML = '<div class="text-muted" style="text-align:center; padding: 40px;">아직 작성된 4단계 기록이 없습니다.</div>';
         return;
     }
 
@@ -1677,7 +1977,7 @@ export async function renderTeacherPreprocessingDetail(selectedLog, containerId,
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <div>
                 <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
-                    <i data-lucide="user" style="color: var(--primary);"></i> ${selectedLog.student_name} 학생의 2단계 전처리
+                    <i data-lucide="user" style="color: var(--primary);"></i> ${selectedLog.student_name} 학생의 5단계 전처리
                 </h2>
                 <p class="text-muted" style="font-size: 0.9rem;">선택된 연구 주제에 최적화된 전처리 가이드를 확인합니다.</p>
             </div>

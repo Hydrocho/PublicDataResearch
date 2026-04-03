@@ -79,6 +79,122 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
 }
 
 /**
+ * 6단계 파트 A: 데이터 분석 코드 생성 프롬프트
+ */
+export async function generateAnalysisCodePrompt(selectedLog, datasets, analysisType) {
+    let data;
+    try { data = JSON.parse(selectedLog.content); } catch(e) { data = { answer: selectedLog.content }; }
+
+    const analysisGuide = {
+        '상관관계': '두 변수 이상의 관계 강도(상관계수)를 계산하고, 히트맵으로 시각화하세요. 유의미한 상관관계가 있는 변수 쌍을 강조해 주세요.',
+        '집계·비교': '그룹별 평균·합계·빈도를 집계하고 막대그래프 또는 박스플롯으로 비교하세요. 가장 차이가 큰 그룹을 강조해 주세요.',
+        '회귀분석': '선형 또는 다중 회귀 모델을 적용하고 R² 및 계수를 출력하세요. 예측값 vs 실제값 산점도도 포함하세요.',
+        '군집분석': 'K-Means 클러스터링을 적용하고 최적 K를 엘보우 기법으로 결정하세요. 군집별 특징을 요약해 주세요.',
+    };
+
+    let prompt = `당신은 데이터 분석에 능숙한 파이썬 개발자입니다.
+아래 연구 주제와 데이터를 바탕으로 구글 코랩(Colab)에서 바로 실행 가능한 **분석 코드**를 작성해 주세요.
+
+### 연구 가설 및 목표
+${data.opinion ? `연구자 관점: ${data.opinion}\n` : ''}${data.answer}
+
+### 선택된 분석 방법: ${analysisType}
+${analysisGuide[analysisType] || ''}
+
+### 데이터셋 구조
+`;
+
+    for (const ds of datasets) {
+        let fileName = ds.data_name.trim();
+        if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
+        prompt += `\n[파일명: ${fileName}]\n`;
+        try {
+            const preview = await fetchDatasetPreview(ds.file_url, ds.data_name);
+            if (preview && preview.fields) {
+                prompt += `- 주요 컬럼: ${preview.fields.join(', ')}\n`;
+                prompt += `- 데이터 샘플: ${JSON.stringify(preview.data.slice(0, 5))}\n`;
+            }
+        } catch(e) { prompt += `- (컬럼 정보 로딩 실패)\n`; }
+    }
+
+    prompt += `
+
+### 코드 작성 요구사항
+1. 파일 로딩 시 아래 인코딩 자동 탐지 함수를 반드시 사용하세요:
+\`\`\`python
+def load_csv(filepath):
+    for encoding in ['cp949', 'utf-8-sig', 'utf-8']:
+        try:
+            df = pd.read_csv(filepath, encoding=encoding)
+            print(f"[성공] {filepath} → 인코딩: {encoding}")
+            return df
+        except (UnicodeDecodeError, LookupError):
+            continue
+    raise ValueError(f"[실패] {filepath}: 지원되는 인코딩 없음")
+\`\`\`
+
+2. 코드 최상단에 아래 한글 폰트 설정을 반드시 포함하세요:
+\`\`\`python
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+
+!apt-get -qq -y install fonts-nanum > /dev/null
+fm._rebuild()  # 폰트 캐시 재빌드 (경고 제거에 필수)
+
+font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+font_prop = fm.FontProperties(fname=font_path)
+plt.rcParams['axes.unicode_minus'] = False
+\`\`\`
+한글 텍스트가 있는 모든 그래프 요소에 \`fontproperties=font_prop\`을 적용하세요.
+
+3. 각 코드 블록에 한국어 주석으로 설명을 달아주세요.
+4. 분석 결과(수치)를 print로 출력하고, 시각화 그래프를 최소 1개 포함하세요.
+5. 마지막에 분석 결과 요약을 한국어로 출력하는 코드를 추가하세요.
+6. JSON 샘플은 구조 파악 용도로만 사용하고, Python 코드 내에 직접 쓰지 마세요.
+   (null→None, true→True, false→False 변환 규칙 준수)`;
+
+    return prompt;
+}
+
+/**
+ * 6단계 파트 B: 분석 결과 해석 & 가설 검증 프롬프트
+ */
+export function generateInterpretationPrompt(selectedLog, analysisResult) {
+    let data;
+    try { data = JSON.parse(selectedLog.content); } catch(e) { data = { answer: selectedLog.content }; }
+
+    return `당신은 데이터 분석 결과 해석 및 정책 제안 전문가입니다.
+아래 연구 가설과 분석 결과를 바탕으로 다음 4가지 항목을 작성해 주세요.
+
+---
+### 원래 연구 가설 및 목표
+${data.opinion ? `연구자 관점: ${data.opinion}\n` : ''}${data.answer}
+
+---
+### 분석 결과 (학생 입력)
+${analysisResult}
+
+---
+### 작성 요청 항목
+
+**[1] 가설 검증 결과**
+- 위 분석 결과를 기준으로, 연구 가설이 지지되었는지(supported) 기각되었는지(rejected) 판단해 주세요.
+- 판단 근거를 분석 수치와 함께 구체적으로 설명하세요.
+
+**[2] 결과 해석 (쉬운 말로)**
+- 전문가가 아닌 중학생·고등학생도 이해할 수 있는 쉬운 언어로 결과의 의미를 설명해 주세요.
+- 핵심 발견 사항 2~3가지를 bullet point로 정리해 주세요.
+
+**[3] 한계점 및 추가 분석 제안**
+- 이 분석의 한계점(데이터 부족, 분석 방법의 제약 등)을 솔직하게 1~2가지 제시하세요.
+- 더 정확한 결론을 위해 추가로 분석할 수 있는 방향을 제안해 주세요.
+
+**[4] 8단계 정책 제안을 위한 시사점**
+- 이 분석 결과가 실제 정책에 어떻게 활용될 수 있는지 구체적인 제안 1~2가지를 작성해 주세요.
+- 제안은 현실적으로 실현 가능한 내용이어야 합니다.`;
+}
+
+/**
  * Generates a prompt for Google Colab coding based on the selected research log.
  *
  * [설계 방향]
@@ -199,8 +315,9 @@ def load_csv(filepath):
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
-# 1. 나눔폰트 설치
+# 1. 나눔폰트 설치 및 캐시 재빌드 (경고 제거에 필수)
 !apt-get -qq -y install fonts-nanum > /dev/null
+fm._rebuild()
 
 # 2. 폰트 파일 경로 지정 및 FontProperties 생성
 font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'

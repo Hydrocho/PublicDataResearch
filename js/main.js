@@ -208,7 +208,12 @@ loginForm.addEventListener('submit', async (e) => {
         document.getElementById('user-display').innerText = `학번: ${state.user.student_id} (${state.user.name})`;
         loginScreen.style.display = 'none';
         appContent.style.display = 'block';
-        initApp();
+
+        if (pw === '0000') {
+            showChangePinModal(state.user.student_id);
+        } else {
+            initApp();
+        }
     }
 });
 
@@ -456,6 +461,84 @@ function changeStep(id) {
         UI.renderStepContent(id, state, changeStep);
     }
     UI.renderStepsNav(id, state, changeStep);
+}
+
+function showChangePinModal(studentId) {
+    const overlay = document.createElement('div');
+    overlay.id = 'change-pin-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(15,23,42,0.6);
+        display: flex; align-items: center; justify-content: center; z-index: 9999;
+    `;
+    overlay.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 36px 32px; width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 2.2rem; margin-bottom: 10px;">🔐</div>
+                <h3 style="margin: 0 0 8px; font-size: 1.15rem; color: #0f172a;">PIN 번호를 변경해 주세요</h3>
+                <p style="margin: 0; font-size: 0.88rem; color: #64748b; line-height: 1.5;">현재 PIN이 초기값(0000)입니다.<br>새로운 4자리 PIN을 설정해 주세요.</p>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">새 PIN (4자리 숫자)</label>
+                <input id="new-pin-input" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}"
+                    style="width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 1.1rem; letter-spacing: 0.3em; text-align: center; outline: none;"
+                    placeholder="••••">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">새 PIN 확인</label>
+                <input id="new-pin-confirm" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}"
+                    style="width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 1.1rem; letter-spacing: 0.3em; text-align: center; outline: none;"
+                    placeholder="••••">
+            </div>
+            <p id="pin-change-error" style="display:none; color:#dc2626; font-size:0.83rem; margin-bottom:14px; text-align:center;"></p>
+            <button id="confirm-pin-change-btn"
+                style="width: 100%; padding: 12px; background: var(--primary, #6366f1); color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                PIN 변경하기
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('confirm-pin-change-btn').onclick = async () => {
+        const newPin = document.getElementById('new-pin-input').value;
+        const confirmPin = document.getElementById('new-pin-confirm').value;
+        const errEl = document.getElementById('pin-change-error');
+
+        if (!/^\d{4}$/.test(newPin)) {
+            errEl.textContent = '4자리 숫자로 입력해 주세요.';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (newPin === '0000') {
+            errEl.textContent = '0000은 사용할 수 없습니다. 다른 번호를 입력해 주세요.';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (newPin !== confirmPin) {
+            errEl.textContent = 'PIN이 일치하지 않습니다.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        const btn = document.getElementById('confirm-pin-change-btn');
+        btn.disabled = true;
+        btn.textContent = '변경 중...';
+
+        const { updateStudentPin } = await import('./auth.js');
+        const { error } = await updateStudentPin(studentId, newPin);
+
+        if (error) {
+            errEl.textContent = 'PIN 변경 중 오류가 발생했습니다. 다시 시도해 주세요.';
+            errEl.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'PIN 변경하기';
+            return;
+        }
+
+        overlay.remove();
+        alert('PIN이 변경되었습니다. 새 PIN으로 다시 로그인해 주세요.');
+        localStorage.removeItem('app_user');
+        location.reload();
+    };
 }
 
 // Start

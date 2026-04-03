@@ -1,5 +1,5 @@
 import { supabaseClient } from './config.js';
-import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, updateDatasetName, toggleResearchUse } from './auth.js';
+import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, fetchTeamDatasets, updateDatasetName, toggleResearchUse } from './auth.js';
 import { openDatasetModal } from './ui.js';
 
 export async function onLoadDatasets(state, changeStep) {
@@ -9,12 +9,13 @@ export async function onLoadDatasets(state, changeStep) {
         return;
     }
 
-    // Fetch both own datasets and shared datasets
-    const [ownRes, sharedRes] = await Promise.all([
+    // Fetch own, team, and shared datasets
+    const [ownRes, teamRes, sharedRes] = await Promise.all([
         fetchStudentDatasets(state.user.student_id),
+        fetchTeamDatasets(state.user.student_id),
         fetchSharedDatasets(state.user.student_id)
     ]);
-    
+
     const container = document.getElementById('datasets-list-container');
     if (!container) return;
 
@@ -24,7 +25,10 @@ export async function onLoadDatasets(state, changeStep) {
     }
 
     const ownData = ownRes.data || [];
-    const sharedData = sharedRes.data || [];
+    const teamData = teamRes.data || [];
+    const teamMemberIds = teamRes.teamMemberIds || [];
+    // Exclude team member datasets from the friends section to avoid duplicates
+    const sharedData = (sharedRes.data || []).filter(ds => !teamMemberIds.includes(ds.student_id));
 
     let html = `
         <div class="management-section">
@@ -84,6 +88,53 @@ export async function onLoadDatasets(state, changeStep) {
             `}
         </div>
 
+        ${teamData.length > 0 ? `
+        <div class="management-section" style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: #0369a1;">
+                <i data-lucide="users-round" size="20"></i> 팀원의 공유 자료실
+            </h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">같은 팀 팀원의 데이터를 공유 여부에 관계없이 모두 확인하고 연구에 활용할 수 있습니다.</p>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 2px solid #bae6fd;">
+                        <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
+                        <th style="padding: 12px; font-size: 0.85rem;">팀원</th>
+                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
+                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${teamData.map(ds => {
+                        const meta = ds.metadata || {};
+                        const rowCount = meta.row_count;
+                        const sizeKb = meta.size_kb || ds.size_kb;
+                        const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
+                        const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`) : '';
+                        const memberName = ds.students?.name || ds.student_id;
+                        return `
+                        <tr class="clickable-row team-row" data-id="${ds.id}" style="border-bottom: 1px solid #e0f2fe; background: #f0f9ff;">
+                            <td style="padding: 12px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i data-lucide="file-spreadsheet" size="18" style="color: #0284c7;"></i>
+                                    <div>
+                                        <strong>${ds.data_name}</strong>
+                                        ${sizeStr ? `<div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${sizeStr}</div>` : ''}
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding: 12px; font-size: 0.85rem; color: #0369a1; font-weight: 600;">${memberName}</td>
+                            <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? '#0284c7' : '#94a3b8'};">${rowStr}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="false" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                            </td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        ` : ''}
+
         <div class="management-section" style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
             <h3 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--primary);">
                 <i data-lucide="users" size="20"></i> 친구들의 공유 자료실
@@ -128,8 +179,8 @@ export async function onLoadDatasets(state, changeStep) {
     // Row Click Listener (for details)
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return; 
-            const ds = [...ownData, ...sharedData].find(d => String(d.id) === row.dataset.id);
+            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
+            const ds = [...ownData, ...teamData, ...sharedData].find(d => String(d.id) === row.dataset.id);
             if (ds) openDatasetModal(ds);
         });
     });
