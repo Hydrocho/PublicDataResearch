@@ -198,6 +198,26 @@ export function renderStepContent(stepId, state, onStepChange) {
                                         </div>
                                     </div>
 
+                                    <!-- 교육분야 공공데이터 -->
+                                    ${(() => {
+                                        const eduKeywords = [
+                                            "학교시설정보", "급식식단정보", "학원 및 교습소 현황",
+                                            "폐교학교현황", "학교건강표본결과조사", "대학학과정보",
+                                            "교육통계자료", "학구도정보"
+                                        ];
+                                        return `
+                                        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px;margin-bottom:20px;">
+                                            <h4 style="color:#92400e;margin:0 0 12px;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
+                                                <i data-lucide="graduation-cap" size="16"></i>
+                                                교육분야 공공데이터
+                                                <span style="font-size:0.72rem;font-weight:400;color:#b45309;">(클릭 시 데이터 포털 검색)</span>
+                                            </h4>
+                                            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                                                ${eduKeywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:4px 11px;color:#92400e;text-decoration:none;font-weight:500;" onmouseover="this.style.background='#fef08a'" onmouseout="this.style.background='#fef9c3'">${k}</a>`).join('')}
+                                            </div>
+                                        </div>`;
+                                    })()}
+
                                     `;
                                 })()}
                                 `}
