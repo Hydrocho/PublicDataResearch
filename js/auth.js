@@ -944,3 +944,30 @@ export async function fetchTeamDatasets(currentStudentId) {
 
     return { data: mergedData, teamMemberIds: uniqueMemberIds, error: null };
 }
+
+// ── 출석 체크 ──────────────────────────────────────────────
+export async function fetchAttendanceDates() {
+    const { data, error } = await supabaseClient
+        .from('attendance')
+        .select('date')
+        .order('date', { ascending: false });
+    if (error) return { data: [], error };
+    const unique = [...new Set((data || []).map(r => r.date))];
+    return { data: unique, error: null };
+}
+
+export async function fetchAttendanceByDate(date) {
+    const { data, error } = await supabaseClient
+        .from('attendance')
+        .select('student_id, status, note')
+        .eq('date', date);
+    return { data: data || [], error };
+}
+
+export async function upsertAttendance(records) {
+    // records: [{ date, student_id, status, note }]
+    const { error } = await supabaseClient
+        .from('attendance')
+        .upsert(records, { onConflict: 'date,student_id' });
+    return { error };
+}

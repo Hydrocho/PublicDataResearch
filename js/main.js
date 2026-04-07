@@ -230,6 +230,7 @@ async function showTeacherDashboard(email) {
     
     // Setup sidebar navigation
     const tabStudents = document.getElementById('tab-students');
+    const tabAttendance = document.getElementById('tab-attendance');
     const tabProgress = document.getElementById('tab-progress');
     const tabStep1 = document.getElementById('tab-step1');
     const tabStep2 = document.getElementById('tab-step2');
@@ -237,24 +238,154 @@ async function showTeacherDashboard(email) {
     const tabManagement = document.getElementById('tab-management');
     const tabTeachers = document.getElementById('tab-teachers');
     const viewStudents = document.getElementById('teacher-students-view');
+    const viewAttendance = document.getElementById('teacher-attendance-view');
     const viewProgress = document.getElementById('teacher-progress-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
     const viewStep2 = document.getElementById('teacher-step2-view');
     const viewCompetitions = document.getElementById('teacher-competitions-view');
     const viewManagement = document.getElementById('teacher-management-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
-    
+
     const switchTab = (activeTab, activeView) => {
-        // Reset all nav items
-        [tabStudents, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
-        // Hide all views
-        [viewStudents, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
-        
-        // Activate current
+        [tabStudents, tabAttendance, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
+        [viewStudents, viewAttendance, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
         activeTab.classList.add('active');
         activeView.style.display = 'block';
     };
     
+    // ── 출석 체크 ───────────────────────────────────────────
+    tabAttendance.onclick = () => {
+        switchTab(tabAttendance, viewAttendance);
+        // 오늘 날짜를 기본값으로
+        const picker = document.getElementById('attendance-date-picker');
+        if (picker && !picker.value) {
+            picker.value = new Date().toISOString().slice(0, 10);
+        }
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    document.getElementById('attendance-load-btn').addEventListener('click', async () => {
+        const date = document.getElementById('attendance-date-picker').value;
+        if (!date) { alert('날짜를 선택해주세요.'); return; }
+
+        const container = document.getElementById('attendance-table-container');
+        container.innerHTML = '<p class="text-muted" style="text-align:center;padding:40px;">불러오는 중...</p>';
+
+        const { fetchAttendanceByDate, fetchAllStudents: fetchStudents } = await import('./auth.js');
+        const [{ data: students }, { data: logs }] = await Promise.all([
+            fetchStudents(),
+            fetchAttendanceByDate(date)
+        ]);
+
+        const logMap = {};
+        (logs || []).forEach(r => { logMap[r.student_id] = r; });
+
+        const saveBtn = document.getElementById('attendance-save-btn');
+        const allPresentBtn = document.getElementById('attendance-all-present-btn');
+        saveBtn.style.display = 'inline-flex';
+        allPresentBtn.style.display = 'inline-flex';
+
+        allPresentBtn.onclick = () => {
+            container.querySelectorAll('select.att-status').forEach(sel => sel.value = 'present');
+        };
+
+        const statLabel = { present: '출석', late: '지각', absent: '결석', etc: '기타' };
+        const statColor = { present: '#16a34a', late: '#b45309', absent: '#dc2626', etc: '#6366f1' };
+
+        container.innerHTML = `
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9;text-align:left;">
+                            <th style="padding:10px 14px;border-bottom:1px solid #e2e8f0;width:40px;">#</th>
+                            <th style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">학번</th>
+                            <th style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">이름</th>
+                            <th style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">출결</th>
+                            <th style="padding:10px 14px;border-bottom:1px solid #e2e8f0;">메모</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(students || []).map((s, i) => {
+                            const log = logMap[s.student_id];
+                            const status = log?.status || 'present';
+                            return `
+                            <tr style="border-bottom:1px solid #f1f5f9;" class="att-row" data-id="${s.student_id}">
+                                <td style="padding:10px 14px;color:#94a3b8;">${i + 1}</td>
+                                <td style="padding:10px 14px;color:#475569;font-size:0.85rem;">${s.student_id}</td>
+                                <td style="padding:10px 14px;font-weight:600;">${s.name}</td>
+                                <td style="padding:10px 14px;">
+                                    <select class="att-status" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:0.85rem;font-family:inherit;color:${statColor[status]};font-weight:600;background:white;">
+                                        ${Object.entries(statLabel).map(([v, l]) =>
+                                            `<option value="${v}" ${status === v ? 'selected' : ''} style="color:${statColor[v]};">${l}</option>`
+                                        ).join('')}
+                                    </select>
+                                </td>
+                                <td style="padding:10px 14px;">
+                                    <input type="text" class="att-note" value="${log?.note || ''}"
+                                        placeholder="메모 (선택)"
+                                        style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:0.85rem;font-family:inherit;width:100%;max-width:200px;"/>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+
+        // 출결 변경 시 셀렉트 색상 즉시 반영
+        container.querySelectorAll('select.att-status').forEach(sel => {
+            sel.addEventListener('change', () => { sel.style.color = statColor[sel.value]; });
+        });
+
+        // 요약 갱신
+        const updateSummary = () => {
+            const counts = { present: 0, late: 0, absent: 0, etc: 0 };
+            container.querySelectorAll('select.att-status').forEach(sel => counts[sel.value]++);
+            document.getElementById('attendance-summary').style.display = 'flex';
+            document.getElementById('attendance-summary').innerHTML =
+                `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.88rem;">
+                    ${Object.entries(statLabel).map(([v, l]) =>
+                        `<span style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;">
+                            <span style="color:${statColor[v]};font-weight:700;">${l}</span>
+                            <span style="color:#475569;margin-left:4px;">${counts[v]}명</span>
+                        </span>`).join('')}
+                    <span style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;color:#64748b;">전체 ${(students||[]).length}명</span>
+                </div>`;
+        };
+        updateSummary();
+        container.querySelectorAll('select.att-status').forEach(sel => sel.addEventListener('change', updateSummary));
+
+        if (window.lucide) window.lucide.createIcons();
+    });
+
+    document.getElementById('attendance-save-btn').addEventListener('click', async () => {
+        const date = document.getElementById('attendance-date-picker').value;
+        if (!date) return;
+
+        const rows = document.querySelectorAll('.att-row');
+        const records = [];
+        rows.forEach(row => {
+            records.push({
+                date,
+                student_id: row.dataset.id,
+                status: row.querySelector('.att-status').value,
+                note: row.querySelector('.att-note').value.trim() || null
+            });
+        });
+
+        const { upsertAttendance } = await import('./auth.js');
+        const { error } = await upsertAttendance(records);
+        if (error) {
+            alert('저장 중 오류가 발생했습니다: ' + error.message);
+        } else {
+            const saveBtn = document.getElementById('attendance-save-btn');
+            const orig = saveBtn.innerHTML;
+            saveBtn.innerHTML = '✅ 저장 완료';
+            saveBtn.disabled = true;
+            setTimeout(() => { saveBtn.innerHTML = orig; saveBtn.disabled = false; }, 2000);
+        }
+    });
+    // ────────────────────────────────────────────────────────
+
     tabStudents.onclick = async () => {
         switchTab(tabStudents, viewStudents);
         const list = viewStudents.querySelector('#teacher-student-list');
