@@ -254,14 +254,206 @@ async function showTeacherDashboard(email) {
     };
     
     // ── 출석 체크 ───────────────────────────────────────────
-    tabAttendance.onclick = () => {
-        switchTab(tabAttendance, viewAttendance);
-        // 오늘 날짜를 기본값으로
-        const picker = document.getElementById('attendance-date-picker');
-        if (picker && !picker.value) {
-            picker.value = new Date().toISOString().slice(0, 10);
+    const statLabel = { present: '출석', late: '지각', absent: '결석', etc: '기타' };
+    const statColor = { present: '#16a34a', late: '#b45309', absent: '#dc2626', etc: '#6366f1' };
+    const statSymbol = { present: '○', late: '△', absent: '✕', etc: '-' };
+    let calState = { year: new Date().getFullYear(), month: new Date().getMonth() + 1, summary: {} };
+
+    // ── 전체 현황표 ──
+    const renderOverviewTable = async () => {
+        const container = document.getElementById('att-overview-container');
+        if (!container) return;
+        container.innerHTML = '<p class="text-muted" style="text-align:center;padding:40px;">데이터를 불러오는 중...</p>';
+
+        const { fetchAllAttendanceOverview, fetchAllStudents: fetchStudents } = await import('./auth.js');
+        const [{ data: allRecords }, { data: students }] = await Promise.all([
+            fetchAllAttendanceOverview(),
+            fetchStudents()
+        ]);
+
+        // 날짜 목록 (오름차순, 중복 제거)
+        const dates = [...new Set((allRecords || []).map(r => r.date))].sort();
+        if (dates.length === 0) {
+            container.innerHTML = '<p class="text-muted" style="text-align:center;padding:40px;">저장된 출결 자료가 없습니다.</p>';
+            return;
         }
+
+        // 조회 맵: { student_id: { date: {status, note} } }
+        const recMap = {};
+        (allRecords || []).forEach(r => {
+            if (!recMap[r.student_id]) recMap[r.student_id] = {};
+            recMap[r.student_id][r.date] = r;
+        });
+
+        // 날짜 → 월/일 표시
+        const fmtDate = d => { const [,m,dd] = d.split('-'); return `${parseInt(m)}/${parseInt(dd)}`; };
+
+        // 학생별 결석/지각 합계
+        const totals = (sid) => {
+            let absent = 0, late = 0;
+            dates.forEach(d => {
+                const s = recMap[sid]?.[d]?.status;
+                if (s === 'absent') absent++;
+                if (s === 'late') late++;
+            });
+            return { absent, late };
+        };
+
+        const thBase = 'padding:8px 10px;border:1px solid #d1c89a;background:#f5f0d8;font-size:0.78rem;text-align:center;white-space:nowrap;font-weight:700;color:#5a4e2e;';
+        const tdBase = 'padding:7px 8px;border:1px solid #e2d9b8;font-size:0.82rem;text-align:center;white-space:nowrap;';
+
+        let html = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:100%;">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="${thBase}width:32px;">연번</th>
+                    <th rowspan="2" style="${thBase}">학번</th>
+                    <th rowspan="2" style="${thBase}">학생</th>
+                    <th colspan="${dates.length}" style="${thBase}background:#ede8c8;">차시 / 날짜</th>
+                    <th rowspan="2" style="${thBase}background:#fde8e8;color:#b91c1c;">계<br><span style="font-weight:400;font-size:0.7rem;">결/지</span></th>
+                </tr>
+                <tr>
+                    ${dates.map((d, i) => `<th style="${thBase}background:#ede8c8;min-width:38px;">
+                        <div style="font-size:0.7rem;color:#7c6d3a;">${i+1}차</div>
+                        <div style="font-size:0.75rem;">${fmtDate(d)}</div>
+                    </th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>
+                ${(students || []).map((s, i) => {
+                    const t = totals(s.student_id);
+                    const rowBg = i % 2 === 0 ? 'white' : '#fafaf5';
+                    return `<tr style="background:${rowBg};">
+                        <td style="${tdBase}color:#94a3b8;">${i+1}</td>
+                        <td style="${tdBase}color:#64748b;font-size:0.75rem;">${s.student_id}</td>
+                        <td style="${tdBase}font-weight:600;text-align:left;padding-left:12px;">${s.name}</td>
+                        ${dates.map(d => {
+                            const rec = recMap[s.student_id]?.[d];
+                            if (!rec) return `<td style="${tdBase}color:#cbd5e1;font-size:0.7rem;">-</td>`;
+                            const sym = statSymbol[rec.status] || rec.status;
+                            const col = statColor[rec.status] || '#334155';
+                            const bg = rec.status === 'absent' ? '#fff1f2' : rec.status === 'late' ? '#fffbeb' : 'inherit';
+                            const title = rec.note ? `title="${rec.note}"` : '';
+                            return `<td style="${tdBase}color:${col};font-weight:700;background:${bg};" ${title}>${sym}</td>`;
+                        }).join('')}
+                        <td style="${tdBase}background:#fff5f5;font-weight:700;">
+                            ${t.absent > 0 ? `<span style="color:#dc2626;">결${t.absent}</span>` : ''}
+                            ${t.late > 0 ? `<span style="color:#b45309;margin-left:2px;">지${t.late}</span>` : ''}
+                            ${t.absent === 0 && t.late === 0 ? '<span style="color:#16a34a;">○</span>' : ''}
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table></div>
+        <p style="margin-top:10px;font-size:0.75rem;color:#94a3b8;">※ 셀에 마우스를 올리면 메모를 확인할 수 있습니다. 날짜 클릭 시 해당 날 입력 화면으로 이동합니다.</p>`;
+
+        container.innerHTML = html;
+
+        // 날짜 헤더 클릭 → 날별 입력 탭으로 이동
+        container.querySelectorAll('th[data-att-date]').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+                document.getElementById('att-tab-daily-btn').click();
+                const picker = document.getElementById('attendance-date-picker');
+                if (picker) { picker.value = th.dataset.attDate; }
+                document.getElementById('attendance-load-btn').click();
+            });
+        });
+        // 날짜 th에 data-att-date 주입
+        const thEls = container.querySelectorAll('thead tr:nth-child(2) th');
+        thEls.forEach((th, i) => { if (dates[i]) th.dataset.attDate = dates[i]; });
+    };
+
+    // ── 캘린더 (날별 입력 탭 내) ──
+    const renderCalendar = async () => {
+        const { fetchAttendanceSummaryByMonth } = await import('./auth.js');
+        const { data } = await fetchAttendanceSummaryByMonth(calState.year, calState.month);
+        calState.summary = data || {};
+
+        const label = document.getElementById('cal-month-label');
+        if (label) label.textContent = `${calState.year}년 ${calState.month}월`;
+        const cal = document.getElementById('attendance-calendar');
+        if (!cal) return;
+
+        const today = new Date().toISOString().slice(0, 10);
+        const firstDay = new Date(calState.year, calState.month - 1, 1).getDay();
+        const daysInMonth = new Date(calState.year, calState.month, 0).getDate();
+        const weeks = ['일','월','화','수','목','금','토'];
+
+        let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">`;
+        weeks.forEach((w, i) => {
+            const c = i===0 ? '#ef4444' : i===6 ? '#3b82f6' : '#64748b';
+            html += `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:${c};padding:3px 0;">${w}</div>`;
+        });
+        for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const ds = `${calState.year}-${String(calState.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const hasData = !!calState.summary[ds];
+            const isToday = ds === today;
+            const dow = new Date(calState.year, calState.month - 1, d).getDay();
+            const nc = dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : '#334155';
+            const s = calState.summary[ds];
+            const tooltip = s ? `출석${s.present} 지각${s.late} 결석${s.absent} 기타${s.etc}` : '';
+            html += `<div class="cal-day" data-date="${ds}" title="${tooltip}"
+                style="border-radius:7px;padding:5px 3px;text-align:center;cursor:${hasData?'pointer':'default'};
+                       background:${hasData?'#eff6ff':'white'};
+                       border:${isToday?'2px solid var(--primary)':hasData?'1px solid #bfdbfe':'1px solid #f1f5f9'};
+                       min-height:44px;transition:box-shadow 0.15s;">
+                <div style="font-size:0.8rem;font-weight:${isToday?'800':'500'};color:${hasData?'#1d4ed8':nc};">${d}</div>
+                ${hasData ? `<div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;margin:2px auto 0;"></div>` : ''}
+            </div>`;
+        }
+        html += `</div>`;
+        cal.innerHTML = html;
+
+        cal.querySelectorAll('.cal-day[data-date]').forEach(cell => {
+            cell.addEventListener('mouseenter', () => { if (calState.summary[cell.dataset.date]) cell.style.boxShadow='var(--shadow)'; });
+            cell.addEventListener('mouseleave', () => { cell.style.boxShadow=''; });
+            cell.addEventListener('click', () => {
+                const picker = document.getElementById('attendance-date-picker');
+                if (picker) picker.value = cell.dataset.date;
+                document.getElementById('attendance-load-btn').click();
+            });
+        });
+    };
+
+    // ── 서브탭 전환 ──
+    const showAttOverview = () => {
+        document.getElementById('att-overview-section').style.display = 'block';
+        document.getElementById('att-daily-section').style.display = 'none';
+        document.getElementById('att-tab-overview-btn').className = 'btn-primary';
+        document.getElementById('att-tab-daily-btn').className = 'btn-secondary';
+    };
+    const showAttDaily = () => {
+        document.getElementById('att-overview-section').style.display = 'none';
+        document.getElementById('att-daily-section').style.display = 'block';
+        document.getElementById('att-tab-overview-btn').className = 'btn-secondary';
+        document.getElementById('att-tab-daily-btn').className = 'btn-primary';
+    };
+
+    document.getElementById('att-tab-overview-btn').onclick = () => { showAttOverview(); };
+    document.getElementById('att-tab-daily-btn').onclick = async () => {
+        showAttDaily();
+        const picker = document.getElementById('attendance-date-picker');
+        if (picker && !picker.value) picker.value = new Date().toISOString().slice(0, 10);
         if (window.lucide) window.lucide.createIcons();
+        await renderCalendar();
+        document.getElementById('cal-prev-btn').onclick = async () => {
+            calState.month--; if (calState.month < 1) { calState.month=12; calState.year--; } await renderCalendar();
+        };
+        document.getElementById('cal-next-btn').onclick = async () => {
+            calState.month++; if (calState.month > 12) { calState.month=1; calState.year++; } await renderCalendar();
+        };
+        document.getElementById('cal-today-btn').onclick = async () => {
+            calState.year=new Date().getFullYear(); calState.month=new Date().getMonth()+1; await renderCalendar();
+        };
+    };
+    document.getElementById('att-overview-refresh-btn').onclick = renderOverviewTable;
+
+    tabAttendance.onclick = async () => {
+        switchTab(tabAttendance, viewAttendance);
+        showAttOverview();
+        if (window.lucide) window.lucide.createIcons();
+        await renderOverviewTable();
     };
 
     document.getElementById('attendance-load-btn').addEventListener('click', async () => {
@@ -286,11 +478,8 @@ async function showTeacherDashboard(email) {
         allPresentBtn.style.display = 'inline-flex';
 
         allPresentBtn.onclick = () => {
-            container.querySelectorAll('select.att-status').forEach(sel => sel.value = 'present');
+            container.querySelectorAll('select.att-status').forEach(sel => { sel.value='present'; sel.style.color=statColor.present; });
         };
-
-        const statLabel = { present: '출석', late: '지각', absent: '결석', etc: '기타' };
-        const statColor = { present: '#16a34a', late: '#b45309', absent: '#dc2626', etc: '#6366f1' };
 
         container.innerHTML = `
             <div style="overflow-x:auto;">
@@ -310,13 +499,13 @@ async function showTeacherDashboard(email) {
                             const status = log?.status || 'present';
                             return `
                             <tr style="border-bottom:1px solid #f1f5f9;" class="att-row" data-id="${s.student_id}">
-                                <td style="padding:10px 14px;color:#94a3b8;">${i + 1}</td>
+                                <td style="padding:10px 14px;color:#94a3b8;">${i+1}</td>
                                 <td style="padding:10px 14px;color:#475569;font-size:0.85rem;">${s.student_id}</td>
                                 <td style="padding:10px 14px;font-weight:600;">${s.name}</td>
                                 <td style="padding:10px 14px;">
                                     <select class="att-status" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:0.85rem;font-family:inherit;color:${statColor[status]};font-weight:600;background:white;">
-                                        ${Object.entries(statLabel).map(([v, l]) =>
-                                            `<option value="${v}" ${status === v ? 'selected' : ''} style="color:${statColor[v]};">${l}</option>`
+                                        ${Object.entries(statLabel).map(([v,l]) =>
+                                            `<option value="${v}" ${status===v?'selected':''} style="color:${statColor[v]};">${l}</option>`
                                         ).join('')}
                                     </select>
                                 </td>
@@ -331,19 +520,17 @@ async function showTeacherDashboard(email) {
                 </table>
             </div>`;
 
-        // 출결 변경 시 셀렉트 색상 즉시 반영
         container.querySelectorAll('select.att-status').forEach(sel => {
             sel.addEventListener('change', () => { sel.style.color = statColor[sel.value]; });
         });
 
-        // 요약 갱신
         const updateSummary = () => {
-            const counts = { present: 0, late: 0, absent: 0, etc: 0 };
+            const counts = { present:0, late:0, absent:0, etc:0 };
             container.querySelectorAll('select.att-status').forEach(sel => counts[sel.value]++);
             document.getElementById('attendance-summary').style.display = 'flex';
             document.getElementById('attendance-summary').innerHTML =
                 `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.88rem;">
-                    ${Object.entries(statLabel).map(([v, l]) =>
+                    ${Object.entries(statLabel).map(([v,l]) =>
                         `<span style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;">
                             <span style="color:${statColor[v]};font-weight:700;">${l}</span>
                             <span style="color:#475569;margin-left:4px;">${counts[v]}명</span>
@@ -353,7 +540,6 @@ async function showTeacherDashboard(email) {
         };
         updateSummary();
         container.querySelectorAll('select.att-status').forEach(sel => sel.addEventListener('change', updateSummary));
-
         if (window.lucide) window.lucide.createIcons();
     });
 
@@ -382,6 +568,7 @@ async function showTeacherDashboard(email) {
             saveBtn.innerHTML = '✅ 저장 완료';
             saveBtn.disabled = true;
             setTimeout(() => { saveBtn.innerHTML = orig; saveBtn.disabled = false; }, 2000);
+            await renderCalendar();
         }
     });
     // ────────────────────────────────────────────────────────

@@ -971,3 +971,31 @@ export async function upsertAttendance(records) {
         .upsert(records, { onConflict: 'date,student_id' });
     return { error };
 }
+
+export async function fetchAllAttendanceOverview() {
+    const { data, error } = await supabaseClient
+        .from('attendance')
+        .select('date, student_id, status, note')
+        .order('date', { ascending: true });
+    return { data: data || [], error };
+}
+
+export async function fetchAttendanceSummaryByMonth(year, month) {
+    // month: 1-based
+    const from = `${year}-${String(month).padStart(2,'0')}-01`;
+    const to   = `${year}-${String(month).padStart(2,'0')}-31`;
+    const { data, error } = await supabaseClient
+        .from('attendance')
+        .select('date, status')
+        .gte('date', from)
+        .lte('date', to);
+    if (error) return { data: {}, error };
+
+    // { '2026-04-07': { present:5, late:1, absent:0, etc:0 }, ... }
+    const summary = {};
+    (data || []).forEach(r => {
+        if (!summary[r.date]) summary[r.date] = { present:0, late:0, absent:0, etc:0 };
+        summary[r.date][r.status] = (summary[r.date][r.status] || 0) + 1;
+    });
+    return { data: summary, error: null };
+}

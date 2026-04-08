@@ -223,29 +223,65 @@
                 <!-- Teacher View: Attendance -->
                 <div id="teacher-attendance-view" class="view-section" style="display: none;">
                     <div class="glass card" style="padding: 30px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                             <h3 style="display:flex;align-items:center;gap:10px;">
                                 <i data-lucide="calendar-check" style="color:var(--primary);"></i> 학생 출석 체크
                             </h3>
                         </div>
-                        <!-- 날짜 선택 및 출석부 UI -->
-                        <div style="display:flex;gap:12px;align-items:center;margin-bottom:24px;flex-wrap:wrap;">
-                            <label style="font-size:0.9rem;font-weight:600;color:var(--secondary);">날짜 선택</label>
-                            <input type="date" id="attendance-date-picker"
-                                style="border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.9rem;font-family:inherit;"/>
-                            <button id="attendance-load-btn" class="btn-primary" style="padding:7px 18px;font-size:0.9rem;">
-                                <i data-lucide="search" size="14" style="vertical-align:middle;margin-right:4px;"></i>불러오기
-                            </button>
-                            <button id="attendance-save-btn" class="btn-secondary" style="padding:7px 18px;font-size:0.9rem;display:none;">
-                                <i data-lucide="save" size="14" style="vertical-align:middle;margin-right:4px;"></i>저장
-                            </button>
-                            <button id="attendance-all-present-btn" class="btn-secondary" style="padding:7px 18px;font-size:0.9rem;display:none;">
-                                ✅ 전원 출석
-                            </button>
+                        <!-- 서브탭 -->
+                        <div style="display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+                            <button id="att-tab-overview-btn" class="btn-primary" style="padding:7px 20px;font-size:0.88rem;">📊 전체 현황표</button>
+                            <button id="att-tab-daily-btn" class="btn-secondary" style="padding:7px 20px;font-size:0.88rem;">✏️ 날별 입력</button>
                         </div>
-                        <div id="attendance-summary" style="display:none;margin-bottom:16px;"></div>
-                        <div id="attendance-table-container">
-                            <p class="text-muted" style="text-align:center;padding:40px;">날짜를 선택하고 불러오기를 눌러주세요.</p>
+
+                        <!-- ① 전체 현황표 -->
+                        <div id="att-overview-section">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                                <span style="font-size:0.82rem;color:#64748b;">
+                                    <span style="font-weight:700;color:#334155;">○</span> 출석 &nbsp;
+                                    <span style="font-weight:700;color:#b45309;">△</span> 지각 &nbsp;
+                                    <span style="font-weight:700;color:#dc2626;">✕</span> 결석 &nbsp;
+                                    <span style="font-weight:700;color:#6366f1;">-</span> 기타
+                                </span>
+                                <button id="att-overview-refresh-btn" class="btn-secondary" style="padding:5px 14px;font-size:0.82rem;margin-left:auto;">
+                                    <i data-lucide="refresh-cw" size="13" style="vertical-align:middle;margin-right:3px;"></i>새로고침
+                                </button>
+                            </div>
+                            <div id="att-overview-container" style="overflow-x:auto;">
+                                <p class="text-muted" style="text-align:center;padding:40px;">데이터를 불러오는 중...</p>
+                            </div>
+                        </div>
+
+                        <!-- ② 날별 입력 -->
+                        <div id="att-daily-section" style="display:none;">
+                            <!-- 월별 캘린더 -->
+                            <div id="attendance-calendar-wrap" style="margin-bottom:24px;">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                                    <button id="cal-prev-btn" class="btn-secondary" style="padding:4px 12px;font-size:0.9rem;">&#8249;</button>
+                                    <span id="cal-month-label" style="font-weight:700;font-size:0.95rem;color:var(--secondary);min-width:100px;text-align:center;"></span>
+                                    <button id="cal-next-btn" class="btn-secondary" style="padding:4px 12px;font-size:0.9rem;">&#8250;</button>
+                                    <button id="cal-today-btn" class="btn-secondary" style="padding:4px 12px;font-size:0.8rem;">오늘</button>
+                                    <span style="font-size:0.75rem;color:#94a3b8;margin-left:8px;">● 출석 기록 있음 &nbsp; ◆ 오늘</span>
+                                </div>
+                                <div id="attendance-calendar" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"></div>
+                            </div>
+                            <!-- 날짜 선택 입력 -->
+                            <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+                                <label style="font-size:0.9rem;font-weight:600;color:var(--secondary);">날짜 선택</label>
+                                <input type="date" id="attendance-date-picker"
+                                    style="border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.9rem;font-family:inherit;"/>
+                                <button id="attendance-load-btn" class="btn-primary" style="padding:7px 18px;font-size:0.9rem;">
+                                    <i data-lucide="search" size="14" style="vertical-align:middle;margin-right:4px;"></i>불러오기
+                                </button>
+                                <button id="attendance-save-btn" class="btn-secondary" style="padding:7px 18px;font-size:0.9rem;display:none;">
+                                    <i data-lucide="save" size="14" style="vertical-align:middle;margin-right:4px;"></i>저장
+                                </button>
+                                <button id="attendance-all-present-btn" class="btn-secondary" style="padding:7px 18px;font-size:0.9rem;display:none;">✅ 전원 출석</button>
+                            </div>
+                            <div id="attendance-summary" style="display:none;margin-bottom:16px;"></div>
+                            <div id="attendance-table-container">
+                                <p class="text-muted" style="text-align:center;padding:40px;">날짜를 선택하고 불러오기를 눌러주세요.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
