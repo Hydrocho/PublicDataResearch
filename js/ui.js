@@ -1300,8 +1300,9 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 <tr style="text-align:left;border-bottom:2px solid var(--glass-border);background:#f8fafc;">
                     <th style="padding:12px;">데이터셋 이름</th>
                     <th style="padding:12px;">작성 학생</th>
+                    <th style="padding:12px;text-align:center;">행 수</th>
                     <th style="padding:12px;text-align:center;">학생 연구 활용</th>
-                    <th style="padding:12px;text-align:center;background:#fffbeb;border-radius:4px;">교사 테스트 활용</th>
+                    <th style="padding:12px;text-align:center;background:#fffbeb;">교사 테스트 활용</th>
                     <th style="padding:12px;text-align:center;">공유</th>
                 </tr>
             </thead>
@@ -1309,6 +1310,13 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 ${datasets.map(ds => {
                     const ownerName = ds.students?.name || ds.student_id || '탈퇴한 사용자';
                     const isTeacherChecked = teacherIds.includes(String(ds.id));
+                    const meta = ds.metadata || {};
+                    const rowCount = meta.row_count;
+                    const sizeKb = meta.size_kb || ds.size_kb;
+                    const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
+                    const sizeStr = sizeKb
+                        ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`)
+                        : '';
                     return `
                     <tr class="clickable-row" data-id="${ds.id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;">
                         <td style="padding:12px;">
@@ -1318,6 +1326,10 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                             </div>
                         </td>
                         <td style="padding:12px;font-size:0.85rem;color:#4b5563;">${ownerName}</td>
+                        <td style="padding:12px;text-align:center;">
+                            <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
+                            ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
+                        </td>
                         <td style="padding:12px;text-align:center;">
                             <input type="checkbox" class="teacher-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
                         </td>
