@@ -639,12 +639,65 @@ async function showTeacherDashboard(email) {
     const refreshStep1Btn = document.getElementById('refresh-step1-btn');
     if (refreshStep1Btn) refreshStep1Btn.onclick = loadStep1Data;
 
-    tabStep2.onclick = async () => {
-        switchTab(tabStep2, viewStep2);
+    const showStep2Monitor = () => {
+        document.getElementById('step2-monitor-section').style.display = 'block';
+        document.getElementById('step2-test-section').style.display = 'none';
+        document.getElementById('step2-tab-monitor-btn').className = 'btn-primary';
+        document.getElementById('step2-tab-test-btn').className = 'btn-secondary';
+    };
+    const showStep2Test = () => {
+        document.getElementById('step2-monitor-section').style.display = 'none';
+        document.getElementById('step2-test-section').style.display = 'block';
+        document.getElementById('step2-tab-monitor-btn').className = 'btn-secondary';
+        document.getElementById('step2-tab-test-btn').className = 'btn-primary';
+    };
+
+    const loadStep2Data = async () => {
         const step2Content = viewStep2.querySelector('#teacher-step2-content');
         if (step2Content) step2Content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { data } = await fetchAllProblemDefinitionsForTeacher();
         UI.renderTeacherPreprocessing(data || [], 'teacher-step2-content');
+    };
+
+    const loadStep2Test = async () => {
+        const {
+            fetchTeacherTestActivityLogs,
+            fetchTeacherTestDatasets,
+            getTeacherSelectedResearchId,
+            setTeacherSelectedResearchId,
+        } = await import('./auth.js');
+        await UI.renderPreprocessingView('teacher-step2-test-container', {
+            getOwnLogsFn: () => fetchTeacherTestActivityLogs(),
+            getTeamLogsFn: null,
+            getDatasetsFn: () => fetchTeacherTestDatasets(),
+            getSelectedId: () => getTeacherSelectedResearchId(),
+            setSelectedIdAndRerender: (id) => {
+                setTeacherSelectedResearchId(id);
+                loadStep2Test();
+            },
+            onDelete: null,
+            onGoToStep4: () => {
+                tabStep1.click();
+                setTimeout(() => document.getElementById('step1-tab-test-btn')?.click(), 100);
+            },
+            isTeacherMode: true,
+        });
+    };
+
+    tabStep2.onclick = async () => {
+        switchTab(tabStep2, viewStep2);
+        showStep2Monitor();
+        await loadStep2Data();
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    document.getElementById('step2-tab-monitor-btn').onclick = async () => {
+        showStep2Monitor();
+        await loadStep2Data();
+    };
+    document.getElementById('step2-tab-test-btn').onclick = async () => {
+        showStep2Test();
+        await loadStep2Test();
     };
 
     const loadCompetitions = async () => {

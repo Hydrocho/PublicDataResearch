@@ -200,7 +200,7 @@
                     </div>
                     <div id="tab-step2" class="nav-item">
                         <i data-lucide="cog"></i>
-                        <span>2단계: 전처리</span>
+                        <span>5단계: 전처리</span>
                     </div>
                     <div id="tab-teachers" class="nav-item">
                         <i data-lucide="shield-check"></i>
@@ -361,16 +361,31 @@
                     </div>
                 </div>
 
-                <!-- Teacher View: Step 2 Preprocessing Monitoring -->
+                <!-- Teacher View: Step 5 Preprocessing -->
                 <div id="teacher-step2-view" class="view-section" style="display: none;">
                     <div class="glass card" style="padding: 30px;">
-                        <h3 style="margin-bottom: 5px; display: flex; align-items: center; gap: 10px;">
-                            <i data-lucide="cog" style="color: #0ea5e9;"></i>
-                            학생별 전처리 가이드 (2단계)
-                        </h3>
-                        <p class="text-muted" style="margin-bottom: 25px; font-size: 0.9rem;">학생들이 실제 분석을 위해 준비한 전처리 프롬프트와 데이터셋을 확인합니다.</p>
-                        <div id="teacher-step2-content">
-                            <!-- Step 2 content (List or Details) rendered here -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                            <h3 style="display:flex;align-items:center;gap:10px;margin:0;">
+                                <i data-lucide="cog" style="color:#0ea5e9;"></i>
+                                5단계: 전처리
+                            </h3>
+                        </div>
+                        <!-- 서브탭 -->
+                        <div style="display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+                            <button id="step2-tab-monitor-btn" class="btn-primary" style="padding:7px 20px;font-size:0.88rem;">📊 학생 현황</button>
+                            <button id="step2-tab-test-btn" class="btn-secondary" style="padding:7px 20px;font-size:0.88rem;">🧪 교사 테스트</button>
+                        </div>
+                        <!-- 학생 현황 -->
+                        <div id="step2-monitor-section">
+                            <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;">학생들이 실제 분석을 위해 준비한 전처리 프롬프트와 데이터셋을 확인합니다.</p>
+                            <div id="teacher-step2-content">
+                                <!-- Step 2 content rendered here -->
+                            </div>
+                        </div>
+                        <!-- 교사 테스트 -->
+                        <div id="step2-test-section" style="display:none;">
+                            <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;">[4단계: 문제 정의] 탭의 <strong>교사 테스트</strong>에서 생성한 결과를 바탕으로 5단계를 직접 실행합니다.</p>
+                            <div id="teacher-step2-test-container" style="min-height:400px;"></div>
                         </div>
                     </div>
                 </div>

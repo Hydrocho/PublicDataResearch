@@ -1027,6 +1027,28 @@ export async function fetchAllAttendanceOverview() {
     return { data: data || [], error };
 }
 
+// ── 교사 테스트 5단계용 (localStorage 기반) ──────────────────
+export function getTeacherTestLog() {
+    try { return JSON.parse(localStorage.getItem('teacher_test_log') || 'null'); }
+    catch { return null; }
+}
+export function setTeacherTestLog(log) {
+    localStorage.setItem('teacher_test_log', JSON.stringify(log));
+}
+export function getTeacherSelectedResearchId() {
+    return localStorage.getItem('teacher_selected_research_id') || null;
+}
+export function setTeacherSelectedResearchId(id) {
+    if (id == null) localStorage.removeItem('teacher_selected_research_id');
+    else localStorage.setItem('teacher_selected_research_id', String(id));
+}
+export async function fetchTeacherTestActivityLogs() {
+    const log = getTeacherTestLog();
+    if (!log) return { data: [], error: null };
+    return { data: [log], error: null };
+}
+// ─────────────────────────────────────────────────────────────
+
 export async function fetchAttendanceSummaryByMonth(year, month) {
     // month: 1-based
     const from = `${year}-${String(month).padStart(2,'0')}-01`;
