@@ -980,18 +980,25 @@ export function getTeacherResearchIds() {
 
 export function setTeacherResearchId(id, checked) {
     const ids = getTeacherResearchIds();
-    const updated = checked ? [...new Set([...ids, id])] : ids.filter(i => i !== id);
+    const sid = String(id);
+    const updated = checked ? [...new Set([...ids, sid])] : ids.filter(i => i !== sid);
     localStorage.setItem('teacher_research_ids', JSON.stringify(updated));
 }
 
 export async function fetchTeacherTestDatasets() {
-    const ids = getTeacherResearchIds().map(id => Number(id)).filter(id => !isNaN(id));
-    if (ids.length === 0) return { data: [], error: null };
-    const { data, error } = await supabaseClient
+    const storedIds = getTeacherResearchIds();
+    if (storedIds.length === 0) return { data: [], error: null };
+
+    // 전체 목록을 가져온 뒤 클라이언트에서 필터 (ID 타입 불일치 완전 회피)
+    const { data: allDs, error } = await supabaseClient
         .from('student_datasets')
         .select('*, students(name)')
-        .in('id', ids);
-    return { data: data || [], error };
+        .order('created_at', { ascending: false });
+
+    if (error || !allDs) return { data: [], error };
+
+    const matched = allDs.filter(ds => storedIds.includes(String(ds.id)));
+    return { data: matched, error: null };
 }
 // ─────────────────────────────────────────────────────────────
 
