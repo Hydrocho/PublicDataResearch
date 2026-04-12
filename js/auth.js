@@ -989,16 +989,33 @@ export async function fetchTeacherTestDatasets() {
     const storedIds = getTeacherResearchIds();
     if (storedIds.length === 0) return { data: [], error: null };
 
-    // 전체 목록을 가져온 뒤 클라이언트에서 필터 (ID 타입 불일치 완전 회피)
+    // 조인 없이 전체 가져온 뒤 클라이언트 필터 (관계 미설정 환경 대응)
     const { data: allDs, error } = await supabaseClient
         .from('student_datasets')
-        .select('*, students(name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (error || !allDs) return { data: [], error };
 
     const matched = allDs.filter(ds => storedIds.includes(String(ds.id)));
-    return { data: matched, error: null };
+    if (matched.length === 0) return { data: [], error: null };
+
+    // 학생 이름 별도 조회
+    const studentIds = [...new Set(matched.map(d => d.student_id).filter(Boolean))];
+    const { data: students } = await supabaseClient
+        .from('students')
+        .select('student_id, name')
+        .in('student_id', studentIds);
+
+    const nameMap = {};
+    (students || []).forEach(s => { nameMap[s.student_id] = s.name; });
+
+    const result = matched.map(ds => ({
+        ...ds,
+        students: nameMap[ds.student_id] ? { name: nameMap[ds.student_id] } : null
+    }));
+
+    return { data: result, error: null };
 }
 // ─────────────────────────────────────────────────────────────
 
