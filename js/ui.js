@@ -1957,15 +1957,19 @@ export async function renderProblemDefinitionView(containerId, getDatasetsFn, sa
         makeBtn.disabled = true;
         makeBtn.innerHTML = '<i class="spinner-sm"></i> 프롬프트 생성 중...';
 
-        const prompt = await generateProblemDefinitionPrompt(datasets, opinion);
-
-        canvasInner.querySelector('#prompt-generator-section').style.display = 'none';
-        const resultArea = canvasInner.querySelector('#ai-prompt-result');
-        resultArea.style.display = 'block';
-        canvasInner.querySelector('#ai-prompt-text').value = prompt;
-        if (window.lucide) lucide.createIcons();
-        makeBtn.disabled = false;
-        makeBtn.innerHTML = origHtml;
+        try {
+            const prompt = await generateProblemDefinitionPrompt(datasets, opinion);
+            canvasInner.querySelector('#prompt-generator-section').style.display = 'none';
+            const resultArea = canvasInner.querySelector('#ai-prompt-result');
+            resultArea.style.display = 'block';
+            canvasInner.querySelector('#ai-prompt-text').value = prompt;
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            alert('프롬프트 생성 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            makeBtn.disabled = false;
+            makeBtn.innerHTML = origHtml;
+        }
     };
 
     canvasInner.querySelector('#copy-prompt-btn').onclick = () => {
