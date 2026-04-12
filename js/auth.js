@@ -999,7 +999,7 @@ export async function setTeacherResearchId(id, checked) {
     if (checked) {
         const { error } = await supabaseClient
             .from('teacher_test_datasets')
-            .upsert({ teacher_email: email, dataset_id: Number(id) },
+            .upsert({ teacher_email: email, dataset_id: id },
                     { onConflict: 'teacher_email,dataset_id' });
         if (error) console.error('setTeacherResearchId insert error:', error);
     } else {
@@ -1007,7 +1007,7 @@ export async function setTeacherResearchId(id, checked) {
             .from('teacher_test_datasets')
             .delete()
             .eq('teacher_email', email)
-            .eq('dataset_id', Number(id));
+            .eq('dataset_id', id);
         if (error) console.error('setTeacherResearchId delete error:', error);
     }
 }
@@ -1017,10 +1017,7 @@ export async function fetchTeacherTestDatasets() {
     const storedIds = await getTeacherResearchIds();
     if (storedIds.length === 0) return { data: [], error: null };
 
-    const { data: allDs, error } = await supabaseClient
-        .from('student_datasets')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data: allDs, error } = await fetchAllDatasetsForTeacher();
 
     if (error || !allDs) return { data: [], error };
 
