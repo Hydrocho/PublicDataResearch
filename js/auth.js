@@ -972,6 +972,29 @@ export async function upsertAttendance(records) {
     return { error };
 }
 
+// ── 교사 테스트용 데이터셋 선택 (localStorage 기반) ──────────
+export function getTeacherResearchIds() {
+    try { return JSON.parse(localStorage.getItem('teacher_research_ids') || '[]'); }
+    catch { return []; }
+}
+
+export function setTeacherResearchId(id, checked) {
+    const ids = getTeacherResearchIds();
+    const updated = checked ? [...new Set([...ids, id])] : ids.filter(i => i !== id);
+    localStorage.setItem('teacher_research_ids', JSON.stringify(updated));
+}
+
+export async function fetchTeacherTestDatasets() {
+    const ids = getTeacherResearchIds();
+    if (ids.length === 0) return { data: [], error: null };
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .select('*, students(name)')
+        .in('id', ids);
+    return { data: data || [], error };
+}
+// ─────────────────────────────────────────────────────────────
+
 export async function fetchAllAttendanceOverview() {
     const { data, error } = await supabaseClient
         .from('attendance')

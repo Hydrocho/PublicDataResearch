@@ -589,13 +589,55 @@ async function showTeacherDashboard(email) {
         UI.renderStudentProgress(data, onViewStudentDetail);
     };
 
-    tabStep1.onclick = async () => {
-        switchTab(tabStep1, viewStep1);
+    const showStep1Monitor = () => {
+        document.getElementById('step1-monitor-section').style.display = 'block';
+        document.getElementById('step1-test-section').style.display = 'none';
+        document.getElementById('step1-tab-monitor-btn').className = 'btn-primary';
+        document.getElementById('step1-tab-test-btn').className = 'btn-secondary';
+    };
+    const showStep1Test = () => {
+        document.getElementById('step1-monitor-section').style.display = 'none';
+        document.getElementById('step1-test-section').style.display = 'block';
+        document.getElementById('step1-tab-monitor-btn').className = 'btn-secondary';
+        document.getElementById('step1-tab-test-btn').className = 'btn-primary';
+    };
+
+    const loadStep1Data = async () => {
         const step1List = viewStep1.querySelector('#teacher-step1-list');
         if (step1List) step1List.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { data } = await fetchAllProblemDefinitionsForTeacher();
         UI.renderTeacherProblemDefinitions(data || [], 'teacher-step1-list');
+        if (window.lucide) window.lucide.createIcons();
     };
+
+    const loadStep1Test = async () => {
+        const { fetchTeacherTestDatasets } = await import('./auth.js');
+        await UI.renderProblemDefinitionView(
+            'teacher-step1-test-container',
+            () => fetchTeacherTestDatasets(),
+            null, // 교사 테스트 모드 — 저장 없음
+            () => { tabManagement.click(); }
+        );
+    };
+
+    tabStep1.onclick = async () => {
+        switchTab(tabStep1, viewStep1);
+        showStep1Monitor();
+        await loadStep1Data();
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    document.getElementById('step1-tab-monitor-btn').onclick = async () => {
+        showStep1Monitor();
+        await loadStep1Data();
+    };
+    document.getElementById('step1-tab-test-btn').onclick = async () => {
+        showStep1Test();
+        await loadStep1Test();
+    };
+
+    const refreshStep1Btn = document.getElementById('refresh-step1-btn');
+    if (refreshStep1Btn) refreshStep1Btn.onclick = loadStep1Data;
 
     tabStep2.onclick = async () => {
         switchTab(tabStep2, viewStep2);
