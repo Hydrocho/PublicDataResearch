@@ -972,24 +972,51 @@ export async function upsertAttendance(records) {
     return { error };
 }
 
-// ── 교사 테스트용 데이터셋 선택 (localStorage 기반) ──────────
-export function getTeacherResearchIds() {
-    try { return JSON.parse(localStorage.getItem('teacher_research_ids') || '[]'); }
-    catch { return []; }
+// ── 교사 테스트 — Supabase 기반 ──────────────────────────────
+
+/** 현재 로그인한 교사의 이메일 반환 */
+async function getTeacherEmail() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    return user?.email || null;
 }
 
-export function setTeacherResearchId(id, checked) {
-    const ids = getTeacherResearchIds();
-    const sid = String(id);
-    const updated = checked ? [...new Set([...ids, sid])] : ids.filter(i => i !== sid);
-    localStorage.setItem('teacher_research_ids', JSON.stringify(updated));
+/** 교사가 선택한 테스트 데이터셋 ID 목록 조회 */
+export async function getTeacherResearchIds() {
+    const email = await getTeacherEmail();
+    if (!email) return [];
+    const { data, error } = await supabaseClient
+        .from('teacher_test_datasets')
+        .select('dataset_id')
+        .eq('teacher_email', email);
+    if (error) { console.error('getTeacherResearchIds error:', error); return []; }
+    return (data || []).map(r => String(r.dataset_id));
 }
 
+/** 교사 테스트 데이터셋 선택/해제 */
+export async function setTeacherResearchId(id, checked) {
+    const email = await getTeacherEmail();
+    if (!email) return;
+    if (checked) {
+        const { error } = await supabaseClient
+            .from('teacher_test_datasets')
+            .upsert({ teacher_email: email, dataset_id: Number(id) },
+                    { onConflict: 'teacher_email,dataset_id' });
+        if (error) console.error('setTeacherResearchId insert error:', error);
+    } else {
+        const { error } = await supabaseClient
+            .from('teacher_test_datasets')
+            .delete()
+            .eq('teacher_email', email)
+            .eq('dataset_id', Number(id));
+        if (error) console.error('setTeacherResearchId delete error:', error);
+    }
+}
+
+/** 선택된 테스트 데이터셋 목록 조회 (학생 이름 포함) */
 export async function fetchTeacherTestDatasets() {
-    const storedIds = getTeacherResearchIds();
+    const storedIds = await getTeacherResearchIds();
     if (storedIds.length === 0) return { data: [], error: null };
 
-    // 조인 없이 전체 가져온 뒤 클라이언트 필터 (관계 미설정 환경 대응)
     const { data: allDs, error } = await supabaseClient
         .from('student_datasets')
         .select('*')
@@ -1000,7 +1027,6 @@ export async function fetchTeacherTestDatasets() {
     const matched = allDs.filter(ds => storedIds.includes(String(ds.id)));
     if (matched.length === 0) return { data: [], error: null };
 
-    // 학생 이름 별도 조회
     const studentIds = [...new Set(matched.map(d => d.student_id).filter(Boolean))];
     const { data: students } = await supabaseClient
         .from('students')
@@ -1027,25 +1053,55 @@ export async function fetchAllAttendanceOverview() {
     return { data: data || [], error };
 }
 
-// ── 교사 테스트 5단계용 (localStorage 기반) ──────────────────
-export function getTeacherTestLog() {
-    try { return JSON.parse(localStorage.getItem('teacher_test_log') || 'null'); }
-    catch { return null; }
+// ── 교사 4단계 테스트 로그 — Supabase 기반 ───────────────────
+
+/** 교사 4단계 테스트 AI 답변 저장 (교사당 1개 유지) */
+export async function setTeacherTestLog(log) {
+    const email = await getTeacherEmail();
+    if (!email) return;
+    let contentObj;
+    try { contentObj = typeof log.content === 'string' ? JSON.parse(log.content) : log.content; }
+    catch { contentObj = { answer: String(log.content) }; }
+    await supabaseClient.from('teacher_test_logs').delete().eq('teacher_email', email);
+    const { error } = await supabaseClient
+        .from('teacher_test_logs')
+        .insert({ teacher_email: email, content: contentObj });
+    if (error) console.error('setTeacherTestLog error:', error);
 }
-export function setTeacherTestLog(log) {
-    localStorage.setItem('teacher_test_log', JSON.stringify(log));
+
+/** 교사 4단계 테스트 로그 조회 */
+export async function getTeacherTestLog() {
+    const email = await getTeacherEmail();
+    if (!email) return null;
+    const { data, error } = await supabaseClient
+        .from('teacher_test_logs')
+        .select('*')
+        .eq('teacher_email', email)
+        .order('created_at', { ascending: false })
+        .limit(1);
+    if (error || !data || data.length === 0) return null;
+    const row = data[0];
+    return {
+        id: 'teacher-test',
+        content: JSON.stringify(row.content),
+        created_at: row.created_at,
+    };
 }
+
+/** 5단계에서 사용: activity log 형태로 반환 */
+export async function fetchTeacherTestActivityLogs() {
+    const log = await getTeacherTestLog();
+    if (!log) return { data: [], error: null };
+    return { data: [log], error: null };
+}
+
+/** 5단계 선택 상태 — UI 세션 내 상태이므로 localStorage 유지 */
 export function getTeacherSelectedResearchId() {
     return localStorage.getItem('teacher_selected_research_id') || null;
 }
 export function setTeacherSelectedResearchId(id) {
     if (id == null) localStorage.removeItem('teacher_selected_research_id');
     else localStorage.setItem('teacher_selected_research_id', String(id));
-}
-export async function fetchTeacherTestActivityLogs() {
-    const log = getTeacherTestLog();
-    if (!log) return { data: [], error: null };
-    return { data: [log], error: null };
 }
 // ─────────────────────────────────────────────────────────────
 

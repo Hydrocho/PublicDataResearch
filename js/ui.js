@@ -928,7 +928,7 @@ export function renderTeacherDashboard(students, onReset, onDelete) {
 /**
  * Teacher View: Render ALL datasets from ALL students
  */
-export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch) {
+export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = []) {
     const container = document.getElementById('teacher-dataset-list');
     if (!container) return;
 
@@ -937,68 +937,174 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         return;
     }
 
-    // 교사 테스트 활용 현재 선택 목록 (localStorage)
-    let teacherIds = [];
-    try { teacherIds = JSON.parse(localStorage.getItem('teacher_research_ids') || '[]'); } catch {}
+    // Extract unique students
+    const students = [];
+    const seenIds = new Set();
+    datasets.forEach(ds => {
+        if (ds.student_id && !seenIds.has(ds.student_id)) {
+            seenIds.add(ds.student_id);
+            students.push({
+                id: ds.student_id,
+                name: ds.students?.name || ds.student_id
+            });
+        }
+    });
+    // Sort students by ID or name
+    students.sort((a, b) => a.id.localeCompare(b.id));
 
+    // Initial HTML structure with filter area
     container.innerHTML = `
+        <div style="margin-bottom:20px; padding:18px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-weight:700; font-size:0.95rem; color:var(--secondary); display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="filter" size="18" style="color:var(--primary);"></i>
+                    학생별 데이터 보기 (다중 선택 가능)
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="filter-all-btn" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">전체 선택</button>
+                    <button id="filter-none-btn" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">전체 해제</button>
+                </div>
+            </div>
+            <div id="student-filter-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto; padding:4px;">
+                ${students.map(s => `
+                    <label style="display:flex; align-items:center; gap:6px; padding:5px 12px; background:#f1f5f9; border-radius:20px; font-size:0.82rem; cursor:pointer; border:1px solid #e2e8f0; transition:all 0.2s;" class="student-filter-label">
+                        <input type="checkbox" class="student-filter-chk" value="${s.id}" checked style="width:14px; height:14px; accent-color:var(--primary);">
+                        <span style="font-weight:600; color:#334155;">${s.name}</span>
+                        <span style="font-size:0.72rem; color:#94a3b8;">${s.id}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+
         <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.85rem;color:#92400e;display:flex;align-items:center;gap:8px;">
             <i data-lucide="flask-conical" size="15"></i>
             <span><strong>교사 테스트 활용</strong> 체크 = 4단계 교사 테스트 모드에서 이 데이터셋을 사용합니다. 학생 기록에는 영향을 주지 않습니다.</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;margin-top:4px;">
-            <thead>
-                <tr style="text-align:left;border-bottom:2px solid var(--glass-border);background:#f8fafc;">
-                    <th style="padding:12px;">데이터셋 이름</th>
-                    <th style="padding:12px;">작성 학생</th>
-                    <th style="padding:12px;text-align:center;">행 수</th>
-                    <th style="padding:12px;text-align:center;">학생 연구 활용</th>
-                    <th style="padding:12px;text-align:center;background:#fffbeb;">교사 테스트 활용</th>
-                    <th style="padding:12px;text-align:center;">공유</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${datasets.map(ds => {
-                    const ownerName = ds.students?.name || ds.student_id || '탈퇴한 사용자';
-                    const isTeacherChecked = teacherIds.includes(String(ds.id));
-                    const meta = ds.metadata || {};
-                    const rowCount = meta.row_count;
-                    const sizeKb = meta.size_kb || ds.size_kb;
-                    const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
-                    const sizeStr = sizeKb
-                        ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`)
-                        : '';
-                    return `
-                    <tr class="clickable-row" data-id="${ds.id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;">
-                        <td style="padding:12px;">
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                <i data-lucide="file-spreadsheet" size="18" style="color:var(--primary);"></i>
-                                <strong>${ds.data_name}</strong>
-                            </div>
-                        </td>
-                        <td style="padding:12px;font-size:0.85rem;color:#4b5563;">${ownerName}</td>
-                        <td style="padding:12px;text-align:center;">
-                            <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
-                            ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
-                        </td>
-                        <td style="padding:12px;text-align:center;">
-                            <input type="checkbox" class="teacher-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
-                        </td>
-                        <td style="padding:12px;text-align:center;background:#fffdf0;">
-                            <input type="checkbox" class="teacher-test-toggle" data-id="${ds.id}" ${isTeacherChecked ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#f59e0b;">
-                        </td>
-                        <td style="padding:12px;text-align:center;">
-                            <label class="switch">
-                                <input type="checkbox" class="teacher-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
+
+        <div id="teacher-management-table-wrap">
+            <table style="width:100%;border-collapse:collapse;margin-top:4px;">
+                <thead>
+                    <tr style="text-align:left;border-bottom:2px solid var(--glass-border);background:#f8fafc;">
+                        <th style="padding:12px;">데이터셋 이름</th>
+                        <th style="padding:12px;">작성 학생</th>
+                        <th style="padding:12px;text-align:center;">행 수</th>
+                        <th style="padding:12px;text-align:center;">학생 연구 활용</th>
+                        <th style="padding:12px;text-align:center;background:#fffbeb;">교사 테스트 활용</th>
+                        <th style="padding:12px;text-align:center;">공유</th>
+                    </tr>
+                </thead>
+                <tbody id="management-tbody">
+                    ${datasets.map(ds => {
+                        const ownerName = ds.students?.name || ds.student_id || '탈퇴한 사용자';
+                        const isTeacherChecked = teacherIds.includes(String(ds.id));
+                        const meta = ds.metadata || {};
+                        const rowCount = meta.row_count;
+                        const sizeKb = meta.size_kb || ds.size_kb;
+                        const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
+                        const sizeStr = sizeKb
+                            ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`)
+                            : '';
+                        return `
+                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;">
+                            <td style="padding:12px;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <i data-lucide="file-spreadsheet" size="18" style="color:var(--primary);"></i>
+                                    <strong>${ds.data_name}</strong>
+                                </div>
+                            </td>
+                            <td style="padding:12px;font-size:0.85rem;color:#4b5563;">${ownerName}</td>
+                            <td style="padding:12px;text-align:center;">
+                                <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
+                                ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
+                            </td>
+                            <td style="padding:12px;text-align:center;">
+                                <input type="checkbox" class="teacher-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
+                            </td>
+                            <td style="padding:12px;text-align:center;background:#fffdf0;">
+                                <input type="checkbox" class="teacher-test-toggle" data-id="${ds.id}" ${isTeacherChecked ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#f59e0b;">
+                            </td>
+                            <td style="padding:12px;text-align:center;">
+                                <label class="switch">
+                                    <input type="checkbox" class="teacher-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
+                                    <span class="slider"></span>
+                                </label>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <div id="no-filtered-data" style="display:none; text-align:center; padding:50px; color:#94a3b8;">
+                <i data-lucide="search-x" size="48" style="margin-bottom:15px; opacity:0.5;"></i>
+                <p>선택한 학생의 데이터가 없습니다.</p>
+            </div>
+        </div>
     `;
 
+    // Filter Logic
+    const filterChecks = container.querySelectorAll('.student-filter-chk');
+    const dataRows = container.querySelectorAll('.data-row');
+    const noDataMsg = container.querySelector('#no-filtered-data');
+
+    const updateFilter = () => {
+        const selectedIds = Array.from(filterChecks)
+            .filter(chk => chk.checked)
+            .map(chk => chk.value);
+        
+        // Update label styles
+        filterChecks.forEach(chk => {
+            const label = chk.closest('.student-filter-label');
+            if (chk.checked) {
+                label.style.background = 'var(--primary-glow)';
+                label.style.borderColor = 'var(--primary)';
+                label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+            } else {
+                label.style.background = '#f8fafc';
+                label.style.borderColor = '#e2e8f0';
+                label.style.boxShadow = 'none';
+                label.style.opacity = '0.6';
+            }
+        });
+
+        let visibleCount = 0;
+        dataRows.forEach(row => {
+            const studentId = row.dataset.student;
+            if (selectedIds.includes(studentId)) {
+                row.style.display = 'table-row';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        noDataMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        const table = container.querySelector('table');
+        if (table) table.style.display = visibleCount === 0 ? 'none' : 'table';
+    };
+
+    filterChecks.forEach(chk => {
+        chk.addEventListener('change', updateFilter);
+    });
+
+    const filterAllBtn = container.querySelector('#filter-all-btn');
+    if (filterAllBtn) {
+        filterAllBtn.onclick = () => {
+            filterChecks.forEach(chk => chk.checked = true);
+            updateFilter();
+        };
+    }
+
+    const filterNoneBtn = container.querySelector('#filter-none-btn');
+    if (filterNoneBtn) {
+        filterNoneBtn.onclick = () => {
+            filterChecks.forEach(chk => chk.checked = false);
+            updateFilter();
+        };
+    }
+
+    // Initial filter update to set styles
+    updateFilter();
+
+    // Re-bind listeners for the table buttons (same as before)
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.onclick = (e) => {
             if (e.target.closest('input') || e.target.closest('.switch')) return;
@@ -1013,19 +1119,18 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     container.querySelectorAll('.teacher-share-toggle').forEach(chk => {
         chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
     });
-    // 교사 테스트 활용 — localStorage 저장
     container.querySelectorAll('.teacher-test-toggle').forEach(chk => {
-        chk.onchange = () => {
-            let ids = [];
-            try { ids = JSON.parse(localStorage.getItem('teacher_research_ids') || '[]'); } catch {}
-            const id = String(chk.dataset.id);
-            const updated = chk.checked ? [...new Set([...ids, id])] : ids.filter(i => i !== id);
-            localStorage.setItem('teacher_research_ids', JSON.stringify(updated));
+        chk.onchange = async () => {
+            chk.disabled = true;
+            const { setTeacherResearchId } = await import('./auth.js');
+            await setTeacherResearchId(chk.dataset.id, chk.checked);
+            chk.disabled = false;
         };
     });
 
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 }
+
 
 /**
  * Common: Open dataset details modal with metadata and preview
@@ -2042,7 +2147,7 @@ export async function renderProblemDefinitionView(containerId, getDatasetsFn, sa
                 teacherSaveBtn.innerHTML = '<i class="spinner-sm"></i> 저장 중...';
                 try {
                     const { setTeacherTestLog } = await import('./auth.js');
-                    setTeacherTestLog({
+                    await setTeacherTestLog({
                         id: 'teacher-test',
                         content: JSON.stringify({ answer: aiAnswer, opinion, prompt }),
                         created_at: new Date().toISOString(),

@@ -720,9 +720,13 @@ async function showTeacherDashboard(email) {
         switchTab(tabManagement, viewManagement);
         const datasetList = viewManagement.querySelector('#teacher-dataset-list');
         if (datasetList) datasetList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
-        const { data, error } = await fetchAllDatasetsForTeacher();
+        const { getTeacherResearchIds } = await import('./auth.js');
+        const [{ data, error }, teacherIds] = await Promise.all([
+            fetchAllDatasetsForTeacher(),
+            getTeacherResearchIds(),
+        ]);
         if (!error) {
-            UI.renderTeacherDataManagement(data, onTeacherToggleShare, onTeacherToggleResearch);
+            UI.renderTeacherDataManagement(data, onTeacherToggleShare, onTeacherToggleResearch, teacherIds);
         }
     };
     
