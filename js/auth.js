@@ -985,7 +985,7 @@ export function setTeacherResearchId(id, checked) {
 }
 
 export async function fetchTeacherTestDatasets() {
-    const ids = getTeacherResearchIds();
+    const ids = getTeacherResearchIds().map(id => Number(id)).filter(id => !isNaN(id));
     if (ids.length === 0) return { data: [], error: null };
     const { data, error } = await supabaseClient
         .from('student_datasets')
