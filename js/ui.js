@@ -1635,15 +1635,20 @@ export async function renderPreprocessingView(containerId, {
 
     canvasInner.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">4단계 연구 기록을 불러오는 중입니다...</p></div>';
 
-    const [{ data: logs, error }, teamResult] = await Promise.all([
+    const [{ data: rawLogs, error }, teamResult] = await Promise.all([
         getOwnLogsFn(),
         getTeamLogsFn ? getTeamLogsFn() : Promise.resolve({ data: null }),
     ]);
-    const teamLogs = teamResult.data;
-    const hasOwn = logs && logs.length > 0;
-    const hasTeam = teamLogs && teamLogs.length > 0;
+    const teamLogs = teamResult.data || [];
+    
+    // 데이터가 [[log]] 처럼 중첩 배열로 오는 경우를 대비해 평탄화(flatten) 처리
+    let logs = Array.isArray(rawLogs) ? rawLogs.flat() : (rawLogs ? [rawLogs] : []);
+    const hasOwn = logs.length > 0;
+    const hasTeam = teamLogs.length > 0;
+
 
     if (error || (!hasOwn && !hasTeam)) {
+
         canvasInner.innerHTML = `
             <div style="text-align:center;padding:50px 20px;">
                 <div style="font-size:3rem;margin-bottom:20px;">📝</div>

@@ -633,7 +633,7 @@ async function showTeacherDashboard(email) {
     };
     document.getElementById('step1-tab-test-btn').onclick = async () => {
         showStep1Test();
-        await loadStep1Test();
+        try { await loadStep1Test(); } catch(err) { console.error('loadStep1Test error:', err); }
     };
 
     const refreshStep1Btn = document.getElementById('refresh-step1-btn');
@@ -697,7 +697,7 @@ async function showTeacherDashboard(email) {
     };
     document.getElementById('step2-tab-test-btn').onclick = async () => {
         showStep2Test();
-        await loadStep2Test();
+        try { await loadStep2Test(); } catch(err) { console.error('loadStep2Test error:', err); }
     };
 
     const loadCompetitions = async () => {

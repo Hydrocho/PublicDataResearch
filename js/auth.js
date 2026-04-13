@@ -976,8 +976,12 @@ export async function upsertAttendance(records) {
 
 /** 현재 로그인한 교사의 이메일 반환 */
 async function getTeacherEmail() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    return user?.email || null;
+    try {
+        const { data } = await supabaseClient.auth.getUser();
+        return data?.user?.email || null;
+    } catch {
+        return null;
+    }
 }
 
 /** 교사가 선택한 테스트 데이터셋 ID 목록 조회 */
@@ -988,7 +992,11 @@ export async function getTeacherResearchIds() {
         .from('teacher_test_datasets')
         .select('dataset_id')
         .eq('teacher_email', email);
-    if (error) { console.error('getTeacherResearchIds error:', error); return []; }
+
+    if (error) {
+        console.error('getTeacherResearchIds error:', error);
+        return [];
+    }
     return (data || []).map(r => String(r.dataset_id));
 }
 
@@ -1011,6 +1019,7 @@ export async function setTeacherResearchId(id, checked) {
         if (error) console.error('setTeacherResearchId delete error:', error);
     }
 }
+
 
 /** 선택된 테스트 데이터셋 목록 조회 (학생 이름 포함) */
 export async function fetchTeacherTestDatasets() {
@@ -1056,15 +1065,37 @@ export async function fetchAllAttendanceOverview() {
 export async function setTeacherTestLog(log) {
     const email = await getTeacherEmail();
     if (!email) return;
+
+    // PostgreSQL의 jsonb에서 지원하지 않는 NULL (\u0000) 문자 제거 로직 추가
+    const sanitize = (val) => {
+        if (typeof val === 'string') return val.replace(/\0/g, '');
+        if (val && typeof val === 'object') {
+            const copy = Array.isArray(val) ? [] : {};
+            for (const k in val) copy[k] = sanitize(val[k]);
+            return copy;
+        }
+        return val;
+    };
+
     let contentObj;
-    try { contentObj = typeof log.content === 'string' ? JSON.parse(log.content) : log.content; }
-    catch { contentObj = { answer: String(log.content) }; }
+    try { 
+        contentObj = typeof log.content === 'string' ? JSON.parse(log.content) : log.content; 
+    } catch { 
+        contentObj = { answer: String(log.content) }; 
+    }
+
+    // 데이터 정제 실행
+    contentObj = sanitize(contentObj);
+
+    // 이전 기록 삭제 후 새 기록 저장
     await supabaseClient.from('teacher_test_logs').delete().eq('teacher_email', email);
     const { error } = await supabaseClient
         .from('teacher_test_logs')
         .insert({ teacher_email: email, content: contentObj });
+    
     if (error) console.error('setTeacherTestLog error:', error);
 }
+
 
 /** 교사 4단계 테스트 로그 조회 */
 export async function getTeacherTestLog() {
@@ -1076,11 +1107,20 @@ export async function getTeacherTestLog() {
         .eq('teacher_email', email)
         .order('created_at', { ascending: false })
         .limit(1);
-    if (error || !data || data.length === 0) return null;
+
+    if (error) {
+        console.error('getTeacherTestLog error:', error);
+        return null;
+    }
+    if (!data || data.length === 0) return null;
+
     const row = data[0];
+    // content가 이미 객체(jsonb)일 수 있고 문자열일 수 있으므로 안전하게 처리
+    const contentStr = typeof row.content === 'object' ? JSON.stringify(row.content) : row.content;
+
     return {
         id: 'teacher-test',
-        content: JSON.stringify(row.content),
+        content: contentStr,
         created_at: row.created_at,
     };
 }
