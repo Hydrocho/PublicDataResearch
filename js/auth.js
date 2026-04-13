@@ -1087,49 +1087,66 @@ export async function setTeacherTestLog(log) {
     // 데이터 정제 실행
     contentObj = sanitize(contentObj);
 
-    // 이전 기록 삭제 후 새 기록 저장
-    await supabaseClient.from('teacher_test_logs').delete().eq('teacher_email', email);
+    // 기록 누적을 위해 삭제 로직 제거
     const { error } = await supabaseClient
         .from('teacher_test_logs')
         .insert({ teacher_email: email, content: contentObj });
     
     if (error) console.error('setTeacherTestLog error:', error);
+    else console.log('setTeacherTestLog: success with sanitized content');
 }
 
 
-/** 교사 4단계 테스트 로그 조회 */
-export async function getTeacherTestLog() {
+
+/** 교사 4단계 테스트 로그 조회 (ID 미지정 시 최신 1개) */
+export async function getTeacherTestLog(logId = null) {
     const email = await getTeacherEmail();
     if (!email) return null;
-    const { data, error } = await supabaseClient
+
+    let query = supabaseClient
         .from('teacher_test_logs')
         .select('*')
-        .eq('teacher_email', email)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-    if (error) {
-        console.error('getTeacherTestLog error:', error);
-        return null;
+        .eq('teacher_email', email);
+    
+    if (logId && logId !== 'teacher-test') {
+        query = query.eq('id', logId);
+    } else {
+        query = query.order('created_at', { ascending: false }).limit(1);
     }
-    if (!data || data.length === 0) return null;
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) return null;
 
     const row = data[0];
-    // content가 이미 객체(jsonb)일 수 있고 문자열일 수 있으므로 안전하게 처리
     const contentStr = typeof row.content === 'object' ? JSON.stringify(row.content) : row.content;
 
     return {
-        id: 'teacher-test',
+        id: row.id, 
         content: contentStr,
         created_at: row.created_at,
     };
 }
 
-/** 5단계에서 사용: activity log 형태로 반환 */
+/** 5단계에서 사용: 모든 교사용 테스트 기록 반환 */
 export async function fetchTeacherTestActivityLogs() {
-    const log = await getTeacherTestLog();
-    if (!log) return { data: [], error: null };
-    return { data: [log], error: null };
+    const email = await getTeacherEmail();
+    if (!email) return { data: [], error: null };
+
+    const { data, error } = await supabaseClient
+        .from('teacher_test_logs')
+        .select('*')
+        .eq('teacher_email', email)
+        .order('created_at', { ascending: false });
+
+    if (error) return { data: [], error };
+
+    const logs = (data || []).map(row => ({
+        id: row.id,
+        content: typeof row.content === 'object' ? JSON.stringify(row.content) : row.content,
+        created_at: row.created_at
+    }));
+
+    return { data: logs, error: null };
 }
 
 /** 5단계 선택 상태 — UI 세션 내 상태이므로 localStorage 유지 */
