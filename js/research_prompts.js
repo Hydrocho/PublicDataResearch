@@ -44,8 +44,8 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
     for (let i = 0; i < datasets.length; i++) {
         const ds = datasets[i];
 
-        // Derive clean filename from data_name for intuitive local processing
-        let fileName = ds.data_name.trim();
+        // Derive clean filename from metadata.filename (if edited by teacher) or data_name
+        let fileName = (ds.metadata?.filename || ds.data_name).trim();
         if (!fileName.toLowerCase().endsWith('.csv')) {
             fileName += '.csv';
         }
@@ -152,7 +152,7 @@ ${analysisGuide[analysisType] || ''}
 `;
 
     for (const ds of datasets) {
-        let fileName = ds.data_name.trim();
+        let fileName = (ds.metadata?.filename || ds.data_name).trim();
         if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
         prompt += `\n[파일명: ${fileName}]\n`;
         try {
@@ -290,7 +290,7 @@ export async function generateColabPreprocessingPrompt(selectedLog, datasets) {
 `;
 
     for (const ds of datasets) {
-        let fileName = ds.data_name.trim();
+        let fileName = (ds.metadata?.filename || ds.data_name).trim();
         if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
 
         prompt += `\n[파일명: ${fileName}]\n`;

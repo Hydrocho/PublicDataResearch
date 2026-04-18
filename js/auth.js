@@ -341,6 +341,15 @@ export async function saveTeacherDataset(teacherEmail, dataName, fileUrl, metada
     return { data, error };
 }
 
+export async function updateDatasetDetails(id, updates) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .update(updates)
+        .eq('id', id)
+        .select();
+    return { data, error };
+}
+
 /** 교사가 직접 등록한 데이터셋 삭제 — 학생 재배정 후에도 교사가 삭제 가능 */
 export async function deleteTeacherDataset(id) {
     // student_id가 재배정되어 있을 수 있으므로 id로만 조회

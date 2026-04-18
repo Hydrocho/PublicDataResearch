@@ -1028,7 +1028,7 @@ function initApp() {
 }
 
 // Global callback for data selection
-window.onDataSelected = (cat, dataInfo) => {
+window.onDataSelected = (cat, dataInfo, stayOnPage = false) => {
     state.selectedTopic = { cat, dataInfo };
     
     // Update nav to show selected topic
@@ -1039,10 +1039,11 @@ window.onDataSelected = (cat, dataInfo) => {
         topicText.innerText = `[${cat.title}] ${dataInfo.name}`;
     }
 
-    alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다! \n[데이터 관리] 단계에서 확인할 수 있습니다.`);
-    
-    // Move to management step
-    changeStep(2);
+    if (!stayOnPage) {
+        alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다! \n[데이터 관리] 단계에서 확인할 수 있습니다.`);
+        // Move to management step
+        changeStep(2);
+    }
 };
 
 function changeStep(id) {

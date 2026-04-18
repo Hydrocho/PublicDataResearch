@@ -260,7 +260,22 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                 `;
                 const initialName = state.pendingDataName || '';
                 setTimeout(() => {
-                    import('./discovery.js').then(m => m.showSaveInstructions(initialName, state, window.onDataSelected));
+                    import('./discovery.js').then(m => {
+                        const cb = (cat, dataInfo, stayOnPage = false) => {
+                            const isNonStandardCtx = typeof onStepChange === 'function' && onStepChange !== window.changeStep;
+                            if (isNonStandardCtx) {
+                                // 교사 컨텍스트
+                                if (state) state.selectedTopic = { cat, dataInfo };
+                                if (!stayOnPage) {
+                                    alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다!\n[데이터 관리] 단계에서 확인할 수 있습니다.`);
+                                    onStepChange(2);
+                                }
+                            } else {
+                                window.onDataSelected(cat, dataInfo, stayOnPage);
+                            }
+                        };
+                        m.showSaveInstructions(initialName, state, cb);
+                    });
                 }, 50);
                 break;
             case 2: // 3단계: 데이터 관리
@@ -1393,8 +1408,12 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             if (e.target.closest('input') || e.target.closest('.switch') ||
                 e.target.closest('button') || e.target.closest('.reassign-owner-btn') ||
                 e.target.closest('.owner-cell')) return;
-            const ds = datasets.find(d => String(d.id) === row.dataset.id);
-            if (ds) openDatasetModal(ds);
+            const dsId = row.dataset.id;
+            const ds = datasets.find(d => String(d.id) === String(dsId));
+            if (ds) {
+                console.log('Teacher Dashboard: Opening dataset modal for', ds.data_name);
+                openDatasetModal(ds, true, onTeacherUploadSuccess);
+            }
         };
     });
 
@@ -1473,7 +1492,7 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
         row.addEventListener('click', (e) => {
             if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
             const ds = datasets.find(d => String(d.id) === row.dataset.id);
-            if (ds) openDatasetModal(ds);
+            if (ds) openDatasetModal(ds, false); // Student view - no teacher editing
         });
     });
 
@@ -1507,10 +1526,104 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
 }
 
 
+
+/**
+ * Helper: Setup inline editing for Teacher in the Modal
+ */
+async function setupTeacherEditInModal(modal, dataset, onUpdate) {
+    const { updateDatasetDetails } = await import('./auth.js');
+    
+    // 1. Data Name Editing
+    const btnEditName = modal.querySelector('#btn-edit-data-name');
+    const displayResName = modal.querySelector('#modal-display-name');
+    const wrapperEditName = modal.querySelector('#edit-data-name-wrapper');
+    const inputEditName = modal.querySelector('#input-edit-data-name');
+    const btnSaveName = modal.querySelector('#btn-save-data-name');
+    const btnCancelName = modal.querySelector('#btn-cancel-data-name');
+
+    if (btnEditName) {
+        btnEditName.onclick = () => {
+            btnEditName.style.display = 'none';
+            displayResName.style.display = 'none';
+            wrapperEditName.style.display = 'flex';
+        };
+    }
+    if (btnCancelName) {
+        btnCancelName.onclick = () => {
+            btnEditName.style.display = 'inline-flex';
+            displayResName.style.display = 'inline';
+            wrapperEditName.style.display = 'none';
+            inputEditName.value = dataset.data_name;
+        };
+    }
+    if (btnSaveName) {
+        btnSaveName.onclick = async () => {
+            const newName = inputEditName.value.trim();
+            if (!newName) { alert('이름을 입력해주세요.'); return; }
+            btnSaveName.disabled = true;
+            const { error } = await updateDatasetDetails(dataset.id, { data_name: newName });
+            if (error) { alert('수정 중 오류 발생: ' + error.message); }
+            else {
+                dataset.data_name = newName;
+                displayResName.innerText = newName;
+                btnCancelName.click();
+                if (onUpdate) onUpdate();
+            }
+            btnSaveName.disabled = false;
+        };
+    }
+
+    // 2. Filename Editing
+    const btnEditFile = modal.querySelector('#btn-edit-filename');
+    const displayResFile = modal.querySelector('#modal-display-filename');
+    const wrapperEditFile = modal.querySelector('#edit-filename-wrapper');
+    const inputEditFile = modal.querySelector('#input-edit-filename');
+    const btnSaveFile = modal.querySelector('#btn-save-filename');
+    const btnCancelFile = modal.querySelector('#btn-cancel-filename');
+
+    if (btnEditFile) {
+        btnEditFile.onclick = () => {
+            btnEditFile.style.display = 'none';
+            displayResFile.style.display = 'none';
+            wrapperEditFile.style.display = 'flex';
+        };
+    }
+    if (btnCancelFile) {
+        btnCancelFile.onclick = () => {
+            btnEditFile.style.display = 'inline-flex';
+            displayResFile.style.display = 'inline';
+            wrapperEditFile.style.display = 'none';
+            inputEditFile.value = (dataset.metadata?.filename || dataset.metadata?.name || '-');
+        };
+    }
+    if (btnSaveFile) {
+        btnSaveFile.onclick = async () => {
+            const newFile = inputEditFile.value.trim();
+            if (!newFile) { alert('파일명을 입력해주세요.'); return; }
+            btnSaveFile.disabled = true;
+            
+            const newMeta = { ...(dataset.metadata || {}), filename: newFile };
+            const { error } = await updateDatasetDetails(dataset.id, { metadata: newMeta });
+            
+            if (error) { alert('수정 중 오류 발생: ' + error.message); }
+            else {
+                dataset.metadata = newMeta;
+                displayResFile.innerText = newFile;
+                btnCancelFile.click();
+                if (onUpdate) onUpdate();
+            }
+            btnSaveFile.disabled = false;
+        };
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
 /**
  * Common: Open dataset details modal with metadata and preview
  */
-export async function openDatasetModal(dataset) {
+export async function openDatasetModal(dataset, isTeacher = false, onUpdate = null) {
+    console.log('openDatasetModal entry - isTeacher:', isTeacher);
     const modal = document.getElementById('dataset-modal');
     if (!modal) return;
     
@@ -1548,18 +1661,58 @@ export async function openDatasetModal(dataset) {
 
     const desc = getVal('description');
     const keywords = getVal('keywords');
-    const format = getVal('encodingFormat') || dataset.data_name.split('.').pop().toUpperCase();
-    const sizeVal = Number(dataset.size_kb);
-    const size = sizeVal ? (sizeVal >= 1024 ? `${(sizeVal / 1024).toFixed(1)} MB (${sizeVal.toLocaleString()} KB)` : `${sizeVal.toLocaleString()} KB`) : '-';
+    const formatRaw = getVal('encodingFormat');
+    let format = '-';
+    if (formatRaw) {
+        format = formatRaw;
+    } else if (dataset.data_name && dataset.data_name.includes('.')) {
+        const ext = dataset.data_name.split('.').pop().toUpperCase();
+        if (ext.length <= 5) format = ext; // Extension is usually short
+    }
+    if (format === '-' && dataset.file_url) {
+        if (dataset.file_url.toLowerCase().endsWith('.csv')) format = 'CSV';
+        else if (dataset.file_url.toLowerCase().endsWith('.xlsx')) format = 'XLSX';
+    }
+    const sizeVal = dataset.size_kb !== null && dataset.size_kb !== undefined ? Number(dataset.size_kb) : null;
+    let size = '-';
+    if (sizeVal !== null) {
+        if (sizeVal === 0) size = '0 KB';
+        else if (sizeVal >= 1024) size = `${(sizeVal / 1024).toFixed(1)} MB (${sizeVal.toLocaleString()} KB)`;
+        else size = `${sizeVal.toLocaleString()} KB`;
+    }
+
+    const originalFilename = rawMeta.filename || rawMeta.name || dataset.data_name;
 
     if (bodyInner) {
         bodyInner.innerHTML = `
             <table class="portal-meta-table">
                 <tbody>
                     <tr>
-                        <th class="portal-label">데이터명</th>
-                        <td class="portal-value" colspan="3" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">
-                            ${dataset.data_name}
+                        <th class="portal-label">데이터셋 제목</th>
+                        <td class="portal-value" colspan="3">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span id="modal-display-name" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">${dataset.data_name}</span>
+                                ${isTeacher ? `<button id="btn-edit-data-name" class="btn-secondary" style="padding:4px 8px; font-size:0.7rem;"><i data-lucide="edit-3" size="14"></i> 수정</button>` : ''}
+                                <div id="edit-data-name-wrapper" style="display:none; flex:1; align-items:center; gap:8px;">
+                                    <input type="text" id="input-edit-data-name" value="${dataset.data_name}" style="flex:1; padding:6px; font-size:0.9rem;">
+                                    <button id="btn-save-data-name" class="btn-primary" style="padding:6px 12px; font-size:0.8rem;">저장</button>
+                                    <button id="btn-cancel-data-name" class="btn-secondary" style="padding:6px 12px; font-size:0.8rem;">취소</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="portal-label">첨부파일명</th>
+                        <td class="portal-value" colspan="3">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span id="modal-display-filename">${originalFilename}</span>
+                                ${isTeacher ? `<button id="btn-edit-filename" class="btn-secondary" style="padding:4px 8px; font-size:0.7rem;"><i data-lucide="edit-3" size="14"></i> 수정</button>` : ''}
+                                <div id="edit-filename-wrapper" style="display:none; flex:1; align-items:center; gap:8px;">
+                                    <input type="text" id="input-edit-filename" value="${originalFilename}" style="flex:1; padding:6px; font-size:0.9rem;">
+                                    <button id="btn-save-filename" class="btn-primary" style="padding:6px 12px; font-size:0.8rem;">저장</button>
+                                    <button id="btn-cancel-filename" class="btn-secondary" style="padding:6px 12px; font-size:0.8rem;">취소</button>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     ${metaPairs.map(pair => `
@@ -1625,6 +1778,10 @@ export async function openDatasetModal(dataset) {
                 </div>
             </div>
         `;
+
+        if (isTeacher) {
+            setupTeacherEditInModal(modal, dataset, onUpdate);
+        }
     }
 
     modal.style.display = 'flex';
@@ -1701,7 +1858,8 @@ export async function fetchDatasetPreview(fileUrl, fileName = '') {
                 Papa.parse(text, {
                     header: true,
                     preview: 20,
-                    skipEmptyLines: true,
+                    skipEmptyLines: 'greedy',
+                    error: () => {},
                     complete: (results) => {
                         if (results.data && results.data.length > 0) {
                             resolve({ data: results.data, fields: results.meta.fields });
@@ -2146,7 +2304,7 @@ export async function renderPreprocessingView(containerId, {
                                     const rowCount = meta.row_count;
                                     const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '';
                                     const infoStr = [rowStr, sizeStr].filter(Boolean).join(' · ');
-                                    let fileName = ds.data_name.trim();
+                                    let fileName = (ds.metadata?.filename || ds.data_name).trim();
                                     if (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';
                                     let downloadUrl = ds.file_url;
                                     if (downloadUrl && !downloadUrl.startsWith('http')) {

@@ -361,7 +361,12 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
                 btn.disabled = false;
                 uploadStatus.innerText = `✅ ${total}개 시트가 개별 데이터셋으로 저장되었습니다!`;
                 delete state.pendingDataName;
-                onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, firstDataInfo);
+                if (onDataSelected) onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, firstDataInfo, true);
+                
+                setTimeout(() => {
+                    showSaveInstructions('', state, onDataSelected);
+                    alert(`${total}개의 시트 데이터가 성공적으로 저장되었습니다. \n계속해서 다른 자료를 추가할 수 있습니다.`);
+                }, 500);
                 return;
             }
 
@@ -416,9 +421,17 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
 
             btn.innerText = '✅ 저장 완료!';
             btn.disabled = false;
-            uploadStatus.innerText = '✅ 저장이 완료되었습니다. 3단계로 이동합니다...';
+            uploadStatus.innerText = '✅ 저장이 완료되었습니다.';
             delete state.pendingDataName;
-            onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, dataInfo);
+            
+            // Notify background (with stayOnPage=true flag)
+            if (onDataSelected) onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, dataInfo, true);
+            
+            // Clear and reset form for next upload
+            setTimeout(() => {
+                showSaveInstructions('', state, onDataSelected);
+                alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다.\n계속해서 다른 자료를 바로 추가할 수 있습니다.`);
+            }, 500);
         } catch (err) {
             alert('저장 중 오류가 발생했습니다: ' + err.message);
             btn.disabled = false;
