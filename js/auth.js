@@ -565,6 +565,19 @@ export async function fetchAllDatasetsForTeacher() {
 }
 
 /**
+ * Fetch specific datasets with their full data content for bulk download
+ */
+export async function fetchDatasetContentBulk(ids) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .select('id, data_name, file_url, student_id')
+        .in('id', ids);
+    
+    if (error) throw error;
+    return data || [];
+}
+
+/**
  * Fetch all shared datasets from OTHER students 
  * AND include current student's research usage flag for those shared datasets
  */

@@ -252,6 +252,10 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
 
                 <div style="width:1px; height:28px; background:#fda4af; opacity:0.5;"></div>
 
+                <button id="teacher-bulk-download-btn" class="btn-primary" style="background:#059669; border-color:#059669; font-size:0.78rem; padding:8px 16px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="download" size="15"></i> 선택 다운로드 (ZIP)
+                </button>
+
                 <button id="teacher-bulk-delete-btn" class="btn-primary" style="background:#e11d48; border-color:#e11d48; font-size:0.78rem; padding:8px 16px; font-weight:700; display:flex; align-items:center; gap:6px;">
                     <i data-lucide="trash-2" size="15"></i> 선택 삭제
                 </button>
@@ -312,7 +316,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                         return `
                         <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" data-teacher-owned="${isTeacherOwned}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
                             <td style="padding:12px; text-align:center;" onclick="event.stopPropagation()">
-                                ${isTeacherOwned ? `<input type="checkbox" class="ds-row-chk" data-id="${ds.id}" style="width:16px;height:16px;cursor:pointer;">` : ''}
+                                <input type="checkbox" class="ds-row-chk" data-id="${ds.id}" style="width:16px;height:16px;cursor:pointer;">
                             </td>
                             <td style="padding:12px;">
                                 <div style="display:flex;align-items:center;gap:10px;">
@@ -666,6 +670,96 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             }
 
             if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    }
+
+    // Bulk Download Logic
+    const bulkDownloadBtn = container.querySelector('#teacher-bulk-download-btn');
+    if (bulkDownloadBtn) {
+        bulkDownloadBtn.onclick = async () => {
+            const checkedIds = Array.from(dsRowChks)
+                .filter(chk => chk.checked && chk.closest('tr').style.display !== 'none')
+                .map(chk => chk.dataset.id);
+
+            if (checkedIds.length === 0) {
+                alert('다운로드할 데이터셋을 선택해주세요.');
+                return;
+            }
+
+            bulkDownloadBtn.disabled = true;
+            const originalHTML = bulkDownloadBtn.innerHTML;
+            bulkDownloadBtn.innerHTML = `<i data-lucide="loader-2" class="spin" size="15"></i> 준비 중...`;
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const zip = new JSZip();
+                const { fetchDatasetContentBulk } = await import('./auth.js');
+                
+                // Fetch full data for each checked ID
+                const datasetsToDownload = await fetchDatasetContentBulk(checkedIds);
+
+                if (!datasetsToDownload || datasetsToDownload.length === 0) {
+                    throw new Error('선택한 데이터셋 정보를 불러올 수 없습니다.');
+                }
+
+                for (let i = 0; i < datasetsToDownload.length; i++) {
+                    const ds = datasetsToDownload[i];
+                    bulkDownloadBtn.innerHTML = `<i data-lucide="loader-2" class="spin" size="15"></i> 다운로드 중 (${i + 1}/${datasetsToDownload.length})`;
+                    if (window.lucide) lucide.createIcons();
+
+                    let finalUrl = ds.file_url;
+                    if (finalUrl && !finalUrl.startsWith('http')) {
+                        const { data } = supabaseClient.storage.from('datasets').getPublicUrl(ds.file_url);
+                        finalUrl = data.publicUrl;
+                    }
+
+                    const response = await fetch(finalUrl);
+                    if (!response.ok) throw new Error(`${ds.data_name} 파일을 가져올 수 없습니다.`);
+                    const blob = await response.blob();
+                    
+                    let fileName = ds.data_name || `dataset_${ds.id}`;
+                    fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+                    
+                    const ext = ds.file_url.split('.').pop() || 'csv';
+                    let finalFileName = `${fileName}.${ext}`;
+                    
+                    // 중복 파일명 처리 (동일한 이름의 데이터셋이 있을 경우)
+                    let counter = 1;
+                    while (zip.file(finalFileName)) {
+                        finalFileName = `${fileName}_(${counter}).${ext}`;
+                        counter++;
+                    }
+                    
+                    zip.file(finalFileName, blob);
+                }
+
+                bulkDownloadBtn.innerHTML = `<i data-lucide="loader-2" class="spin" size="15"></i> 압축 생성 중...`;
+                if (window.lucide) lucide.createIcons();
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement('a');
+                const dateStr = new Date().toISOString().slice(0, 10);
+                
+                a.href = url;
+                a.download = `PublicDataResearch_Export_${dateStr}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Cleanup
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                }, 100);
+
+            } catch (err) {
+                console.error(err);
+                alert('일괄 다운로드 중 오류가 발생했습니다: ' + err.message);
+            } finally {
+                bulkDownloadBtn.disabled = false;
+                bulkDownloadBtn.innerHTML = originalHTML;
+                if (window.lucide) lucide.createIcons();
+            }
         };
     }
 
