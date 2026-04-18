@@ -1133,6 +1133,12 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 </div>
             </div>
             <div id="student-filter-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:120px; overflow-y:auto; padding:4px;">
+                <!-- Teacher Filter -->
+                <label style="display:flex; align-items:center; gap:6px; padding:5px 14px; background:#eef2ff; border-radius:20px; font-size:0.85rem; cursor:pointer; border:1px solid #c7d2fe; transition:all 0.2s;" class="student-filter-label teacher-filter-label">
+                    <input type="checkbox" class="student-filter-chk" value="__teacher__" checked style="width:14px; height:14px; accent-color:#4f46e5;">
+                    <i data-lucide="shield-check" size="14" style="color:#4f46e5;"></i>
+                    <span style="font-weight:700; color:#3730a3;">교사용 자료</span>
+                </label>
                 ${students.map(s => `
                     <label style="display:flex; align-items:center; gap:6px; padding:5px 12px; background:#f1f5f9; border-radius:20px; font-size:0.82rem; cursor:pointer; border:1px solid #e2e8f0; transition:all 0.2s;" class="student-filter-label">
                         <input type="checkbox" class="student-filter-chk" value="${s.id}" checked style="width:14px; height:14px; accent-color:var(--primary);">
@@ -1281,18 +1287,22 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             .filter(chk => chk.checked)
             .map(chk => chk.value);
 
+        const showTeacher = selectedIds.includes('__teacher__');
+
         // Update label styles
         filterChecks.forEach(chk => {
             const label = chk.closest('.student-filter-label');
+            const isTeacherFilter = chk.value === '__teacher__';
             if (chk.checked) {
-                label.style.background = 'var(--primary-glow)';
-                label.style.borderColor = 'var(--primary)';
+                label.style.background = isTeacherFilter ? '#eef2ff' : 'var(--primary-glow)';
+                label.style.borderColor = isTeacherFilter ? '#4f46e5' : 'var(--primary)';
                 label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                label.style.opacity = '1';
             } else {
                 label.style.background = '#f8fafc';
                 label.style.borderColor = '#e2e8f0';
                 label.style.boxShadow = 'none';
-                label.style.opacity = '0.6';
+                label.style.opacity = '0.4';
             }
         });
 
@@ -1300,13 +1310,20 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         dataRows.forEach(row => {
             const studentId = row.dataset.student;
             const dsId = row.dataset.id;
-            // 교사 미배정(student_id=teacherEmail) 또는 교사가 재배정한 자료(metadata.teacher_email)도 항상 표시
             const ds = datasets.find(d => String(d.id) === dsId);
             const isTeacherRow = teacherEmail && (
                 studentId === teacherEmail ||
                 ds?.metadata?.teacher_email === teacherEmail
             );
-            if (isTeacherRow || selectedIds.includes(studentId)) {
+
+            let shouldShow = false;
+            if (isTeacherRow) {
+                if (showTeacher) shouldShow = true;
+            } else if (selectedIds.includes(studentId)) {
+                shouldShow = true;
+            }
+
+            if (shouldShow) {
                 row.style.display = 'table-row';
                 visibleCount++;
             } else {
@@ -1319,13 +1336,34 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         if (table) table.style.display = visibleCount === 0 ? 'none' : 'table';
     };
 
-    filterChecks.forEach(chk => chk.addEventListener('change', () => { updateFilter(); syncAllChkDeferred(); }));
+    const syncBulkUI = () => {
+        if (!bulkBar) return;
+        const checked = Array.from(dsRowChks).filter(c => c.checked && c.closest('tr').style.display !== 'none');
+        if (checked.length > 0) {
+            bulkBar.style.display = 'flex';
+            bulkCount.innerText = checked.length;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+        
+        // Update master checkbox
+        const visibleRows = Array.from(dsRowChks).filter(c => c.closest('tr').style.display !== 'none');
+        if (visibleRows.length > 0) {
+            dsBulkAllChk.checked = visibleRows.every(c => c.checked);
+            dsBulkAllChk.indeterminate = !dsBulkAllChk.checked && visibleRows.some(c => c.checked);
+        } else {
+            dsBulkAllChk.checked = false;
+            dsBulkAllChk.indeterminate = false;
+        }
+    };
+
+    filterChecks.forEach(chk => chk.addEventListener('change', () => { updateFilter(); syncBulkUI(); syncAllChkDeferred(); }));
 
     const filterAllBtn = container.querySelector('#filter-all-btn');
-    if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); syncAllChkDeferred(); };
+    if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); syncBulkUI(); syncAllChkDeferred(); };
 
     const filterNoneBtn = container.querySelector('#filter-none-btn');
-    if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); syncAllChkDeferred(); };
+    if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); syncBulkUI(); syncAllChkDeferred(); };
 
     // Deferred reference — assigned after syncAllChk is defined below
     let syncAllChkDeferred = () => {};
@@ -1443,26 +1481,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     const bulkCount = container.querySelector('#bulk-select-count');
     const bulkDelBtn = container.querySelector('#teacher-bulk-delete-btn');
 
-    const syncBulkUI = () => {
-        if (!bulkBar) return;
-        const checked = Array.from(dsRowChks).filter(c => c.checked && c.closest('tr').style.display !== 'none');
-        if (checked.length > 0) {
-            bulkBar.style.display = 'flex';
-            bulkCount.innerText = checked.length;
-        } else {
-            bulkBar.style.display = 'none';
-        }
-        
-        // Update master checkbox
-        const visibleRows = Array.from(dsRowChks).filter(c => c.closest('tr').style.display !== 'none');
-        if (visibleRows.length > 0) {
-            dsBulkAllChk.checked = visibleRows.every(c => c.checked);
-            dsBulkAllChk.indeterminate = !dsBulkAllChk.checked && visibleRows.some(c => c.checked);
-        } else {
-            dsBulkAllChk.checked = false;
-            dsBulkAllChk.indeterminate = false;
-        }
-    };
+    // (syncBulkUI moved up)
 
     if (dsBulkAllChk) {
         dsBulkAllChk.onchange = () => {
