@@ -506,13 +506,14 @@ async function showTeacherDashboard(email) {
                                 <td style="padding:10px 14px;font-weight:600;">${s.name}</td>
                                 <td style="padding:10px 14px;">
                                     <select class="att-status" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:0.85rem;font-family:inherit;color:${statColor[status]};font-weight:600;background:white;">
-                                        ${Object.entries(statLabel).map(([v,l]) =>
-                                            `<option value="${v}" ${status===v?'selected':''} style="color:${statColor[v]};">${l}</option>`
-                                        ).join('')}
+                                        ${Object.entries(statLabel).map(entry => {
+                                            const [val, lab] = entry;
+                                            return `<option value="${val}" ${status === val ? 'selected' : ''} style="color:${statColor[val]};">${lab}</option>`;
+                                        }).join('')}
                                     </select>
                                 </td>
                                 <td style="padding:10px 14px;">
-                                    <input type="text" class="att-note" value="${log?.note || ''}"
+                                    <input type="text" class="att-note" value="${(log && log.note) ? log.note : ''}"
                                         placeholder="메모 (선택)"
                                         style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:0.85rem;font-family:inherit;width:100%;max-width:200px;"/>
                                 </td>
@@ -716,8 +717,6 @@ async function showTeacherDashboard(email) {
                                 ${eduKeywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:4px 11px;color:#92400e;text-decoration:none;font-weight:500;" onmouseover="this.style.background='#fef08a'" onmouseout="this.style.background='#fef9c3'">${k}</a>`).join('')}
                             </div>
                         </div>`;
-                    })()}
-                    `;
                 })()}
                 `}
             `;
