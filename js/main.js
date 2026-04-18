@@ -231,6 +231,7 @@ async function showTeacherDashboard(email) {
     // Setup sidebar navigation
     const tabStudents = document.getElementById('tab-students');
     const tabAttendance = document.getElementById('tab-attendance');
+    const tabStepHalf = document.getElementById('tab-step-half');
     const tabProgress = document.getElementById('tab-progress');
     const tabStep1 = document.getElementById('tab-step1');
     const tabStep2 = document.getElementById('tab-step2');
@@ -239,6 +240,7 @@ async function showTeacherDashboard(email) {
     const tabTeachers = document.getElementById('tab-teachers');
     const viewStudents = document.getElementById('teacher-students-view');
     const viewAttendance = document.getElementById('teacher-attendance-view');
+    const viewStepHalf = document.getElementById('teacher-step-half-view');
     const viewProgress = document.getElementById('teacher-progress-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
     const viewStep2 = document.getElementById('teacher-step2-view');
@@ -247,8 +249,8 @@ async function showTeacherDashboard(email) {
     const viewTeachers = document.getElementById('teacher-permissions-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
-        [viewStudents, viewAttendance, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
+        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
         activeTab.classList.add('active');
         activeView.style.display = 'block';
     };
@@ -587,6 +589,94 @@ async function showTeacherDashboard(email) {
         if (progressList) progressList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { data } = await fetchStudentProgressSnapshot();
         UI.renderStudentProgress(data, onViewStudentDetail);
+    };
+
+    // ── 1.5단계: 주제 탐색 ──────────────────────────────────
+    tabStepHalf.onclick = async () => {
+        switchTab(tabStepHalf, viewStepHalf);
+        if (window.lucide) window.lucide.createIcons();
+
+        const root = document.getElementById('teacher-step-half-root');
+        if (!root || root.dataset.rendered === 'true') return; // 이미 렌더된 경우 재렌더 생략
+        root.dataset.rendered = 'true';
+
+        const { categories } = await import('./data.js');
+        const diffColor = { '초급': { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' }, '중급': { bg: '#fffbeb', border: '#fde68a', text: '#b45309' }, '심화': { bg: '#fef2f2', border: '#fecaca', text: '#dc2626' } };
+        let selectedCatId = null;
+
+        const renderTopics = () => {
+            const cat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
+            root.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h4 style="margin:0;">${cat ? cat.title : '전체 분야'}</h4>
+                    ${cat ? `<button id="teacher-back-btn" class="btn-secondary" style="font-size:0.85rem;">← 전체 분야 보기</button>` : ''}
+                </div>
+                ${!cat ? `
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
+                    ${categories.map(c => {
+                        const dc = diffColor[c.difficulty] || diffColor['초급'];
+                        return `
+                        <div class="cat-card glass" data-id="${c.id}" style="padding:20px;cursor:pointer;border-radius:12px;border:1px solid #e2e8f0;transition:box-shadow 0.2s;display:flex;flex-direction:column;gap:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <i data-lucide="${c.icon}" size="20" style="color:var(--primary);flex-shrink:0;"></i>
+                                    <strong style="font-size:1rem;color:var(--secondary);">${c.title}</strong>
+                                </div>
+                                <span style="font-size:0.72rem;font-weight:700;background:${dc.bg};border:1px solid ${dc.border};color:${dc.text};border-radius:6px;padding:2px 9px;white-space:nowrap;">${c.difficulty}</span>
+                            </div>
+                            <p style="font-size:0.83rem;color:#64748b;margin:0;line-height:1.5;">🎓 ${c.educationLinks[0]}</p>
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;">
+                                ${c.keywords.slice(0,3).map(k => `<span style="font-size:0.72rem;background:#f1f5f9;border-radius:4px;padding:2px 8px;color:#475569;">#${k}</span>`).join('')}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>` : `
+                <div style="display:flex;flex-direction:column;gap:18px;">
+                    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:20px;">
+                        <h4 style="color:#0369a1;margin:0 0 14px;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="graduation-cap" size="16"></i> 교육과 이렇게 연결돼요
+                        </h4>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            ${cat.educationLinks.map(q => `
+                            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:white;border-radius:8px;border:1px solid #e0f2fe;">
+                                <span style="font-size:1rem;flex-shrink:0;">💡</span>
+                                <p style="margin:0;font-size:0.92rem;color:#0c4a6e;line-height:1.55;">${q}</p>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                    <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+                        <h4 style="color:var(--secondary);margin:0 0 14px;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="lightbulb" size="16"></i> 이런 연구를 할 수 있어요
+                        </h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            ${cat.ideas.map(idea => `
+                            <div style="padding:14px 16px;background:#f8fafc;border-radius:8px;border-left:3px solid var(--primary);">
+                                <span style="font-size:0.72rem;font-weight:700;background:var(--primary-glow);color:var(--primary);border-radius:4px;padding:2px 8px;">${idea.tag}</span>
+                                <p style="margin:8px 0 0;font-size:0.88rem;color:#334155;line-height:1.5;">${idea.content}</p>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                    <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
+                        <h4 style="color:var(--secondary);margin:0 0 12px;font-size:0.9rem;">🔑 핵심 키워드 <span style="font-size:0.72rem;font-weight:400;color:#94a3b8;">(클릭 시 데이터 포털 검색)</span></h4>
+                        <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                            ${cat.keywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;color:#475569;font-weight:500;text-decoration:none;">#${k}</a>`).join('')}
+                        </div>
+                    </div>
+                </div>`}
+            `;
+            if (window.lucide) window.lucide.createIcons();
+            if (!cat) {
+                root.querySelectorAll('.cat-card').forEach(card => {
+                    card.addEventListener('mouseenter', () => card.style.boxShadow = 'var(--shadow)');
+                    card.addEventListener('mouseleave', () => card.style.boxShadow = '');
+                    card.addEventListener('click', () => { selectedCatId = card.dataset.id; renderTopics(); });
+                });
+            } else {
+                const backBtn = document.getElementById('teacher-back-btn');
+                if (backBtn) backBtn.onclick = () => { selectedCatId = null; renderTopics(); };
+            }
+        };
+        renderTopics();
     };
 
     const showStep1Monitor = () => {
