@@ -171,13 +171,9 @@
         </header>
 
         <div class="main-layout" style="width: 100%; max-width: none; padding: 0;">
-            <nav class="side-nav glass" style="height: calc(100vh - 70px); top: 70px; border-radius: 0; border-top: none; border-bottom: none; border-left: none;">
-                <div class="nav-header" style="margin-bottom: 30px; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">관리 메뉴</div>
+            <nav class="side-nav glass" style="height: calc(100vh - 70px); top: 70px; border-radius: 0; border-top: none; border-bottom: none; border-left: none; overflow-y: auto;">
+                <div class="nav-header" style="margin-bottom: 20px; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">관리 메뉴</div>
                 <div id="teacher-nav-items">
-                    <div id="tab-competitions" class="nav-item">
-                        <i data-lucide="award"></i>
-                        <span>대회 참가 신청 현황</span>
-                    </div>
                     <div id="tab-students" class="nav-item active">
                         <i data-lucide="users"></i>
                         <span>학생 계정 관리</span>
@@ -186,17 +182,27 @@
                         <i data-lucide="calendar-check"></i>
                         <span>학생 출석 체크</span>
                     </div>
+                    <div id="tab-competitions" class="nav-item">
+                        <i data-lucide="award"></i>
+                        <span>대회 참가 신청 현황</span>
+                    </div>
+                    
+                    <div style="margin: 20px 0 10px 15px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">연구 워크플로우 테스트</div>
+                    <div id="tab-teacher-step1" class="nav-item">
+                        <i data-lucide="search"></i>
+                        <span>1단계: 데이터 탐색</span>
+                    </div>
                     <div id="tab-step-half" class="nav-item">
                         <i data-lucide="compass"></i>
                         <span>1.5단계: 주제 탐색</span>
                     </div>
-                    <div id="tab-progress" class="nav-item">
-                        <i data-lucide="bar-chart-3"></i>
-                        <span>학생 진행 모니터링</span>
+                    <div id="tab-teacher-step2" class="nav-item">
+                        <i data-lucide="download"></i>
+                        <span>2단계: 데이터 저장</span>
                     </div>
-                    <div id="tab-management" class="nav-item">
+                    <div id="tab-teacher-step3" class="nav-item">
                         <i data-lucide="database"></i>
-                        <span>3단계: 데이터 관리</span>
+                        <span>3단계: 전체 데이터 관리</span>
                     </div>
                     <div id="tab-step1" class="nav-item">
                         <i data-lucide="lightbulb"></i>
@@ -205,6 +211,12 @@
                     <div id="tab-step2" class="nav-item">
                         <i data-lucide="cog"></i>
                         <span>5단계: 전처리</span>
+                    </div>
+
+                    <div style="margin: 20px 0 10px 15px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">데이터 모니터링</div>
+                    <div id="tab-progress" class="nav-item">
+                        <i data-lucide="bar-chart-3"></i>
+                        <span>학생 진행 모니터링</span>
                     </div>
                     <div id="tab-teachers" class="nav-item">
                         <i data-lucide="shield-check"></i>
@@ -316,13 +328,36 @@
                     </div>
                 </div>
 
-                <!-- Teacher View: Data Management -->
+                <div id="teacher-step1-test-explore-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h2 style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+                            <i data-lucide="search" style="color:var(--primary);"></i>
+                            1단계: 데이터 탐색 및 수집 (테스트)
+                        </h2>
+                        <div id="teacher-step1-test-root"></div>
+                    </div>
+                </div>
+
+                <div id="teacher-step2-test-save-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <h2 style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+                            <i data-lucide="download" style="color:var(--primary);"></i>
+                            2단계: 데이터 저장 및 연동 (테스트)
+                        </h2>
+                        <div id="teacher-step2-test-root"></div>
+                    </div>
+                </div>
+
+                <!-- Teacher View: Data Management (Full Admin + Personal Test) -->
                 <div id="teacher-management-view" class="view-section" style="display: none;">
                     <div class="glass card" style="padding: 30px;">
-                        <h2 style="margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
-                            <i data-lucide="database" style="color: var(--primary);"></i> 전체 데이터 관리
+                        <h2 style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="database" style="color: var(--primary);"></i> 3단계: 전체 데이터 관리
                         </h2>
-                        <p class="text-muted" style="margin-bottom: 20px;">모든 학생이 수집한 데이터를 확인하고 공유/활용 설정을 관리할 수 있습니다.</p>
+                        <p class="text-muted" style="margin-bottom: 25px; font-size: 0.9rem;">
+                            모든 학생이 수집한 데이터를 확인하고 모니터링합니다. 
+                            <strong>교사 테스트 활용</strong>을 체크하면 4/5단계 테스트 모드에서 해당 데이터를 직접 사용할 수 있습니다.
+                        </p>
                         <div id="teacher-dataset-list"></div>
                     </div>
                 </div>

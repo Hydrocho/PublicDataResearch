@@ -35,57 +35,7 @@ export async function onLoadDatasets(state, changeStep) {
             <h3 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="user" size="20"></i> 내 데이터 자료실
             </h3>
-            ${ownData.length === 0 ? '<p class="text-muted">아직 수집한 데이터가 없습니다.</p>' : `
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                <thead>
-                    <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
-                        <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${ownData.map(ds => {
-                        const meta = ds.metadata || {};
-                        const rowCount = meta.row_count;
-                        const sizeKb = meta.size_kb || ds.size_kb;
-                        const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
-                        const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB (${Number(sizeKb).toLocaleString()} KB)` : `${Number(sizeKb).toLocaleString()} KB`) : '';
-                        return `
-                        <tr class="clickable-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border);">
-                            <td style="padding: 12px;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <i data-lucide="file-spreadsheet" size="18" style="color: var(--primary);"></i>
-                                    <div>
-                                        <strong>${ds.data_name}</strong>
-                                        ${sizeStr ? `<div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${sizeStr}</div>` : ''}
-                                    </div>
-                                    <button class="edit-name-btn" data-id="${ds.id}" title="이름 수정" style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; display: flex; align-items: center;">
-                                        <i data-lucide="pencil" size="14"></i>
-                                    </button>
-                                </div>
-                            </td>
-                            <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? 'var(--primary)' : '#94a3b8'};">${rowStr}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="true" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                            </td>
-                            <td style="padding: 12px; text-align: center;">
-                                <label class="switch">
-                                    <input type="checkbox" class="share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
-                                    <span class="slider"></span>
-                                </label>
-                            </td>
-                            <td style="padding: 12px; text-align: right; display: flex; gap: 5px; justify-content: flex-end;">
-                                <button class="btn-secondary delete-ds-btn" data-id="${ds.id}" style="font-size: 0.75rem; padding: 5px 10px; color: var(--accent);">삭제</button>
-                            </td>
-                        </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-            `}
+            <div id="own-datasets-list-root"></div>
         </div>
 
         ${teamData.length > 0 ? `
@@ -176,21 +126,50 @@ export async function onLoadDatasets(state, changeStep) {
     container.innerHTML = html;
     lucide.createIcons();
 
-    // Row Click Listener (for details)
+    // ── 내 데이터 리스트 렌더링 (UI 컴포넌트 사용) ─────────────────────────
+    const { renderDatasetsList } = await import('./ui.js');
+    renderDatasetsList(ownData, 'own-datasets-list-root', 
+        async (id) => { // onDelete
+            if (!confirm('정말로 이 데이터셋을 삭제하시겠습니까?')) return;
+            const { error } = await deleteStudentDataset(id, state.user.student_id);
+            if (!error) onLoadDatasets(state, changeStep);
+            else alert('삭제 실패: ' + error.message);
+        },
+        async (id, isShared) => { // onToggleShare
+            const { error } = await toggleDatasetShare(id, isShared, state.user.student_id);
+            if (error) alert('공유 상태 변경 실패: ' + error.message);
+        },
+        async (id, isUse) => { // onToggleResearch
+            const { error } = await toggleResearchUse(id, isUse, state.user.student_id, true);
+            if (error) alert('연구 활용 상태 저장 실패: ' + error.message);
+        },
+        async (id, currentName) => { // onEditName
+            const newName = prompt('수정할 데이터셋 이름을 입력하세요:', currentName);
+            if (newName && newName.trim() !== '' && newName !== currentName) {
+                const { error } = await updateDatasetName(id, newName.trim(), state.user.student_id);
+                if (!error) onLoadDatasets(state, changeStep);
+                else alert('이름 수정 실패: ' + error.message);
+            }
+        }
+    );
+
+    // ── Row Click Listener (팀/친구 공유 자료 상세 모달용) ───────────────
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', (e) => {
             if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
-            const ds = [...ownData, ...teamData, ...sharedData].find(d => String(d.id) === row.dataset.id);
-            if (ds) openDatasetModal(ds);
+            const ds = [...teamData, ...sharedData].find(d => String(d.id) === row.dataset.id);
+            if (ds) {
+                import('./ui.js').then(m => m.openDatasetModal(ds));
+            }
         });
     });
 
-    // Research Use Check Listener
+    // ── 연구 활용 체크 (팀/친구 공유 자료용) ────────────────────────────
     container.querySelectorAll('.research-use-check').forEach(chk => {
         chk.addEventListener('change', async () => {
             const id = chk.dataset.id;
             const isUse = chk.checked;
-            const isOwner = chk.dataset.owner === 'true';
+            const isOwner = chk.dataset.owner === 'true'; // 팀/친구는 false가 명시되어 있음
             
             chk.disabled = true;
             const { error } = await toggleResearchUse(id, isUse, state.user.student_id, isOwner);
@@ -199,78 +178,6 @@ export async function onLoadDatasets(state, changeStep) {
                 chk.checked = !isUse;
             }
             chk.disabled = false;
-        });
-    });
-
-    // Edit Name Listener
-    container.querySelectorAll('.edit-name-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            const ds = ownData.find(d => String(d.id) === id);
-            const currentName = ds ? ds.data_name : '';
-            const newName = prompt('수정할 데이터셋 이름을 입력하세요:', currentName);
-            
-            if (newName && newName.trim() !== '' && newName !== currentName) {
-                const { error } = await updateDatasetName(id, newName.trim(), state.user.student_id);
-                if (!error) {
-                    onLoadDatasets(state, changeStep);
-                } else {
-                    alert('이름 수정 실패: ' + error.message);
-                }
-            }
-        });
-    });
-
-    // Share Toggle Listener
-    container.querySelectorAll('.share-toggle').forEach(chk => {
-        chk.addEventListener('change', async () => {
-            const id = chk.dataset.id;
-            const isShared = chk.checked;
-            
-            chk.disabled = true; // prevent double-clicks
-            const { error } = await toggleDatasetShare(id, isShared, state.user.student_id);
-            
-            if (error) {
-                alert('공유 상태 변경 실패: ' + error.message);
-                chk.checked = !isShared; // revert
-                chk.disabled = false;
-            } else {
-                console.log('Toggle success for ID:', id, 'New status:', isShared);
-                chk.disabled = false;
-            }
-        });
-    });
-
-    // Action Listeners (Select/Research)
-    container.querySelectorAll('.select-ds-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const allDatasets = [...ownData, ...sharedData];
-            const ds = allDatasets.find(d => String(d.id) === btn.dataset.id);
-            if (ds) {
-                const prefix = btn.dataset.source === 'shared' ? '[친구공유]' : '[관리]';
-                state.selectedTopic = { cat: { title: '관리데이터', id: 'managed' }, dataInfo: { 
-                    name: ds.data_name, 
-                    url: ds.metadata?.url || '#',
-                    file_url: ds.file_url 
-                } };
-                document.getElementById('selected-topic-box').style.display = 'block';
-                document.getElementById('current-topic-text').innerText = `${prefix} ${ds.data_name}`;
-                changeStep(2); 
-            }
-        });
-    });
-
-    // Delete Listener (Only for own data)
-    container.querySelectorAll('.delete-ds-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            if (!confirm('정말로 이 데이터셋을 삭제하시겠습니까?')) return;
-            const targetId = btn.dataset.id;
-            const { error } = await deleteStudentDataset(targetId, state.user.student_id);
-            if (!error) onLoadDatasets(state, changeStep);
-            else alert('삭제 실패: ' + error.message);
         });
     });
 }

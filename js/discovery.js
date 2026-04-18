@@ -217,33 +217,42 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
         // [Pre-process] Convert Excel to CSV if needed
         let fileToUpload = selectedFile;
         const isExcel = selectedFile.name.toLowerCase().endsWith('.xlsx') || selectedFile.name.toLowerCase().endsWith('.xls');
-        
+
         if (isExcel) {
             try {
                 btn.disabled = true;
-                btn.innerText = 'CSV 변환 중...';
+                btn.innerText = '시트 분석 중...';
                 const buffer = await selectedFile.arrayBuffer();
                 const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
+
+                let selectedSheetName;
+                if (workbook.SheetNames.length > 1) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    const sheetResult = await showSheetSelectModal(workbook);
+                    if (!sheetResult) return;
+                    selectedSheetName = sheetResult.dataSheet;
+                    if (sheetResult.codebook) extractedMeta.codebook = sheetResult.codebook;
+                    btn.disabled = true;
+                    btn.innerText = 'CSV 변환 중...';
+                } else {
+                    selectedSheetName = workbook.SheetNames[0];
+                }
+
+                const worksheet = workbook.Sheets[selectedSheetName];
                 const csvString = XLSX.utils.sheet_to_csv(worksheet);
-                
-                // Create new CSV file
+
                 const csvBlob = new Blob([csvString], { type: 'text/csv' });
                 const newFileName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '.csv');
                 fileToUpload = new File([csvBlob], newFileName, { type: 'text/csv' });
-                
-                // Update selectedFile for the rest of the logic
                 selectedFile = fileToUpload;
-                
-                // Update name input if it still has old extension
+
                 const nameInput = document.getElementById('found-data-name');
-                if (nameInput && nameInput.value.toLowerCase().endsWith('.xlsx') || nameInput.value.toLowerCase().endsWith('.xls')) {
+                if (nameInput && (nameInput.value.toLowerCase().endsWith('.xlsx') || nameInput.value.toLowerCase().endsWith('.xls'))) {
                     nameInput.value = nameInput.value.replace(/\.(xlsx|xls)$/i, '.csv');
-                    name = nameInput.value;
                 }
-                
-                uploadStatus.innerText = '✅ 엑셀을 CSV로 변환했습니다.';
+
+                uploadStatus.innerText = `✅ "${selectedSheetName}" 시트를 CSV로 변환했습니다.`;
                 btn.innerText = originalText;
                 btn.disabled = false;
             } catch (err) {
@@ -368,6 +377,111 @@ export function showCategoryDetails(catId, state, onDataSelected) {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return;
     showSaveInstructions(cat.title, state, onDataSelected);
+}
+
+/**
+ * Shows a modal for selecting which sheet to use when an Excel has multiple sheets.
+ * Returns a Promise<{dataSheet: string, codebook: object|null}> or null if cancelled.
+ */
+function showSheetSelectModal(workbook) {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('sheet-select-modal-overlay');
+        if (existing) existing.remove();
+
+        const CODEBOOK_NAMES = ['변수정보', '변수값', '코드북', '설명', 'codebook', 'variables', 'metadata'];
+
+        const sheetInfos = workbook.SheetNames.map(name => {
+            const sheet = workbook.Sheets[name];
+            const ref = sheet['!ref'];
+            let rows = 0, cols = 0;
+            if (ref) {
+                const range = XLSX.utils.decode_range(ref);
+                rows = range.e.r - range.s.r + 1;
+                cols = range.e.c - range.s.c + 1;
+            }
+            const upper = name.toUpperCase();
+            const lower = name.toLowerCase();
+            const isDataSheet = upper.includes('DATA') || upper.includes('데이터') || upper.includes('원자료');
+            const isCodebook = CODEBOOK_NAMES.some(n => lower.includes(n.toLowerCase()));
+            return { name, rows, cols, isDataSheet, isCodebook };
+        });
+
+        let selectedSheet = (sheetInfos.find(s => s.isDataSheet) || sheetInfos[0]).name;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'sheet-select-modal-overlay';
+        overlay.style.cssText = `
+            position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999;
+            display:flex; align-items:center; justify-content:center; padding:20px;
+        `;
+
+        const render = () => {
+            overlay.innerHTML = `
+                <div style="background:#fff; border-radius:16px; padding:28px; width:100%; max-width:520px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0 0 6px; font-size:1.1rem; color:#1e293b;">📋 분석할 시트를 선택하세요</h3>
+                    <p style="margin:0 0 20px; font-size:0.83rem; color:#64748b;">엑셀 파일에 여러 시트가 있습니다. 데이터 분석에 사용할 시트 하나를 선택해 주세요.</p>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+                        ${sheetInfos.map(s => `
+                            <div class="sheet-item" data-name="${s.name}" style="
+                                padding:12px 16px; border-radius:10px; cursor:pointer;
+                                border:2px solid ${s.name === selectedSheet ? '#3b82f6' : '#e2e8f0'};
+                                background:${s.name === selectedSheet ? '#eff6ff' : '#f8fafc'};
+                                display:flex; align-items:center; gap:12px;
+                            ">
+                                <span style="font-size:1.3rem;">${s.isDataSheet ? '📊' : s.isCodebook ? '📖' : '📄'}</span>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-weight:700; font-size:0.9rem; color:#1e293b; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                        ${s.name}
+                                        ${s.isDataSheet ? `<span style="background:#dbeafe; color:#1d4ed8; font-size:0.68rem; padding:2px 7px; border-radius:99px; font-weight:700; white-space:nowrap;">DATA</span>` : ''}
+                                        ${s.isCodebook ? `<span style="background:#f0fdf4; color:#15803d; font-size:0.68rem; padding:2px 7px; border-radius:99px; font-weight:700; white-space:nowrap;">코드북</span>` : ''}
+                                    </div>
+                                    <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">${s.rows.toLocaleString()}행 × ${s.cols}열</div>
+                                </div>
+                                ${s.name === selectedSheet ? `<span style="color:#3b82f6; font-size:1.2rem; flex-shrink:0;">✓</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    ${sheetInfos.some(s => s.isCodebook) ? `
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:0.82rem; color:#15803d; line-height:1.5;">
+                            📖 <strong>코드북 시트 감지됨!</strong> 변수 정보 및 값 레이블을 메타데이터로 함께 저장합니다.<br>
+                            AI 분석 시 변수 의미와 응답 코드를 자동으로 파악할 수 있습니다.
+                        </div>
+                    ` : ''}
+
+                    <div style="display:flex; gap:10px; justify-content:flex-end;">
+                        <button id="sheet-cancel-btn" style="padding:9px 22px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-size:0.9rem;">취소</button>
+                        <button id="sheet-confirm-btn" style="padding:9px 22px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                            이 시트로 변환하기
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            overlay.querySelectorAll('.sheet-item').forEach(el => {
+                el.onclick = () => { selectedSheet = el.dataset.name; render(); };
+            });
+
+            overlay.querySelector('#sheet-cancel-btn').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.querySelector('#sheet-confirm-btn').onclick = () => {
+                let codebook = null;
+                const codebookSheets = sheetInfos.filter(s => s.isCodebook && s.name !== selectedSheet);
+                if (codebookSheets.length > 0) {
+                    codebook = {};
+                    codebookSheets.forEach(s => {
+                        const json = XLSX.utils.sheet_to_json(workbook.Sheets[s.name], { defval: '' });
+                        codebook[s.name] = json.slice(0, 300);
+                    });
+                }
+                overlay.remove();
+                resolve({ dataSheet: selectedSheet, codebook });
+            };
+        };
+
+        document.body.appendChild(overlay);
+        render();
+    });
 }
 
 /**

@@ -69,8 +69,8 @@ export function renderStepsNav(currentStep, state, onStepChange) {
     });
 }
 
-export function renderStepContent(stepId, state, onStepChange) {
-    const canvas = document.getElementById('step-canvas');
+export function renderStepContent(stepId, state, onStepChange, containerId = 'step-canvas') {
+    const canvas = document.getElementById(containerId);
     if (!canvas) return;
     let content = '';
     const topic = state.selectedTopic;
@@ -1076,15 +1076,15 @@ async function setupTeacherUploadPanel(container, teacherEmail, onSuccess) {
 /**
  * Teacher View: Render ALL datasets from ALL students
  */
-export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = [], teacherEmail = null, onTeacherUploadSuccess = null) {
+export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = [], teacherEmail = null, showUploadPanel = true, onTeacherUploadSuccess = null) {
     const container = document.getElementById('teacher-dataset-list');
     if (!container) return;
 
     if (!datasets || datasets.length === 0) {
         container.innerHTML = `
-            ${teacherEmail ? renderTeacherUploadPanelHTML() : ''}
+            ${showUploadPanel && teacherEmail ? renderTeacherUploadPanelHTML() : ''}
             <p class="text-muted" style="text-align:center; padding: 40px;">수집된 데이터셋이 없습니다.</p>`;
-        if (teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
+        if (showUploadPanel && teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
         if (window.lucide) lucide.createIcons();
         return;
     }
@@ -1104,7 +1104,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     students.sort((a, b) => a.id.localeCompare(b.id));
 
     container.innerHTML = `
-        ${teacherEmail ? renderTeacherUploadPanelHTML() : ''}
+        ${showUploadPanel && teacherEmail ? renderTeacherUploadPanelHTML() : ''}
 
         <div style="margin-bottom:20px; padding:18px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -1359,6 +1359,110 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
 
     if (teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
     if (window.lucide) lucide.createIcons();
+}
+
+/**
+ * Renders a list of datasets with management controls for the owner
+ */
+export function renderDatasetsList(datasets, containerId, onDelete, onToggleShare, onToggleResearch, onEditName) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!datasets || datasets.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">수집된 데이터셋이 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
+                    <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
+                    <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
+                    <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
+                    <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
+                </tr>
+            </thead>
+            <tbody id="datasets-table-body">
+                ${datasets.map(ds => {
+                    const meta = ds.metadata || {};
+                    const rowCount = meta.row_count;
+                    const sizeKb = meta.size_kb || ds.size_kb;
+                    const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
+                    const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB (${Number(sizeKb).toLocaleString()} KB)` : `${Number(sizeKb).toLocaleString()} KB`) : '';
+                    return `
+                    <tr class="managed-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="file-spreadsheet" size="18" style="color: var(--primary);"></i>
+                                <div>
+                                    <strong>${ds.data_name}</strong>
+                                    ${sizeStr ? `<div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${sizeStr}</div>` : ''}
+                                </div>
+                                <button class="managed-edit-name-btn" data-id="${ds.id}" title="이름 수정" style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; display: flex; align-items: center;">
+                                    <i data-lucide="pencil" size="14"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? 'var(--primary)' : '#94a3b8'};">${rowStr}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <input type="checkbox" class="managed-research-use-check" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            <label class="switch">
+                                <input type="checkbox" class="managed-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td style="padding: 12px; text-align: right;">
+                            <button class="btn-secondary managed-delete-ds-btn" data-id="${ds.id}" style="font-size: 0.75rem; padding: 5px 10px; color: var(--accent);">삭제</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    lucide.createIcons();
+
+    // Row Click (Modal)
+    container.querySelectorAll('.managed-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
+            const ds = datasets.find(d => String(d.id) === row.dataset.id);
+            if (ds) openDatasetModal(ds);
+        });
+    });
+
+    // Delete
+    container.querySelectorAll('.managed-delete-ds-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            onDelete(btn.dataset.id);
+        };
+    });
+
+    // Share Toggle
+    container.querySelectorAll('.managed-share-toggle').forEach(chk => {
+        chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
+    });
+
+    // Research Toggle
+    container.querySelectorAll('.managed-research-use-check').forEach(chk => {
+        chk.onchange = () => onToggleResearch(chk.dataset.id, chk.checked);
+    });
+
+    // Edit Name
+    container.querySelectorAll('.managed-edit-name-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const ds = datasets.find(d => String(d.id) === id);
+            onEditName(id, ds?.data_name || '');
+        };
+    });
 }
 
 

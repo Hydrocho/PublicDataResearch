@@ -74,6 +74,14 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
         } catch (err) {
             prompt += `(데이터 미리보기 로딩 실패: ${err.message})\n`;
         }
+
+        if (ds.metadata?.codebook) {
+            prompt += `변수 코드북:\n`;
+            for (const [sheetName, rows] of Object.entries(ds.metadata.codebook)) {
+                prompt += `  [${sheetName}]: ${JSON.stringify(rows.slice(0, 50))}\n`;
+            }
+        }
+
         prompt += `\n---\n`;
     }
 
@@ -150,6 +158,12 @@ ${analysisGuide[analysisType] || ''}
                 prompt += `- 데이터 샘플: ${JSON.stringify(preview.data.slice(0, 5))}\n`;
             }
         } catch(e) { prompt += `- (컬럼 정보 로딩 실패)\n`; }
+
+        if (ds.metadata?.codebook) {
+            for (const [sheetName, rows] of Object.entries(ds.metadata.codebook)) {
+                prompt += `- 코드북(${sheetName}): ${JSON.stringify(rows.slice(0, 30))}\n`;
+            }
+        }
     }
 
     prompt += `

@@ -233,15 +233,20 @@ async function showTeacherDashboard(email) {
     const tabAttendance = document.getElementById('tab-attendance');
     const tabStepHalf = document.getElementById('tab-step-half');
     const tabProgress = document.getElementById('tab-progress');
+    const tabTeacherStep1 = document.getElementById('tab-teacher-step1');
+    const tabTeacherStep2 = document.getElementById('tab-teacher-step2');
+    const tabTeacherStep3 = document.getElementById('tab-teacher-step3');
     const tabStep1 = document.getElementById('tab-step1');
     const tabStep2 = document.getElementById('tab-step2');
     const tabCompetitions = document.getElementById('tab-competitions');
-    const tabManagement = document.getElementById('tab-management');
     const tabTeachers = document.getElementById('tab-teachers');
+
     const viewStudents = document.getElementById('teacher-students-view');
     const viewAttendance = document.getElementById('teacher-attendance-view');
     const viewStepHalf = document.getElementById('teacher-step-half-view');
     const viewProgress = document.getElementById('teacher-progress-view');
+    const viewTeacherStep1 = document.getElementById('teacher-step1-test-explore-view');
+    const viewTeacherStep2 = document.getElementById('teacher-step2-test-save-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
     const viewStep2 = document.getElementById('teacher-step2-view');
     const viewCompetitions = document.getElementById('teacher-competitions-view');
@@ -249,8 +254,8 @@ async function showTeacherDashboard(email) {
     const viewTeachers = document.getElementById('teacher-permissions-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabManagement, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => v.style.display = 'none');
+        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => { if(v) v.style.display = 'none'; });
         activeTab.classList.add('active');
         activeView.style.display = 'block';
     };
@@ -735,6 +740,37 @@ async function showTeacherDashboard(email) {
         renderTopics();
     };
 
+    // ── 1단계: 데이터 탐색 (교사 테스트) ────────────────────────────────
+    tabTeacherStep1.onclick = () => {
+        switchTab(tabTeacherStep1, viewTeacherStep1);
+        const root = document.getElementById('teacher-step1-test-root');
+        if (root) {
+            import('./discovery.js').then(m => m.renderDataExplorer(root, {
+                user: { student_id: email, name: `${email.split('@')[0]} (교사)` },
+                currentStep: 0
+            }, (cat, dataInfo) => {
+                alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다! \n[2단계: 데이터 저장] 단계에서 시스템에 등록할 수 있습니다.`);
+                tabTeacherStep2.click();
+            }));
+        }
+    };
+
+    // ── 2단계: 데이터 저장 (교사 테스트) ────────────────────────────────
+    tabTeacherStep2.onclick = () => {
+        switchTab(tabTeacherStep2, viewTeacherStep2);
+        const rootId = 'teacher-step2-test-root';
+        const teacherUser = { student_id: email, name: `${email.split('@')[0]} (교사)` };
+        UI.renderStepContent(1, { user: teacherUser }, (nextStep) => {
+            if (nextStep === 2) tabTeacherStep3.click();
+        }, rootId);
+    };
+
+    // ── 3단계: 전체 데이터 관리 (교사 테스트+모니터링) ──────────────────
+    tabTeacherStep3.onclick = async () => {
+        switchTab(tabTeacherStep3, viewManagement);
+        await loadManagementTab();
+    };
+
     const showStep1Monitor = () => {
         document.getElementById('step1-monitor-section').style.display = 'block';
         document.getElementById('step1-test-section').style.display = 'none';
@@ -762,7 +798,7 @@ async function showTeacherDashboard(email) {
             'teacher-step1-test-container',
             () => fetchTeacherTestDatasets(),
             null, // 교사 테스트 모드 — 저장 없음
-            () => { tabManagement.click(); }
+            () => { tabTeacherStep3.click(); }
         );
     };
 
@@ -871,19 +907,17 @@ async function showTeacherDashboard(email) {
             getTeacherResearchIds(),
             supabaseClient.auth.getUser(),
         ]);
-        const teacherEmail = user?.email || null;
         if (!error) {
             UI.renderTeacherDataManagement(
                 data, onTeacherToggleShare, onTeacherToggleResearch, teacherIds,
-                teacherEmail, () => loadManagementTab()
+                user?.email, 
+                false,        
+                () => loadManagementTab()
             );
         }
     };
 
-    tabManagement.onclick = async () => {
-        switchTab(tabManagement, viewManagement);
-        await loadManagementTab();
-    };
+
     
     tabTeachers.onclick = async () => {
         switchTab(tabTeachers, viewTeachers);
