@@ -608,10 +608,26 @@ async function showTeacherDashboard(email) {
             const cat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
             root.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                    <h4 style="margin:0;">${cat ? cat.title : '전체 분야'}</h4>
+                    <h2>1.5단계: 연구 주제 탐색</h2>
                     ${cat ? `<button id="teacher-back-btn" class="btn-secondary" style="font-size:0.85rem;">← 전체 분야 보기</button>` : ''}
                 </div>
+
                 ${!cat ? `
+                <!-- 카테고리 목록 -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
+                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">1.5단계 역할</div>
+                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 1단계로 돌아가 데이터를 찾으면 됩니다.</div>
+                    </div>
+                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">난이도 기준</div>
+                        <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;"><span style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:1px 7px;font-weight:600;color:#16a34a;">초급</span> 데이터 구조 단순 &nbsp;<span style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 7px;font-weight:600;color:#b45309;">중급</span> 2개 이상 결합 &nbsp;<span style="background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 7px;font-weight:600;color:#dc2626;">심화</span> 통계 모델 필요</div>
+                    </div>
+                    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">활용 방법</div>
+                        <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">마음에 드는 분야를 클릭 → 교육 접점 질문과 아이디어 확인 → <strong>1단계 데이터 탐색</strong>으로 이동해 실제 데이터 수집</div>
+                    </div>
+                </div>
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
                     ${categories.map(c => {
                         const dc = diffColor[c.difficulty] || diffColor['초급'];
@@ -656,13 +672,54 @@ async function showTeacherDashboard(email) {
                             </div>`).join('')}
                         </div>
                     </div>
-                    <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
-                        <h4 style="color:var(--secondary);margin:0 0 12px;font-size:0.9rem;">🔑 핵심 키워드 <span style="font-size:0.72rem;font-weight:400;color:#94a3b8;">(클릭 시 데이터 포털 검색)</span></h4>
-                        <div style="display:flex;flex-wrap:wrap;gap:7px;">
-                            ${cat.keywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;color:#475569;font-weight:500;text-decoration:none;">#${k}</a>`).join('')}
+
+                    <!-- 키워드 & 데이터 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
+                            <h4 style="color:var(--secondary);margin:0 0 12px;font-size:0.9rem;">🔑 핵심 키워드 <span style="font-size:0.72rem;font-weight:400;color:#94a3b8;">(클릭 시 데이터 포털 검색)</span></h4>
+                            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                                ${cat.keywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;color:#475569;font-weight:500;text-decoration:none;transition:background 0.15s;" onmouseover="this.style.background='#e0e7ef'" onmouseout="this.style.background='#f1f5f9'">#${k}</a>`).join('')}
+                            </div>
+                        </div>
+                        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
+                            <h4 style="color:var(--secondary);margin:0 0 12px;font-size:0.9rem;">📂 활용 가능한 데이터 <span style="font-size:0.72rem;font-weight:400;color:#94a3b8;">(클릭 시 데이터 포털 검색)</span></h4>
+                            <div style="margin-bottom:8px;">
+                                <strong style="font-size:0.78rem;color:#64748b;">주요</strong>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                                    ${cat.mainData.split(',').map(d => d.trim()).filter(Boolean).map(d => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(d)}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:3px 9px;color:#0369a1;text-decoration:none;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'">${d}</a>`).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="font-size:0.78rem;color:#94a3b8;">추가</strong>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                                    ${cat.subData.split(',').map(d => d.trim()).filter(Boolean).map(d => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(d)}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:3px 9px;color:#7c3aed;text-decoration:none;" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='#faf5ff'">${d}</a>`).join('')}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>`}
+
+                    <!-- 교육분야 공공데이터 -->
+                    ${(() => {
+                        const eduKeywords = [
+                            "학교시설정보", "급식식단정보", "학원 및 교습소 현황",
+                            "폐교학교현황", "학교건강표본결과조사", "대학학과정보",
+                            "교육통계자료", "학구도정보"
+                        ];
+                        return `
+                        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px;margin-bottom:20px;">
+                            <h4 style="color:#92400e;margin:0 0 12px;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="graduation-cap" size="16"></i>
+                                교육분야 공공데이터
+                                <span style="font-size:0.72rem;font-weight:400;color:#b45309;">(클릭 시 데이터 포털 검색)</span>
+                            </h4>
+                            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                                ${eduKeywords.map(k => `<a href="https://data.go.kr/tcs/dss/selectDataSetList.do?keyword=${encodeURIComponent(k)}" target="_blank" rel="noopener noreferrer" style="font-size:0.8rem;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:4px 11px;color:#92400e;text-decoration:none;font-weight:500;" onmouseover="this.style.background='#fef08a'" onmouseout="this.style.background='#fef9c3'">${k}</a>`).join('')}
+                            </div>
+                        </div>`;
+                    })()}
+                    `;
+                })()}
+                `}
             `;
             if (window.lucide) window.lucide.createIcons();
             if (!cat) {
