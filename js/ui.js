@@ -1148,8 +1148,13 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 </thead>
                 <tbody id="management-tbody">
                     ${datasets.map(ds => {
-                        const isTeacherOwned = teacherEmail && ds.student_id === teacherEmail;
-                        const ownerName = isTeacherOwned
+                        // 교사가 업로드한 자료: student_id가 teacherEmail이거나 metadata.teacher_email이 일치하는 경우
+                        const isTeacherOwned = teacherEmail && (
+                            ds.student_id === teacherEmail ||
+                            ds.metadata?.teacher_email === teacherEmail
+                        );
+                        const isUnassigned = isTeacherOwned && ds.student_id === teacherEmail;
+                        const ownerName = isUnassigned
                             ? '교사'
                             : (ds.students?.name || ds.student_id || '탈퇴한 사용자');
                         const isTeacherChecked = teacherIds.includes(String(ds.id));
@@ -1160,6 +1165,19 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                         const sizeStr = sizeKb
                             ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`)
                             : '';
+                        // 작성자 셀: 교사 업로드 자료는 클릭 가능한 배지 표시
+                        const ownerCell = isTeacherOwned
+                            ? `<span class="reassign-owner-btn"
+                                    data-id="${ds.id}"
+                                    data-current="${ds.student_id}"
+                                    style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:0.82rem;font-weight:700;
+                                           ${isUnassigned
+                                               ? 'color:#4f46e5;background:#eef2ff;border:1px dashed #a5b4fc;'
+                                               : 'color:#0369a1;background:#e0f2fe;border:1px dashed #7dd3fc;'}">
+                                   ${ownerName}
+                                   <i data-lucide="user-round-cog" size="13"></i>
+                               </span>`
+                            : `<span style="font-size:0.85rem;color:#4b5563;">${ownerName}</span>`;
                         return `
                         <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
                             <td style="padding:12px;">
@@ -1168,7 +1186,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                                     <strong>${ds.data_name}</strong>
                                 </div>
                             </td>
-                            <td style="padding:12px;font-size:0.85rem;color:${isTeacherOwned ? '#4f46e5' : '#4b5563'};font-weight:${isTeacherOwned ? '700' : '400'};">${ownerName}</td>
+                            <td style="padding:12px;" class="owner-cell" data-id="${ds.id}">${ownerCell}</td>
                             <td style="padding:12px;text-align:center;">
                                 <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
                                 ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
@@ -1227,8 +1245,14 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         let visibleCount = 0;
         dataRows.forEach(row => {
             const studentId = row.dataset.student;
-            // Always show teacher-owned rows; apply filter only to student rows
-            if (studentId === teacherEmail || selectedIds.includes(studentId)) {
+            const dsId = row.dataset.id;
+            // 교사 미배정(student_id=teacherEmail) 또는 교사가 재배정한 자료(metadata.teacher_email)도 항상 표시
+            const ds = datasets.find(d => String(d.id) === dsId);
+            const isTeacherRow = teacherEmail && (
+                studentId === teacherEmail ||
+                ds?.metadata?.teacher_email === teacherEmail
+            );
+            if (isTeacherRow || selectedIds.includes(studentId)) {
                 row.style.display = 'table-row';
                 visibleCount++;
             } else {
@@ -1250,15 +1274,6 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); };
 
     updateFilter();
-
-    // Row click → modal
-    container.querySelectorAll('.clickable-row').forEach(row => {
-        row.onclick = (e) => {
-            if (e.target.closest('input') || e.target.closest('.switch') || e.target.closest('button')) return;
-            const ds = datasets.find(d => String(d.id) === row.dataset.id);
-            if (ds) openDatasetModal(ds);
-        };
-    });
 
     container.querySelectorAll('.teacher-research-toggle').forEach(chk => {
         chk.onchange = () => onToggleResearch(chk.dataset.id, chk.checked);
@@ -1282,9 +1297,63 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             if (!confirm('교사가 등록한 이 데이터셋을 삭제하시겠습니까?')) return;
             btn.disabled = true;
             const { deleteTeacherDataset } = await import('./auth.js');
-            const { error } = await deleteTeacherDataset(btn.dataset.id, teacherEmail);
+            const { error } = await deleteTeacherDataset(btn.dataset.id);
             if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; }
             else if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    });
+
+    // Reassign teacher dataset to a student (or back to teacher)
+    container.querySelectorAll('.reassign-owner-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const dsId = btn.dataset.id;
+            const currentStudentId = btn.dataset.current;
+            const cell = container.querySelector(`.owner-cell[data-id="${dsId}"]`);
+            if (!cell) return;
+
+            // Render inline select + confirm/cancel
+            cell.innerHTML = `
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <select id="reassign-select-${dsId}" style="font-size:0.8rem;padding:5px 8px;border-radius:6px;border:1px solid #a5b4fc;max-width:160px;">
+                        <option value="__teacher__">교사 (미배정)</option>
+                        ${students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                    <button class="reassign-confirm-btn btn-primary" data-id="${dsId}" style="font-size:0.75rem;padding:4px 10px;background:#4f46e5;border-color:#4f46e5;">확인</button>
+                    <button class="reassign-cancel-btn btn-secondary" data-id="${dsId}" style="font-size:0.75rem;padding:4px 10px;">취소</button>
+                </div>`;
+
+            // Pre-select current value
+            const select = cell.querySelector(`#reassign-select-${dsId}`);
+            if (select) {
+                if (currentStudentId === teacherEmail || !currentStudentId) select.value = '__teacher__';
+                else select.value = currentStudentId;
+            }
+
+            cell.querySelector('.reassign-confirm-btn').onclick = async (e2) => {
+                e2.stopPropagation();
+                const newStudentId = select.value === '__teacher__' ? teacherEmail : select.value;
+                const { reassignDatasetToStudent } = await import('./auth.js');
+                const { error } = await reassignDatasetToStudent(dsId, newStudentId);
+                if (error) { alert('변경 실패: ' + error.message); return; }
+                if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+            };
+
+            cell.querySelector('.reassign-cancel-btn').onclick = (e2) => {
+                e2.stopPropagation();
+                if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+            };
+        };
+    });
+
+    // Row click → modal (reassign cell 클릭은 제외)
+    container.querySelectorAll('.clickable-row').forEach(row => {
+        row.onclick = (e) => {
+            if (e.target.closest('input') || e.target.closest('.switch') ||
+                e.target.closest('button') || e.target.closest('.reassign-owner-btn') ||
+                e.target.closest('.owner-cell')) return;
+            const ds = datasets.find(d => String(d.id) === row.dataset.id);
+            if (ds) openDatasetModal(ds);
         };
     });
 

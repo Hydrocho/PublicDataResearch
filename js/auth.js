@@ -319,10 +319,11 @@ export async function deleteActivityLog(logId, studentId) {
     return response;
 }
 
-/** 교사가 직접 등록한 데이터셋 저장 */
+/** 교사가 직접 등록한 데이터셋 저장 — metadata.teacher_email로 원작성자 기록 */
 export async function saveTeacherDataset(teacherEmail, dataName, fileUrl, metadata = {}, sizeKb = null, totalRows = null) {
     const enrichedMetadata = {
         ...(metadata || {}),
+        teacher_email: teacherEmail,   // 재배정 후에도 원작성자 추적용
         ...(totalRows !== null ? { row_count: totalRows } : {}),
         ...(sizeKb !== null ? { size_kb: sizeKb } : {})
     };
@@ -340,13 +341,13 @@ export async function saveTeacherDataset(teacherEmail, dataName, fileUrl, metada
     return { data, error };
 }
 
-/** 교사가 직접 등록한 데이터셋 삭제 */
-export async function deleteTeacherDataset(id, teacherEmail) {
+/** 교사가 직접 등록한 데이터셋 삭제 — 학생 재배정 후에도 교사가 삭제 가능 */
+export async function deleteTeacherDataset(id) {
+    // student_id가 재배정되어 있을 수 있으므로 id로만 조회
     const { data: ds } = await supabaseClient
         .from('student_datasets')
         .select('file_url')
         .eq('id', id)
-        .eq('student_id', teacherEmail)
         .single();
 
     if (ds?.file_url) {
@@ -358,8 +359,16 @@ export async function deleteTeacherDataset(id, teacherEmail) {
     const { error } = await supabaseClient
         .from('student_datasets')
         .delete()
-        .eq('id', id)
-        .eq('student_id', teacherEmail);
+        .eq('id', id);
+    return { error };
+}
+
+/** 교사 업로드 자료의 작성자(student_id)를 특정 학생으로 변경 */
+export async function reassignDatasetToStudent(datasetId, newStudentId) {
+    const { error } = await supabaseClient
+        .from('student_datasets')
+        .update({ student_id: newStudentId })
+        .eq('id', datasetId);
     return { error };
 }
 
