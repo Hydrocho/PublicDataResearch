@@ -1148,10 +1148,41 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             <span><strong>교사 테스트 활용</strong> 체크 = 4단계 교사 테스트 모드에서 이 데이터셋을 사용합니다. 학생 기록에는 영향을 주지 않습니다.</span>
         </div>
 
+        <!-- Bulk Action Bar -->
+        <div id="teacher-bulk-action-bar" style="display:none; margin-bottom:12px; padding:12px 18px; background:#fff1f2; border:1px solid #fda4af; border-radius:10px; align-items:center; justify-content:space-between; animation: slideDown 0.2s ease-out; flex-wrap:wrap; gap:12px;">
+            <div style="font-size:0.92rem; color:#be123c; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="check-square" size="18"></i>
+                <span id="bulk-select-count">0</span>개의 자료가 선택되었습니다.
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <!-- Bulk Reassign Tools -->
+                <div style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(255,255,255,0.6); border:1px solid #bfdbfe; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <span style="font-size:0.78rem; color:#1e40af; font-weight:700;">작성자 일괄 변경:</span>
+                    <select id="bulk-reassign-select" style="font-size:0.8rem; padding:4px 10px; border-radius:6px; border:1px solid #3b82f6; background:white; min-width:140px;">
+                        <option value="__teacher__">교사 (미배정)</option>
+                        ${students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                    <button id="teacher-bulk-reassign-btn" class="btn-primary" style="font-size:0.78rem; padding:6px 14px; background:#3b82f6; border-color:#3b82f6; font-weight:700; display:flex; align-items:center; gap:5px;">
+                        <i data-lucide="users" size="14"></i> 변경
+                    </button>
+                </div>
+
+                <div style="width:1px; height:28px; background:#fda4af; opacity:0.5;"></div>
+
+                <button id="teacher-bulk-delete-btn" class="btn-primary" style="background:#e11d48; border-color:#e11d48; font-size:0.78rem; padding:8px 16px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="trash-2" size="15"></i> 선택 삭제
+                </button>
+            </div>
+        </div>
+
         <div id="teacher-management-table-wrap">
             <table style="width:100%;border-collapse:collapse;margin-top:4px;">
                 <thead>
                     <tr style="text-align:left;border-bottom:2px solid var(--glass-border);background:#f8fafc;">
+                        <th style="padding:12px; text-align:center; width:40px;">
+                            <input type="checkbox" id="ds-bulk-all-chk" title="전체 선택" style="width:16px;height:16px;cursor:pointer;">
+                        </th>
                         <th style="padding:12px;">데이터셋 이름</th>
                         <th style="padding:12px;">작성자</th>
                         <th style="padding:12px;text-align:center;">행 수</th>
@@ -1199,7 +1230,10 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                                </span>`
                             : `<span style="font-size:0.85rem;color:#4b5563;">${ownerName}</span>`;
                         return `
-                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
+                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" data-teacher-owned="${isTeacherOwned}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
+                            <td style="padding:12px; text-align:center;" onclick="event.stopPropagation()">
+                                ${isTeacherOwned ? `<input type="checkbox" class="ds-row-chk" data-id="${ds.id}" style="width:16px;height:16px;cursor:pointer;">` : ''}
+                            </td>
                             <td style="padding:12px;">
                                 <div style="display:flex;align-items:center;gap:10px;">
                                     <i data-lucide="${isTeacherOwned ? 'shield-check' : 'file-spreadsheet'}" size="18" style="color:${isTeacherOwned ? '#6366f1' : 'var(--primary)'};"></i>
@@ -1390,7 +1424,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 e2.stopPropagation();
                 const newStudentId = select.value === '__teacher__' ? teacherEmail : select.value;
                 const { reassignDatasetToStudent } = await import('./auth.js');
-                const { error } = await reassignDatasetToStudent(dsId, newStudentId);
+                const { error } = await reassignDatasetToStudent(dsId, newStudentId, teacherEmail);
                 if (error) { alert('변경 실패: ' + error.message); return; }
                 if (onTeacherUploadSuccess) onTeacherUploadSuccess();
             };
@@ -1402,12 +1436,119 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         };
     });
 
-    // Row click → modal (reassign cell 클릭은 제외)
+    // Bulk Delete Logic
+    const dsBulkAllChk = container.querySelector('#ds-bulk-all-chk');
+    const dsRowChks = container.querySelectorAll('.ds-row-chk');
+    const bulkBar = container.querySelector('#teacher-bulk-action-bar');
+    const bulkCount = container.querySelector('#bulk-select-count');
+    const bulkDelBtn = container.querySelector('#teacher-bulk-delete-btn');
+
+    const syncBulkUI = () => {
+        if (!bulkBar) return;
+        const checked = Array.from(dsRowChks).filter(c => c.checked && c.closest('tr').style.display !== 'none');
+        if (checked.length > 0) {
+            bulkBar.style.display = 'flex';
+            bulkCount.innerText = checked.length;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+        
+        // Update master checkbox
+        const visibleRows = Array.from(dsRowChks).filter(c => c.closest('tr').style.display !== 'none');
+        if (visibleRows.length > 0) {
+            dsBulkAllChk.checked = visibleRows.every(c => c.checked);
+            dsBulkAllChk.indeterminate = !dsBulkAllChk.checked && visibleRows.some(c => c.checked);
+        } else {
+            dsBulkAllChk.checked = false;
+            dsBulkAllChk.indeterminate = false;
+        }
+    };
+
+    if (dsBulkAllChk) {
+        dsBulkAllChk.onchange = () => {
+            const isChecked = dsBulkAllChk.checked;
+            dsRowChks.forEach(chk => {
+                if (chk.closest('tr').style.display !== 'none') {
+                    chk.checked = isChecked;
+                }
+            });
+            syncBulkUI();
+        };
+    }
+
+    dsRowChks.forEach(chk => {
+        chk.onchange = (e) => {
+            e.stopPropagation();
+            syncBulkUI();
+        };
+    });
+
+    if (bulkDelBtn) {
+        bulkDelBtn.onclick = async () => {
+            const checkedIds = Array.from(dsRowChks)
+                .filter(chk => chk.checked && chk.closest('tr').style.display !== 'none')
+                .map(chk => chk.dataset.id);
+            
+            if (checkedIds.length === 0) return;
+            if (!confirm(`선택한 ${checkedIds.length}개의 데이터셋을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+            bulkDelBtn.disabled = true;
+            bulkDelBtn.innerHTML = `<i data-lucide="loader-2" class="spin" size="15"></i> 삭제 중...`;
+            if (window.lucide) lucide.createIcons();
+
+            const { deleteTeacherDataset } = await import('./auth.js');
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const id of checkedIds) {
+                const { error } = await deleteTeacherDataset(id);
+                if (error) failCount++;
+                else successCount++;
+            }
+
+            if (failCount > 0) alert(`${successCount}개 삭제 성공, ${failCount}개 실패`);
+            
+            if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    }
+
+    // Bulk Reassign Logic
+    const bulkReassignBtn = container.querySelector('#teacher-bulk-reassign-btn');
+    const bulkReassignSelect = container.querySelector('#bulk-reassign-select');
+
+    if (bulkReassignBtn && bulkReassignSelect) {
+        bulkReassignBtn.onclick = async () => {
+            const checkedIds = Array.from(dsRowChks)
+                .filter(chk => chk.checked && chk.closest('tr').style.display !== 'none')
+                .map(chk => chk.dataset.id);
+            
+            if (checkedIds.length === 0) return;
+            
+            const selectedVal = bulkReassignSelect.value;
+            const newStudentId = selectedVal === '__teacher__' ? teacherEmail : selectedVal;
+            const targetName = selectedVal === '__teacher__' ? '교사 (미배정)' : (students.find(s => s.id === selectedVal)?.name || selectedVal);
+
+            if (!confirm(`선택한 ${checkedIds.length}개의 자료를 '${targetName}' 학생에게 일괄 배정하시겠습니까?`)) return;
+
+            bulkReassignBtn.disabled = true;
+            bulkReassignBtn.innerHTML = `<i data-lucide="loader-2" class="spin" size="14"></i> 변경 중...`;
+            if (window.lucide) lucide.createIcons();
+
+            const { reassignDatasetToStudent } = await import('./auth.js');
+            for (const id of checkedIds) {
+                await reassignDatasetToStudent(id, newStudentId, teacherEmail);
+            }
+
+            if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    }
+
+    // Row click → modal (reassign cell 클릭 및 체크박스 클릭 제외)
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.onclick = (e) => {
             if (e.target.closest('input') || e.target.closest('.switch') ||
                 e.target.closest('button') || e.target.closest('.reassign-owner-btn') ||
-                e.target.closest('.owner-cell')) return;
+                e.target.closest('.owner-cell') || e.target.tagName === 'TD' && e.target.cellIndex === 0) return;
             const dsId = row.dataset.id;
             const ds = datasets.find(d => String(d.id) === String(dsId));
             if (ds) {

@@ -373,22 +373,40 @@ export async function deleteTeacherDataset(id) {
 }
 
 /** 교사 업로드 자료의 작성자(student_id)를 특정 학생으로 변경 */
-export async function reassignDatasetToStudent(datasetId, newStudentId) {
+export async function reassignDatasetToStudent(datasetId, newStudentId, teacherEmail = null) {
+    // To ensure teacher ownership is preserved even after reassignment,
+    // we fetch and update the metadata with the teacher's email.
+    const { data: current } = await supabaseClient
+        .from('student_datasets')
+        .select('metadata')
+        .eq('id', datasetId)
+        .single();
+    
+    const newMetadata = { ...(current?.metadata || {}) };
+    if (teacherEmail) newMetadata.teacher_email = teacherEmail;
+
     const { error } = await supabaseClient
         .from('student_datasets')
-        .update({ student_id: newStudentId })
+        .update({ 
+            student_id: newStudentId,
+            metadata: newMetadata 
+        })
         .eq('id', datasetId);
     return { error };
 }
 
 export async function saveStudentDataset(studentId, dataName, fileUrl, metadata = {}, sizeKb = null, totalRows = null) {
     // Store row_count and size_kb inside the metadata JSON.
-    // This avoids needing new DB columns while still persisting the data.
     const enrichedMetadata = {
         ...(metadata || {}),
         ...(totalRows !== null ? { row_count: totalRows } : {}),
         ...(sizeKb !== null ? { size_kb: sizeKb } : {})
     };
+
+    // Auto-tag teacher ownership if the uploader is a teacher (identified by email)
+    if (studentId && studentId.includes('@')) {
+        enrichedMetadata.teacher_email = studentId;
+    }
 
     const { data, error } = await supabaseClient
         .from('student_datasets')

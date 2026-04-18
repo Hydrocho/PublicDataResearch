@@ -121,8 +121,8 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             <!-- Step 2: File -->
             <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <label style="display: block; font-size: 0.85rem; font-weight: 800; margin-bottom: 10px; color: #334155;">2단계: 분석 데이터 파일 선택 (필수)</label>
-                <button id="manual-upload-btn" class="btn-secondary" style="width: 100%; height: 48px; font-weight: 600;">📁 CSV/Excel 파일 업로드</button>
-                <input type="file" id="file-input" style="display: none;" accept=".csv,.xlsx,.xls,.json">
+                <button id="manual-upload-btn" class="btn-secondary" style="width: 100%; height: 48px; font-weight: 600;">📁 CSV/Excel 파일 다중 선택 업로드</button>
+                <input type="file" id="file-input" style="display: none;" accept=".csv,.xlsx,.xls,.json" multiple>
                 <div id="upload-status" style="font-size: 0.8rem; color: var(--primary); margin-top: 8px; font-weight: 700;"></div>
             </div>
 
@@ -150,18 +150,26 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
 
     const fileInput = document.getElementById('file-input');
     const uploadStatus = document.getElementById('upload-status');
-    let selectedFile = null;
+    let selectedFiles = []; // Changed to array
 
     document.getElementById('manual-upload-btn').onclick = () => fileInput.click();
     fileInput.onchange = (e) => {
         if (e.target.files.length > 0) {
-            selectedFile = e.target.files[0];
-            const sizeKb = Math.round(selectedFile.size / 1024);
-            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
-            uploadStatus.innerText = `📦 ${selectedFile.name} (${displaySize}) 준비됨`;
-            const nameField = document.getElementById('found-data-name');
-            if (nameField && !nameField.value.trim()) {
-                nameField.value = selectedFile.name.split('.')[0];
+            selectedFiles = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name));
+            if (selectedFiles.length === 1) {
+                const f = selectedFiles[0];
+                const sizeKb = Math.round(f.size / 1024);
+                const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB` : `${sizeKb.toLocaleString()}KB`;
+                uploadStatus.innerText = `📦 ${f.name} (${displaySize}) 준비됨`;
+                
+                const nameField = document.getElementById('found-data-name');
+                if (nameField && !nameField.value.trim()) {
+                    nameField.value = f.name.split('.')[0];
+                }
+            } else {
+                const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+                const sizeMb = (totalSize / (1024 * 1024)).toFixed(1);
+                uploadStatus.innerText = `📦 총 ${selectedFiles.length}개의 파일 선택됨 (약 ${sizeMb}MB)`;
             }
         }
     };
@@ -200,240 +208,125 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
     });
 
     document.getElementById('save-data-info').onclick = async () => {
+        if (selectedFiles.length === 0) return alert('업로드할 파일을 선택해 주세요.');
+
         const source_link_1 = document.getElementById('data-link-1').value.trim();
         const source_link_2 = document.getElementById('data-link-2').value.trim();
         const source_link_3 = document.getElementById('data-link-3').value.trim();
-        
         const links = [source_link_1, source_link_2, source_link_3].filter(Boolean);
-        if (links.length === 0) return alert('최소 하나의 자료 링크 주소를 입력해 주세요. (1단계 JSON-LD를 붙여넣으면 자동 입력됩니다.)');
+        
+        if (links.length === 0) return alert('최소 하나의 자료 링크 주소를 입력해 주세요.');
 
-        const name = document.getElementById('found-data-name').value.trim();
-        if (!name) return alert('데이터셋 이름을 입력해 주세요.');
-        if (!selectedFile) return alert('업로드할 파일을 선택해 주세요.');
-
+        const baseNameInput = document.getElementById('found-data-name').value.trim();
+        
         const btn = document.getElementById('save-data-info');
         const originalText = btn.innerText;
 
-        // [Pre-process] Convert Excel to CSV if needed
-        let fileToUpload = selectedFile;
-        let splitFiles = null; // set when user chooses "split all sheets"
-        const isExcel = selectedFile.name.toLowerCase().endsWith('.xlsx') || selectedFile.name.toLowerCase().endsWith('.xls');
+        btn.disabled = true;
+        
+        try {
+            const { uploadManualFile } = await import('./downloader.js');
+            const { saveStudentDataset } = await import('./auth.js');
 
-        if (isExcel) {
-            try {
-                btn.disabled = true;
-                btn.innerText = '시트 분석 중...';
-                const buffer = await selectedFile.arrayBuffer();
-                const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+            for (let fIdx = 0; fIdx < selectedFiles.length; fIdx++) {
+                let currentFile = selectedFiles[fIdx];
+                let dsName = selectedFiles.length === 1 && baseNameInput 
+                             ? baseNameInput 
+                             : currentFile.name.split('.')[0];
 
-                let selectedSheetName;
-                if (workbook.SheetNames.length > 1) {
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                    const sheetResult = await showSheetSelectModal(workbook);
-                    if (!sheetResult) return;
+                btn.innerText = `파일 처리 중 (${fIdx + 1}/${selectedFiles.length})...`;
+                uploadStatus.innerText = `🔄 [${fIdx + 1}/${selectedFiles.length}] ${currentFile.name} 분석 중...`;
 
-                    if (sheetResult.mode === 'split') {
-                        // Convert every sheet to an individual CSV file
-                        btn.disabled = true;
-                        btn.innerText = '시트 분할 중...';
-                        const baseName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '');
-                        splitFiles = workbook.SheetNames.map(sheetName => {
-                            const ws = workbook.Sheets[sheetName];
-                            const csv = sheetToCsvSkipTitleRow(ws);
-                            const blob = new Blob([csv], { type: 'text/csv' });
-                            // Count data rows directly from the sheet range (no PapaParse needed)
-                            const ref = ws['!ref'];
-                            const rowCount = ref ? Math.max(0, XLSX.utils.decode_range(ref).e.r) : 0;
-                            return {
-                                sheetName,
-                                rowCount,
-                                file: new File([blob], `${baseName}_${sheetName}.csv`, { type: 'text/csv' })
-                            };
-                        });
-                        uploadStatus.innerText = `✅ ${splitFiles.length}개 시트를 개별 CSV로 분할했습니다.`;
-                        btn.innerText = originalText;
-                        btn.disabled = false;
-                        // Skip single-sheet conversion below
+                // [Pre-process] Excel Check
+                let fileToUpload = currentFile;
+                let splitFiles = null;
+                const isExcel = currentFile.name.toLowerCase().endsWith('.xlsx') || currentFile.name.toLowerCase().endsWith('.xls');
+
+                if (isExcel) {
+                    const buffer = await currentFile.arrayBuffer();
+                    const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+
+                    if (workbook.SheetNames.length > 1) {
+                        const sheetResult = await showSheetSelectModal(workbook, currentFile.name);
+                        if (!sheetResult) continue; // Skip this file if cancelled
+
+                        if (sheetResult.mode === 'split') {
+                            const baseBaseName = dsName;
+                            splitFiles = workbook.SheetNames.map(sheetName => {
+                                const ws = workbook.Sheets[sheetName];
+                                const csv = sheetToCsvSkipTitleRow(ws);
+                                const blob = new Blob([csv], { type: 'text/csv' });
+                                const ref = ws['!ref'];
+                                const rowCount = ref ? Math.max(0, XLSX.utils.decode_range(ref).e.r) : 0;
+                                return {
+                                    sheetName,
+                                    rowCount,
+                                    file: new File([blob], `${baseBaseName}_${sheetName}.csv`, { type: 'text/csv' })
+                                };
+                            });
+                        } else {
+                            const worksheet = workbook.Sheets[sheetResult.dataSheet];
+                            const csvString = sheetToCsvSkipTitleRow(worksheet);
+                            fileToUpload = new File([new Blob([csvString], { type: 'text/csv' })], currentFile.name.replace(/\.(xlsx|xls)$/i, '.csv'), { type: 'text/csv' });
+                            if (dsName === currentFile.name.split('.')[0]) dsName = dsName + "_" + sheetResult.dataSheet;
+                        }
                     } else {
-                        selectedSheetName = sheetResult.dataSheet;
-                        btn.disabled = true;
-                        btn.innerText = 'CSV 변환 중...';
+                        const csvString = sheetToCsvSkipTitleRow(workbook.Sheets[workbook.SheetNames[0]]);
+                        fileToUpload = new File([new Blob([csvString], { type: 'text/csv' })], currentFile.name.replace(/\.(xlsx|xls)$/i, '.csv'), { type: 'text/csv' });
+                    }
+                }
+
+                const baseMetadata = { ...extractedMeta, source_links: links };
+
+                if (splitFiles) {
+                    for (let sIdx = 0; sIdx < splitFiles.length; sIdx++) {
+                        const { sheetName, file, rowCount } = splitFiles[sIdx];
+                        const finalName = dsName.endsWith(`_${sheetName}`) ? dsName : `${dsName}_${sheetName}`;
+                        
+                        // Per-file metadata adjustment
+                        const fileMetadata = { ...baseMetadata, filename: finalName };
+                        
+                        uploadStatus.innerText = `☁️ [${fIdx+1}/${selectedFiles.length}] "${sheetName}" 업로드 중...`;
+                        const res = await uploadManualFile(state.user.student_id, file, finalName);
+                        if (!res.success) throw new Error(res.error);
+                        await saveStudentDataset(state.user.student_id, finalName, res.path, fileMetadata, res.size_kb, rowCount);
                     }
                 } else {
-                    selectedSheetName = workbook.SheetNames[0];
-                }
-
-                if (!splitFiles) {
-                    const worksheet = workbook.Sheets[selectedSheetName];
-                    const csvString = sheetToCsvSkipTitleRow(worksheet);
-                    const csvBlob = new Blob([csvString], { type: 'text/csv' });
-                    const newFileName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '.csv');
-                    fileToUpload = new File([csvBlob], newFileName, { type: 'text/csv' });
-                    selectedFile = fileToUpload;
-
-                    const nameInput = document.getElementById('found-data-name');
-                    if (nameInput && (nameInput.value.toLowerCase().endsWith('.xlsx') || nameInput.value.toLowerCase().endsWith('.xls'))) {
-                        nameInput.value = nameInput.value.replace(/\.(xlsx|xls)$/i, '.csv');
-                    }
-                    uploadStatus.innerText = `✅ "${selectedSheetName}" 시트를 CSV로 변환했습니다.`;
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                alert('엑셀 변환 중 오류가 발생했습니다: ' + err.message);
-                btn.innerText = originalText;
-                btn.disabled = false;
-                return;
-            }
-        }
-
-        // [Check] File size limit — single file mode only
-        const MAX_SIZE = 50 * 1024 * 1024;
-        if (!splitFiles && fileToUpload.size > MAX_SIZE) {
-            btn.disabled = true;
-            btn.innerText = '컬럼 분석 중...';
-
-            let headers = [];
-            let fileEncoding = 'UTF-8';
-            try {
-                const { parseCsvHeaders } = await import('./sampler.js');
-                const headerResult = await parseCsvHeaders(fileToUpload);
-                headers = headerResult.fields;
-                fileEncoding = headerResult.encoding;
-            } catch(e) {
-                alert('파일 헤더를 읽는 중 오류가 발생했습니다: ' + e.message);
-                btn.disabled = false; btn.innerText = originalText; return;
-            }
-
-            btn.disabled = false;
-            btn.innerText = originalText;
-
-            const result = await showColumnFilterModal(fileToUpload, headers, selectedFile.size, uploadStatus, fileEncoding);
-            if (!result) return;
-
-            fileToUpload = result.blob;
-            extractedMeta.sampled = true;
-            extractedMeta.sampled_row_count = result.rowCount;
-            extractedMeta.filter_conditions = result.conditions;
-            extractedMeta.original_size_mb = Math.round(selectedFile.size / 1024 / 1024);
-            const sizeKb = Math.round(result.blob.size / 1024);
-            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
-            uploadStatus.innerText = `✅ 필터링 완료 (${result.rowCount.toLocaleString()}행, ${displaySize})`;
-        }
-
-        btn.disabled = true;
-        btn.innerText = '저장 중...';
-
-        try {
-            const baseMetadata = { ...extractedMeta, source_links: links };
-
-            // ── Split mode: upload each sheet as a separate dataset ──────────
-            if (splitFiles && state.user && state.user.student_id !== 'Guest') {
-                const { uploadManualFile } = await import('./downloader.js');
-                const { saveStudentDataset } = await import('./auth.js');
-                let firstDataInfo = null;
-                const total = splitFiles.length;
-
-                for (let i = 0; i < total; i++) {
-                    const { sheetName, file, rowCount } = splitFiles[i];
-                    // 이미 name 끝에 sheetName이 포함되어 있으면 중복 추가 방지
-                    const dsName = name.endsWith(`_${sheetName}`) || name === sheetName
-                        ? name
-                        : `${name}_${sheetName}`;
-                    const sizeLabel = file.size >= 1024 * 1024
-                        ? `${(file.size / 1024 / 1024).toFixed(1)}MB`
-                        : `${Math.round(file.size / 1024)}KB`;
-
-                    btn.innerText = `업로드 중 (${i + 1}/${total})...`;
-                    uploadStatus.innerText = `☁️ "${sheetName}" 업로드 중... (${sizeLabel})`;
-                    const uploadResult = await uploadManualFile(state.user.student_id, file, dsName);
-                    if (!uploadResult.success) throw new Error(uploadResult.error);
-
-                    btn.innerText = `DB 저장 중 (${i + 1}/${total})...`;
-                    uploadStatus.innerText = `💾 "${sheetName}" DB 저장 중...`;
-                    await saveStudentDataset(state.user.student_id, dsName, uploadResult.path, baseMetadata, uploadResult.size_kb, rowCount);
-
-                    if (!firstDataInfo) firstDataInfo = { name: dsName, file_url: uploadResult.path, metadata: baseMetadata, size_kb: uploadResult.size_kb };
-                }
-
-                btn.innerText = '✅ 저장 완료!';
-                btn.disabled = false;
-                uploadStatus.innerText = `✅ ${total}개 시트가 개별 데이터셋으로 저장되었습니다!`;
-                delete state.pendingDataName;
-                if (onDataSelected) onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, firstDataInfo, true);
-                
-                setTimeout(() => {
-                    showSaveInstructions('', state, onDataSelected);
-                    alert(`${total}개의 시트 데이터가 성공적으로 저장되었습니다. \n계속해서 다른 자료를 추가할 수 있습니다.`);
-                }, 500);
-                return;
-            }
-
-            // ── Single file mode ─────────────────────────────────────────────
-            const dataInfo = {
-                name: name,
-                metadata: baseMetadata,
-                file_url: null,
-                uploaded_at: new Date().toISOString()
-            };
-
-            let totalRows = 0;
-            if (state.user && state.user.student_id !== 'Guest') {
-                const { uploadManualFile } = await import('./downloader.js');
-
-                if (!extractedMeta.sampled) {
-                    btn.innerText = '행 수 분석 중...';
-                    uploadStatus.innerText = '📊 행 수를 계산하고 있습니다...';
-                    await new Promise((resolve) => {
-                        const timeout = setTimeout(resolve, 15000);
+                    // Single file (CSV or converted Excel sheet)
+                    let totalRows = 0;
+                    btn.innerText = `행 수 분석 중...`;
+                    await new Promise((res) => {
                         Papa.parse(fileToUpload, {
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: (results) => { clearTimeout(timeout); totalRows = results.data.length; resolve(); },
-                            error: () => { clearTimeout(timeout); resolve(); }
+                            header: true, skipEmptyLines: true, 
+                            complete: (r) => { totalRows = r.data.length; res(); },
+                            error: () => res()
                         });
                     });
-                    uploadStatus.innerText = `📊 ${totalRows.toLocaleString()}행 확인 완료`;
-                } else {
-                    totalRows = extractedMeta.sampled_row_count || 0;
+
+                    // Per-file metadata adjustment
+                    const fileMetadata = { ...baseMetadata, filename: dsName };
+
+                    uploadStatus.innerText = `☁️ [${fIdx+1}/${selectedFiles.length}] 업로드 및 저장 중...`;
+                    const res = await uploadManualFile(state.user.student_id, fileToUpload, dsName);
+                    if (!res.success) throw new Error(res.error);
+                    await saveStudentDataset(state.user.student_id, dsName, res.path, fileMetadata, res.size_kb, totalRows || 0);
+
+                    // Notify background once for UI updates (using the last file info)
+                    if (onDataSelected) onDataSelected({ id: 'local-explorer' }, { name: dsName }, true);
                 }
-
-                const sizeLabel = fileToUpload.size >= 1024 * 1024
-                    ? `${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB`
-                    : `${Math.round(fileToUpload.size / 1024)}KB`;
-                btn.innerText = '업로드 중...';
-                uploadStatus.innerText = `☁️ 파일을 서버에 올리는 중... (${sizeLabel})`;
-                const result = await uploadManualFile(state.user.student_id, fileToUpload, dataInfo.name);
-                if (result.success) {
-                    dataInfo.file_url = result.path;
-                    dataInfo.size_kb = result.size_kb;
-                } else throw new Error(result.error);
-
-                btn.innerText = 'DB 저장 중...';
-                uploadStatus.innerText = '💾 데이터베이스에 저장하는 중...';
-                const { saveStudentDataset } = await import('./auth.js');
-                await saveStudentDataset(state.user.student_id, dataInfo.name, dataInfo.file_url, dataInfo.metadata, dataInfo.size_kb, totalRows || 0);
-            } else {
-                dataInfo.file_url = `guest/${selectedFile.name}`;
-                dataInfo.size_kb = Math.round(fileToUpload.size / 1024);
             }
 
-            btn.innerText = '✅ 저장 완료!';
-            btn.disabled = false;
-            uploadStatus.innerText = '✅ 저장이 완료되었습니다.';
-            delete state.pendingDataName;
+            btn.innerText = '✅ 모든 파일 저장 완료!';
+            uploadStatus.innerText = `✅ 총 ${selectedFiles.length}개의 파일이 분석 목록에 추가되었습니다.`;
+            selectedFiles = []; // Reset
             
-            // Notify background (with stayOnPage=true flag)
-            if (onDataSelected) onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, dataInfo, true);
-            
-            // Clear and reset form for next upload
             setTimeout(() => {
                 showSaveInstructions('', state, onDataSelected);
-                alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다.\n계속해서 다른 자료를 바로 추가할 수 있습니다.`);
-            }, 500);
+                alert('모든 자료가 성공적으로 저장되었습니다.\n계속해서 다른 자료를 추가할 수 있습니다.');
+            }, 800);
+
         } catch (err) {
-            alert('저장 중 오류가 발생했습니다: ' + err.message);
+            alert('자료 저장 중 오류가 발생했습니다: ' + err.message);
             btn.disabled = false;
             btn.innerText = originalText;
         }
