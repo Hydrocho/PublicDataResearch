@@ -716,18 +716,27 @@ async function showTeacherDashboard(email) {
     const refreshCompBtn = document.getElementById('refresh-competitions-btn');
     if (refreshCompBtn) refreshCompBtn.onclick = loadCompetitions;
 
-    tabManagement.onclick = async () => {
-        switchTab(tabManagement, viewManagement);
+    const loadManagementTab = async () => {
         const datasetList = viewManagement.querySelector('#teacher-dataset-list');
         if (datasetList) datasetList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { getTeacherResearchIds } = await import('./auth.js');
-        const [{ data, error }, teacherIds] = await Promise.all([
+        const [{ data, error }, teacherIds, { data: { user } }] = await Promise.all([
             fetchAllDatasetsForTeacher(),
             getTeacherResearchIds(),
+            supabaseClient.auth.getUser(),
         ]);
+        const teacherEmail = user?.email || null;
         if (!error) {
-            UI.renderTeacherDataManagement(data, onTeacherToggleShare, onTeacherToggleResearch, teacherIds);
+            UI.renderTeacherDataManagement(
+                data, onTeacherToggleShare, onTeacherToggleResearch, teacherIds,
+                teacherEmail, () => loadManagementTab()
+            );
         }
+    };
+
+    tabManagement.onclick = async () => {
+        switchTab(tabManagement, viewManagement);
+        await loadManagementTab();
     };
     
     tabTeachers.onclick = async () => {

@@ -319,6 +319,50 @@ export async function deleteActivityLog(logId, studentId) {
     return response;
 }
 
+/** 교사가 직접 등록한 데이터셋 저장 */
+export async function saveTeacherDataset(teacherEmail, dataName, fileUrl, metadata = {}, sizeKb = null, totalRows = null) {
+    const enrichedMetadata = {
+        ...(metadata || {}),
+        ...(totalRows !== null ? { row_count: totalRows } : {}),
+        ...(sizeKb !== null ? { size_kb: sizeKb } : {})
+    };
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .insert([{
+            student_id: teacherEmail,
+            data_name: dataName,
+            file_url: fileUrl,
+            metadata: enrichedMetadata,
+            is_shared: true,
+            is_research_use: true,
+        }])
+        .select();
+    return { data, error };
+}
+
+/** 교사가 직접 등록한 데이터셋 삭제 */
+export async function deleteTeacherDataset(id, teacherEmail) {
+    const { data: ds } = await supabaseClient
+        .from('student_datasets')
+        .select('file_url')
+        .eq('id', id)
+        .eq('student_id', teacherEmail)
+        .single();
+
+    if (ds?.file_url) {
+        let storagePath = ds.file_url;
+        if (storagePath.startsWith('datasets/')) storagePath = storagePath.replace('datasets/', '');
+        await supabaseClient.storage.from('datasets').remove([storagePath]);
+    }
+
+    const { error } = await supabaseClient
+        .from('student_datasets')
+        .delete()
+        .eq('id', id)
+        .eq('student_id', teacherEmail);
+    return { error };
+}
+
 export async function saveStudentDataset(studentId, dataName, fileUrl, metadata = {}, sizeKb = null, totalRows = null) {
     // Store row_count and size_kb inside the metadata JSON.
     // This avoids needing new DB columns while still persisting the data.

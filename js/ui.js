@@ -925,23 +925,175 @@ export function renderTeacherDashboard(students, onReset, onDelete) {
     });
 }
 
+/** Returns the HTML for the teacher upload accordion panel */
+function renderTeacherUploadPanelHTML() {
+    return `
+    <div id="teacher-upload-panel" style="margin-bottom:20px;border:1.5px dashed #6366f1;border-radius:12px;overflow:hidden;">
+        <button id="teacher-upload-toggle-btn" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#eef2ff;border:none;cursor:pointer;font-size:0.95rem;font-weight:700;color:#4338ca;">
+            <span style="display:flex;align-items:center;gap:8px;">
+                <i data-lucide="upload-cloud" size="18"></i> 교사 데이터 직접 등록
+            </span>
+            <i data-lucide="chevron-down" size="18" id="teacher-upload-chevron"></i>
+        </button>
+        <div id="teacher-upload-form" style="display:none;padding:20px;background:white;border-top:1px solid #e0e7ff;">
+            <p style="font-size:0.85rem;color:#6366f1;margin:0 0 16px;"><i data-lucide="info" size="14" style="vertical-align:middle;margin-right:4px;"></i> 교사가 직접 수집한 자료를 등록하면 학생 연구에 활용 가능하고 교사 테스트 모드에서도 사용할 수 있습니다.</p>
+            <div style="display:grid;gap:14px;">
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:6px;">메타데이터 JSON-LD (선택 — 공공데이터포털 상세페이지 하단 스크립트 붙여넣기)</label>
+                    <textarea id="teacher-upload-json" placeholder="JSON-LD 내용을 붙여넣으면 이름이 자동 입력됩니다." style="width:100%;height:80px;padding:10px;border-radius:8px;font-size:0.75rem;font-family:'Consolas',monospace;border:1px solid #e2e8f0;box-sizing:border-box;"></textarea>
+                    <p id="teacher-json-auto-msg" style="font-size:0.75rem;color:#15803d;font-weight:700;display:none;margin:4px 0 0;">🪄 데이터 정보가 감지되었습니다!</p>
+                </div>
+                <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;">
+                    <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:8px;">CSV / Excel 파일 선택 <span style="color:#dc2626;">(필수)</span></label>
+                    <button id="teacher-file-select-btn" class="btn-secondary" style="width:100%;padding:10px;font-weight:600;">📁 파일 업로드 (CSV / Excel)</button>
+                    <input type="file" id="teacher-file-input" style="display:none;" accept=".csv,.xlsx,.xls">
+                    <div id="teacher-upload-status" style="font-size:0.8rem;color:var(--primary);margin-top:8px;font-weight:700;min-height:18px;"></div>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:6px;">데이터셋 이름 <span style="color:#dc2626;">(필수)</span></label>
+                    <input type="text" id="teacher-upload-name" placeholder="데이터셋 이름을 입력하세요" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.92rem;box-sizing:border-box;">
+                </div>
+                <button id="teacher-upload-save-btn" class="btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:800;background:#4f46e5;border-color:#4f46e5;">저장하기</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+/** Wires up all event handlers for the teacher upload panel */
+async function setupTeacherUploadPanel(container, teacherEmail, onSuccess) {
+    const toggleBtn = container.querySelector('#teacher-upload-toggle-btn');
+    const form = container.querySelector('#teacher-upload-form');
+    const chevron = container.querySelector('#teacher-upload-chevron');
+    if (toggleBtn && form) {
+        toggleBtn.onclick = () => {
+            const open = form.style.display !== 'none';
+            form.style.display = open ? 'none' : 'block';
+            if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+            if (window.lucide) lucide.createIcons();
+        };
+    }
+
+    const fileInput = container.querySelector('#teacher-file-input');
+    const fileSelectBtn = container.querySelector('#teacher-file-select-btn');
+    const uploadStatus = container.querySelector('#teacher-upload-status');
+    const nameInput = container.querySelector('#teacher-upload-name');
+    const jsonArea = container.querySelector('#teacher-upload-json');
+    const jsonAutoMsg = container.querySelector('#teacher-json-auto-msg');
+    const saveBtn = container.querySelector('#teacher-upload-save-btn');
+    let selectedFile = null;
+    let extractedMeta = {};
+
+    if (fileSelectBtn) fileSelectBtn.onclick = () => fileInput && fileInput.click();
+
+    if (fileInput) {
+        fileInput.onchange = (e) => {
+            if (!e.target.files.length) return;
+            selectedFile = e.target.files[0];
+            const sizeKb = Math.round(selectedFile.size / 1024);
+            const displaySize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)}MB (${sizeKb.toLocaleString()}KB)` : `${sizeKb.toLocaleString()}KB`;
+            if (uploadStatus) uploadStatus.innerText = `📦 ${selectedFile.name} (${displaySize}) 준비됨`;
+            if (nameInput && !nameInput.value.trim()) {
+                nameInput.value = selectedFile.name.replace(/\.[^.]+$/, '');
+            }
+        };
+    }
+
+    if (jsonArea) {
+        jsonArea.addEventListener('input', () => {
+            let str = jsonArea.value.trim();
+            if (str.length < 30) return;
+            try {
+                str = str.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+                str = str.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"').replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+                const data = JSON.parse(str);
+                extractedMeta = data;
+                const name = data.alternateName || data.name || '';
+                if (name && nameInput && !nameInput.value.trim()) nameInput.value = name;
+                if (jsonAutoMsg) jsonAutoMsg.style.display = 'block';
+            } catch {
+                if (jsonAutoMsg) jsonAutoMsg.style.display = 'none';
+            }
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.onclick = async () => {
+            const name = nameInput ? nameInput.value.trim() : '';
+            if (!name) { alert('데이터셋 이름을 입력해 주세요.'); return; }
+            if (!selectedFile) { alert('업로드할 파일을 선택해 주세요.'); return; }
+
+            let fileToUpload = selectedFile;
+            const isExcel = selectedFile.name.toLowerCase().endsWith('.xlsx') || selectedFile.name.toLowerCase().endsWith('.xls');
+
+            if (isExcel) {
+                try {
+                    saveBtn.disabled = true;
+                    saveBtn.innerText = 'CSV 변환 중...';
+                    const buffer = await selectedFile.arrayBuffer();
+                    const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+                    const csvString = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
+                    const csvBlob = new Blob([csvString], { type: 'text/csv' });
+                    fileToUpload = new File([csvBlob], selectedFile.name.replace(/\.(xlsx|xls)$/i, '.csv'), { type: 'text/csv' });
+                    if (uploadStatus) uploadStatus.innerText = '✅ 엑셀을 CSV로 변환했습니다.';
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = '저장하기';
+                } catch (err) {
+                    alert('엑셀 변환 중 오류가 발생했습니다: ' + err.message);
+                    saveBtn.disabled = false; saveBtn.innerText = '저장하기'; return;
+                }
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerText = '저장 중...';
+            try {
+                // Count rows
+                let totalRows = 0;
+                await new Promise((resolve) => {
+                    Papa.parse(fileToUpload, { header: true, skipEmptyLines: true, complete: (r) => { totalRows = r.data.length; resolve(); }, error: () => resolve() });
+                });
+
+                const { uploadManualFile } = await import('./downloader.js');
+                const result = await uploadManualFile(teacherEmail, fileToUpload, name);
+                if (!result.success) throw new Error(result.error);
+
+                const { saveTeacherDataset } = await import('./auth.js');
+                const { error } = await saveTeacherDataset(teacherEmail, name, result.path, extractedMeta, result.size_kb, totalRows);
+                if (error) throw new Error(error.message);
+
+                if (uploadStatus) uploadStatus.innerText = '✅ 저장 완료!';
+                saveBtn.innerText = '저장 완료!';
+                setTimeout(() => {
+                    if (onSuccess) onSuccess();
+                }, 800);
+            } catch (err) {
+                alert('저장 중 오류가 발생했습니다: ' + err.message);
+                saveBtn.disabled = false; saveBtn.innerText = '저장하기';
+            }
+        };
+    }
+}
+
 /**
  * Teacher View: Render ALL datasets from ALL students
  */
-export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = []) {
+export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = [], teacherEmail = null, onTeacherUploadSuccess = null) {
     const container = document.getElementById('teacher-dataset-list');
     if (!container) return;
 
     if (!datasets || datasets.length === 0) {
-        container.innerHTML = '<p class="text-muted" style="text-align:center; padding: 40px;">수집된 데이터셋이 없습니다.</p>';
+        container.innerHTML = `
+            ${teacherEmail ? renderTeacherUploadPanelHTML() : ''}
+            <p class="text-muted" style="text-align:center; padding: 40px;">수집된 데이터셋이 없습니다.</p>`;
+        if (teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
+        if (window.lucide) lucide.createIcons();
         return;
     }
 
-    // Extract unique students
+    // Extract unique students (exclude teacher email from filter chips)
     const students = [];
     const seenIds = new Set();
     datasets.forEach(ds => {
-        if (ds.student_id && !seenIds.has(ds.student_id)) {
+        if (ds.student_id && !seenIds.has(ds.student_id) && ds.student_id !== teacherEmail) {
             seenIds.add(ds.student_id);
             students.push({
                 id: ds.student_id,
@@ -949,11 +1101,11 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             });
         }
     });
-    // Sort students by ID or name
     students.sort((a, b) => a.id.localeCompare(b.id));
 
-    // Initial HTML structure with filter area
     container.innerHTML = `
+        ${teacherEmail ? renderTeacherUploadPanelHTML() : ''}
+
         <div style="margin-bottom:20px; padding:18px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div style="font-weight:700; font-size:0.95rem; color:var(--secondary); display:flex; align-items:center; gap:8px;">
@@ -986,16 +1138,20 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 <thead>
                     <tr style="text-align:left;border-bottom:2px solid var(--glass-border);background:#f8fafc;">
                         <th style="padding:12px;">데이터셋 이름</th>
-                        <th style="padding:12px;">작성 학생</th>
+                        <th style="padding:12px;">작성자</th>
                         <th style="padding:12px;text-align:center;">행 수</th>
                         <th style="padding:12px;text-align:center;">학생 연구 활용</th>
                         <th style="padding:12px;text-align:center;background:#fffbeb;">교사 테스트 활용</th>
                         <th style="padding:12px;text-align:center;">공유</th>
+                        <th style="padding:12px;text-align:center;"></th>
                     </tr>
                 </thead>
                 <tbody id="management-tbody">
                     ${datasets.map(ds => {
-                        const ownerName = ds.students?.name || ds.student_id || '탈퇴한 사용자';
+                        const isTeacherOwned = teacherEmail && ds.student_id === teacherEmail;
+                        const ownerName = isTeacherOwned
+                            ? '교사'
+                            : (ds.students?.name || ds.student_id || '탈퇴한 사용자');
                         const isTeacherChecked = teacherIds.includes(String(ds.id));
                         const meta = ds.metadata || {};
                         const rowCount = meta.row_count;
@@ -1005,14 +1161,14 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                             ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Number(sizeKb).toLocaleString()} KB`)
                             : '';
                         return `
-                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;">
+                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
                             <td style="padding:12px;">
                                 <div style="display:flex;align-items:center;gap:10px;">
-                                    <i data-lucide="file-spreadsheet" size="18" style="color:var(--primary);"></i>
+                                    <i data-lucide="${isTeacherOwned ? 'shield-check' : 'file-spreadsheet'}" size="18" style="color:${isTeacherOwned ? '#6366f1' : 'var(--primary)'};"></i>
                                     <strong>${ds.data_name}</strong>
                                 </div>
                             </td>
-                            <td style="padding:12px;font-size:0.85rem;color:#4b5563;">${ownerName}</td>
+                            <td style="padding:12px;font-size:0.85rem;color:${isTeacherOwned ? '#4f46e5' : '#4b5563'};font-weight:${isTeacherOwned ? '700' : '400'};">${ownerName}</td>
                             <td style="padding:12px;text-align:center;">
                                 <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
                                 ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
@@ -1028,6 +1184,9 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                                     <input type="checkbox" class="teacher-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
                                     <span class="slider"></span>
                                 </label>
+                            </td>
+                            <td style="padding:12px;text-align:center;">
+                                ${isTeacherOwned ? `<button class="teacher-delete-ds-btn btn-secondary" data-id="${ds.id}" style="font-size:0.75rem;padding:4px 10px;color:#dc2626;border-color:#fecaca;background:#fef2f2;" title="삭제"><i data-lucide="trash-2" size="13" style="vertical-align:middle;"></i></button>` : ''}
                             </td>
                         </tr>`;
                     }).join('')}
@@ -1049,7 +1208,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         const selectedIds = Array.from(filterChecks)
             .filter(chk => chk.checked)
             .map(chk => chk.value);
-        
+
         // Update label styles
         filterChecks.forEach(chk => {
             const label = chk.closest('.student-filter-label');
@@ -1068,7 +1227,8 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         let visibleCount = 0;
         dataRows.forEach(row => {
             const studentId = row.dataset.student;
-            if (selectedIds.includes(studentId)) {
+            // Always show teacher-owned rows; apply filter only to student rows
+            if (studentId === teacherEmail || selectedIds.includes(studentId)) {
                 row.style.display = 'table-row';
                 visibleCount++;
             } else {
@@ -1081,33 +1241,20 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         if (table) table.style.display = visibleCount === 0 ? 'none' : 'table';
     };
 
-    filterChecks.forEach(chk => {
-        chk.addEventListener('change', updateFilter);
-    });
+    filterChecks.forEach(chk => chk.addEventListener('change', updateFilter));
 
     const filterAllBtn = container.querySelector('#filter-all-btn');
-    if (filterAllBtn) {
-        filterAllBtn.onclick = () => {
-            filterChecks.forEach(chk => chk.checked = true);
-            updateFilter();
-        };
-    }
+    if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); };
 
     const filterNoneBtn = container.querySelector('#filter-none-btn');
-    if (filterNoneBtn) {
-        filterNoneBtn.onclick = () => {
-            filterChecks.forEach(chk => chk.checked = false);
-            updateFilter();
-        };
-    }
+    if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); };
 
-    // Initial filter update to set styles
     updateFilter();
 
-    // Re-bind listeners for the table buttons (same as before)
+    // Row click → modal
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.onclick = (e) => {
-            if (e.target.closest('input') || e.target.closest('.switch')) return;
+            if (e.target.closest('input') || e.target.closest('.switch') || e.target.closest('button')) return;
             const ds = datasets.find(d => String(d.id) === row.dataset.id);
             if (ds) openDatasetModal(ds);
         };
@@ -1128,6 +1275,20 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         };
     });
 
+    // Delete teacher-owned datasets
+    container.querySelectorAll('.teacher-delete-ds-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('교사가 등록한 이 데이터셋을 삭제하시겠습니까?')) return;
+            btn.disabled = true;
+            const { deleteTeacherDataset } = await import('./auth.js');
+            const { error } = await deleteTeacherDataset(btn.dataset.id, teacherEmail);
+            if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; }
+            else if (onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    });
+
+    if (teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
     if (window.lucide) lucide.createIcons();
 }
 
