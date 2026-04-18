@@ -1141,7 +1141,12 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                         <th style="padding:12px;">작성자</th>
                         <th style="padding:12px;text-align:center;">행 수</th>
                         <th style="padding:12px;text-align:center;">학생 연구 활용</th>
-                        <th style="padding:12px;text-align:center;background:#fffbeb;">교사 테스트 활용</th>
+                        <th style="padding:12px;text-align:center;background:#fffbeb;">
+                            <div style="display:flex;align-items:center;justify-content:center;gap:7px;">
+                                <input type="checkbox" id="teacher-test-all-chk" title="전체 체크/해제" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;flex-shrink:0;">
+                                교사 테스트 활용
+                            </div>
+                        </th>
                         <th style="padding:12px;text-align:center;">공유</th>
                         <th style="padding:12px;text-align:center;"></th>
                     </tr>
@@ -1265,13 +1270,16 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         if (table) table.style.display = visibleCount === 0 ? 'none' : 'table';
     };
 
-    filterChecks.forEach(chk => chk.addEventListener('change', updateFilter));
+    filterChecks.forEach(chk => chk.addEventListener('change', () => { updateFilter(); syncAllChkDeferred(); }));
 
     const filterAllBtn = container.querySelector('#filter-all-btn');
-    if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); };
+    if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); syncAllChkDeferred(); };
 
     const filterNoneBtn = container.querySelector('#filter-none-btn');
-    if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); };
+    if (filterNoneBtn) filterNoneBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = false); updateFilter(); syncAllChkDeferred(); };
+
+    // Deferred reference — assigned after syncAllChk is defined below
+    let syncAllChkDeferred = () => {};
 
     updateFilter();
 
@@ -1281,14 +1289,47 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     container.querySelectorAll('.teacher-share-toggle').forEach(chk => {
         chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
     });
-    container.querySelectorAll('.teacher-test-toggle').forEach(chk => {
+    const teacherTestToggles = container.querySelectorAll('.teacher-test-toggle');
+    const allChk = container.querySelector('#teacher-test-all-chk');
+
+    const syncAllChk = () => {
+        if (!allChk) return;
+        const visible = Array.from(teacherTestToggles).filter(c => c.closest('tr')?.style.display !== 'none');
+        const checkedCount = visible.filter(c => c.checked).length;
+        allChk.checked = visible.length > 0 && checkedCount === visible.length;
+        allChk.indeterminate = checkedCount > 0 && checkedCount < visible.length;
+    };
+    syncAllChkDeferred = syncAllChk;
+
+    teacherTestToggles.forEach(chk => {
         chk.onchange = async () => {
             chk.disabled = true;
             const { setTeacherResearchId } = await import('./auth.js');
             await setTeacherResearchId(chk.dataset.id, chk.checked);
             chk.disabled = false;
+            syncAllChk();
         };
     });
+
+    if (allChk) {
+        allChk.onchange = async () => {
+            const shouldCheck = allChk.checked;
+            const visible = Array.from(teacherTestToggles).filter(c => c.closest('tr')?.style.display !== 'none');
+            const toChange = visible.filter(c => c.checked !== shouldCheck);
+            if (toChange.length === 0) return;
+
+            allChk.disabled = true;
+            toChange.forEach(c => { c.disabled = true; });
+
+            const { setTeacherResearchIdBulk } = await import('./auth.js');
+            await setTeacherResearchIdBulk(toChange.map(c => c.dataset.id), shouldCheck);
+
+            toChange.forEach(c => { c.checked = shouldCheck; c.disabled = false; });
+            allChk.disabled = false;
+            syncAllChk();
+        };
+        syncAllChk();
+    }
 
     // Delete teacher-owned datasets
     container.querySelectorAll('.teacher-delete-ds-btn').forEach(btn => {

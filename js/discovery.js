@@ -216,6 +216,7 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
 
         // [Pre-process] Convert Excel to CSV if needed
         let fileToUpload = selectedFile;
+        let splitFiles = null; // set when user chooses "split all sheets"
         const isExcel = selectedFile.name.toLowerCase().endsWith('.xlsx') || selectedFile.name.toLowerCase().endsWith('.xls');
 
         if (isExcel) {
@@ -231,30 +232,54 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
                     btn.innerText = originalText;
                     const sheetResult = await showSheetSelectModal(workbook);
                     if (!sheetResult) return;
-                    selectedSheetName = sheetResult.dataSheet;
-                    if (sheetResult.codebook) extractedMeta.codebook = sheetResult.codebook;
-                    btn.disabled = true;
-                    btn.innerText = 'CSV 변환 중...';
+
+                    if (sheetResult.mode === 'split') {
+                        // Convert every sheet to an individual CSV file
+                        btn.disabled = true;
+                        btn.innerText = '시트 분할 중...';
+                        const baseName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '');
+                        splitFiles = workbook.SheetNames.map(sheetName => {
+                            const ws = workbook.Sheets[sheetName];
+                            const csv = sheetToCsvSkipTitleRow(ws);
+                            const blob = new Blob([csv], { type: 'text/csv' });
+                            // Count data rows directly from the sheet range (no PapaParse needed)
+                            const ref = ws['!ref'];
+                            const rowCount = ref ? Math.max(0, XLSX.utils.decode_range(ref).e.r) : 0;
+                            return {
+                                sheetName,
+                                rowCount,
+                                file: new File([blob], `${baseName}_${sheetName}.csv`, { type: 'text/csv' })
+                            };
+                        });
+                        uploadStatus.innerText = `✅ ${splitFiles.length}개 시트를 개별 CSV로 분할했습니다.`;
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                        // Skip single-sheet conversion below
+                    } else {
+                        selectedSheetName = sheetResult.dataSheet;
+                        btn.disabled = true;
+                        btn.innerText = 'CSV 변환 중...';
+                    }
                 } else {
                     selectedSheetName = workbook.SheetNames[0];
                 }
 
-                const worksheet = workbook.Sheets[selectedSheetName];
-                const csvString = XLSX.utils.sheet_to_csv(worksheet);
+                if (!splitFiles) {
+                    const worksheet = workbook.Sheets[selectedSheetName];
+                    const csvString = sheetToCsvSkipTitleRow(worksheet);
+                    const csvBlob = new Blob([csvString], { type: 'text/csv' });
+                    const newFileName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '.csv');
+                    fileToUpload = new File([csvBlob], newFileName, { type: 'text/csv' });
+                    selectedFile = fileToUpload;
 
-                const csvBlob = new Blob([csvString], { type: 'text/csv' });
-                const newFileName = selectedFile.name.replace(/\.(xlsx|xls)$/i, '.csv');
-                fileToUpload = new File([csvBlob], newFileName, { type: 'text/csv' });
-                selectedFile = fileToUpload;
-
-                const nameInput = document.getElementById('found-data-name');
-                if (nameInput && (nameInput.value.toLowerCase().endsWith('.xlsx') || nameInput.value.toLowerCase().endsWith('.xls'))) {
-                    nameInput.value = nameInput.value.replace(/\.(xlsx|xls)$/i, '.csv');
+                    const nameInput = document.getElementById('found-data-name');
+                    if (nameInput && (nameInput.value.toLowerCase().endsWith('.xlsx') || nameInput.value.toLowerCase().endsWith('.xls'))) {
+                        nameInput.value = nameInput.value.replace(/\.(xlsx|xls)$/i, '.csv');
+                    }
+                    uploadStatus.innerText = `✅ "${selectedSheetName}" 시트를 CSV로 변환했습니다.`;
+                    btn.innerText = originalText;
+                    btn.disabled = false;
                 }
-
-                uploadStatus.innerText = `✅ "${selectedSheetName}" 시트를 CSV로 변환했습니다.`;
-                btn.innerText = originalText;
-                btn.disabled = false;
             } catch (err) {
                 alert('엑셀 변환 중 오류가 발생했습니다: ' + err.message);
                 btn.innerText = originalText;
@@ -263,10 +288,9 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             }
         }
 
-        // [Check] File size limit (Supabase default is often 50MB)
-        const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-        if (fileToUpload.size > MAX_SIZE) {
-            // --- [NEW] Column-based Filter Modal ---
+        // [Check] File size limit — single file mode only
+        const MAX_SIZE = 50 * 1024 * 1024;
+        if (!splitFiles && fileToUpload.size > MAX_SIZE) {
             btn.disabled = true;
             btn.innerText = '컬럼 분석 중...';
 
@@ -285,11 +309,8 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
             btn.disabled = false;
             btn.innerText = originalText;
 
-            // Build and show filter modal
             const result = await showColumnFilterModal(fileToUpload, headers, selectedFile.size, uploadStatus, fileEncoding);
-            if (!result) { // User cancelled
-                return;
-            }
+            if (!result) return;
 
             fileToUpload = result.blob;
             extractedMeta.sampled = true;
@@ -305,63 +326,97 @@ export function showSaveInstructions(dataName, state, onDataSelected) {
         btn.innerText = '저장 중...';
 
         try {
+            const baseMetadata = { ...extractedMeta, source_links: links };
+
+            // ── Split mode: upload each sheet as a separate dataset ──────────
+            if (splitFiles && state.user && state.user.student_id !== 'Guest') {
+                const { uploadManualFile } = await import('./downloader.js');
+                const { saveStudentDataset } = await import('./auth.js');
+                let firstDataInfo = null;
+                const total = splitFiles.length;
+
+                for (let i = 0; i < total; i++) {
+                    const { sheetName, file, rowCount } = splitFiles[i];
+                    // 이미 name 끝에 sheetName이 포함되어 있으면 중복 추가 방지
+                    const dsName = name.endsWith(`_${sheetName}`) || name === sheetName
+                        ? name
+                        : `${name}_${sheetName}`;
+                    const sizeLabel = file.size >= 1024 * 1024
+                        ? `${(file.size / 1024 / 1024).toFixed(1)}MB`
+                        : `${Math.round(file.size / 1024)}KB`;
+
+                    btn.innerText = `업로드 중 (${i + 1}/${total})...`;
+                    uploadStatus.innerText = `☁️ "${sheetName}" 업로드 중... (${sizeLabel})`;
+                    const uploadResult = await uploadManualFile(state.user.student_id, file, dsName);
+                    if (!uploadResult.success) throw new Error(uploadResult.error);
+
+                    btn.innerText = `DB 저장 중 (${i + 1}/${total})...`;
+                    uploadStatus.innerText = `💾 "${sheetName}" DB 저장 중...`;
+                    await saveStudentDataset(state.user.student_id, dsName, uploadResult.path, baseMetadata, uploadResult.size_kb, rowCount);
+
+                    if (!firstDataInfo) firstDataInfo = { name: dsName, file_url: uploadResult.path, metadata: baseMetadata, size_kb: uploadResult.size_kb };
+                }
+
+                btn.innerText = '✅ 저장 완료!';
+                btn.disabled = false;
+                uploadStatus.innerText = `✅ ${total}개 시트가 개별 데이터셋으로 저장되었습니다!`;
+                delete state.pendingDataName;
+                onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, firstDataInfo);
+                return;
+            }
+
+            // ── Single file mode ─────────────────────────────────────────────
             const dataInfo = {
                 name: name,
-                metadata: {
-                    ...extractedMeta,
-                    source_links: links
-                },
+                metadata: baseMetadata,
                 file_url: null,
                 uploaded_at: new Date().toISOString()
             };
 
-            // 1. Upload file
             let totalRows = 0;
             if (state.user && state.user.student_id !== 'Guest') {
                 const { uploadManualFile } = await import('./downloader.js');
-                
-                // [Diagnostic] Get correct row count if not already sampled
+
                 if (!extractedMeta.sampled) {
                     btn.innerText = '행 수 분석 중...';
+                    uploadStatus.innerText = '📊 행 수를 계산하고 있습니다...';
                     await new Promise((resolve) => {
+                        const timeout = setTimeout(resolve, 15000);
                         Papa.parse(fileToUpload, {
                             header: true,
                             skipEmptyLines: true,
-                            complete: (results) => {
-                                totalRows = results.data.length;
-                                resolve();
-                            },
-                            error: () => resolve() // Fail gracefully
+                            complete: (results) => { clearTimeout(timeout); totalRows = results.data.length; resolve(); },
+                            error: () => { clearTimeout(timeout); resolve(); }
                         });
                     });
+                    uploadStatus.innerText = `📊 ${totalRows.toLocaleString()}행 확인 완료`;
                 } else {
-                    // rowCount from sampling block is needed
                     totalRows = extractedMeta.sampled_row_count || 0;
                 }
 
-                // [New] Pass dataInfo.name to use as filename
+                const sizeLabel = fileToUpload.size >= 1024 * 1024
+                    ? `${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB`
+                    : `${Math.round(fileToUpload.size / 1024)}KB`;
+                btn.innerText = '업로드 중...';
+                uploadStatus.innerText = `☁️ 파일을 서버에 올리는 중... (${sizeLabel})`;
                 const result = await uploadManualFile(state.user.student_id, fileToUpload, dataInfo.name);
                 if (result.success) {
                     dataInfo.file_url = result.path;
                     dataInfo.size_kb = result.size_kb;
                 } else throw new Error(result.error);
 
-                // 2. Save to DB (Persistent)
+                btn.innerText = 'DB 저장 중...';
+                uploadStatus.innerText = '💾 데이터베이스에 저장하는 중...';
                 const { saveStudentDataset } = await import('./auth.js');
-                await saveStudentDataset(
-                    state.user.student_id,
-                    dataInfo.name,
-                    dataInfo.file_url,
-                    dataInfo.metadata,
-                    dataInfo.size_kb,
-                    totalRows || 0
-                );
+                await saveStudentDataset(state.user.student_id, dataInfo.name, dataInfo.file_url, dataInfo.metadata, dataInfo.size_kb, totalRows || 0);
             } else {
                 dataInfo.file_url = `guest/${selectedFile.name}`;
-                dataInfo.size_kb = Math.round(fileToUpload.size/1024);
-                // Guest doesn't save to DB
+                dataInfo.size_kb = Math.round(fileToUpload.size / 1024);
             }
 
+            btn.innerText = '✅ 저장 완료!';
+            btn.disabled = false;
+            uploadStatus.innerText = '✅ 저장이 완료되었습니다. 3단계로 이동합니다...';
             delete state.pendingDataName;
             onDataSelected({ id: 'local-explorer', title: '인허가데이터' }, dataInfo);
         } catch (err) {
@@ -381,7 +436,10 @@ export function showCategoryDetails(catId, state, onDataSelected) {
 
 /**
  * Shows a modal for selecting which sheet to use when an Excel has multiple sheets.
- * Returns a Promise<{dataSheet: string, codebook: object|null}> or null if cancelled.
+ * Returns:
+ *   { mode: 'single', dataSheet: string }  — convert one sheet
+ *   { mode: 'split' }                       — split all sheets into separate CSVs
+ *   null                                    — cancelled
  */
 function showSheetSelectModal(workbook) {
     return new Promise((resolve) => {
@@ -418,8 +476,8 @@ function showSheetSelectModal(workbook) {
         const render = () => {
             overlay.innerHTML = `
                 <div style="background:#fff; border-radius:16px; padding:28px; width:100%; max-width:520px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                    <h3 style="margin:0 0 6px; font-size:1.1rem; color:#1e293b;">📋 분석할 시트를 선택하세요</h3>
-                    <p style="margin:0 0 20px; font-size:0.83rem; color:#64748b;">엑셀 파일에 여러 시트가 있습니다. 데이터 분석에 사용할 시트 하나를 선택해 주세요.</p>
+                    <h3 style="margin:0 0 6px; font-size:1.1rem; color:#1e293b;">📋 엑셀 시트 처리 방식을 선택하세요</h3>
+                    <p style="margin:0 0 16px; font-size:0.83rem; color:#64748b;">이 엑셀 파일에는 <strong>${sheetInfos.length}개의 시트</strong>가 있습니다.</p>
 
                     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
                         ${sheetInfos.map(s => `
@@ -443,17 +501,24 @@ function showSheetSelectModal(workbook) {
                         `).join('')}
                     </div>
 
-                    ${sheetInfos.some(s => s.isCodebook) ? `
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:0.82rem; color:#15803d; line-height:1.5;">
-                            📖 <strong>코드북 시트 감지됨!</strong> 변수 정보 및 값 레이블을 메타데이터로 함께 저장합니다.<br>
-                            AI 분석 시 변수 의미와 응답 코드를 자동으로 파악할 수 있습니다.
-                        </div>
-                    ` : ''}
+                    <div style="border-top:1px solid #e2e8f0; padding-top:16px; margin-bottom:16px;">
+                        <button id="sheet-split-btn" style="
+                            width:100%; padding:12px; background:#f0fdf4; border:2px dashed #86efac;
+                            border-radius:10px; cursor:pointer; font-size:0.88rem; font-weight:700;
+                            color:#15803d; display:flex; align-items:center; justify-content:center; gap:8px;
+                        ">
+                            <span style="font-size:1.1rem;">📂</span>
+                            모든 시트를 개별 CSV로 분할 저장 (${sheetInfos.length}개 데이터셋 생성)
+                        </button>
+                        <p style="font-size:0.75rem; color:#64748b; margin:8px 0 0; text-align:center;">
+                            각 시트가 <em>파일명_시트명.csv</em> 형태의 독립 데이터셋으로 저장됩니다.
+                        </p>
+                    </div>
 
                     <div style="display:flex; gap:10px; justify-content:flex-end;">
                         <button id="sheet-cancel-btn" style="padding:9px 22px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-size:0.9rem;">취소</button>
                         <button id="sheet-confirm-btn" style="padding:9px 22px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
-                            이 시트로 변환하기
+                            선택한 시트만 변환
                         </button>
                     </div>
                 </div>
@@ -464,18 +529,10 @@ function showSheetSelectModal(workbook) {
             });
 
             overlay.querySelector('#sheet-cancel-btn').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.querySelector('#sheet-split-btn').onclick = () => { overlay.remove(); resolve({ mode: 'split' }); };
             overlay.querySelector('#sheet-confirm-btn').onclick = () => {
-                let codebook = null;
-                const codebookSheets = sheetInfos.filter(s => s.isCodebook && s.name !== selectedSheet);
-                if (codebookSheets.length > 0) {
-                    codebook = {};
-                    codebookSheets.forEach(s => {
-                        const json = XLSX.utils.sheet_to_json(workbook.Sheets[s.name], { defval: '' });
-                        codebook[s.name] = json.slice(0, 300);
-                    });
-                }
                 overlay.remove();
-                resolve({ dataSheet: selectedSheet, codebook });
+                resolve({ mode: 'single', dataSheet: selectedSheet });
             };
         };
 
@@ -488,6 +545,34 @@ function showSheetSelectModal(workbook) {
  * Shows a modal UI for column-based CSV filtering.
  * Returns a Promise<{blob, rowCount, conditions}> or null if cancelled.
  */
+/**
+ * Converts a worksheet to CSV, skipping the first row if it is a title row
+ * (i.e. only the first cell has content and all other cells in that row are empty).
+ * This prevents PapaParse "Duplicate headers" warnings from merged-cell title rows
+ * that are common in Korean public data Excel files.
+ */
+function sheetToCsvSkipTitleRow(ws) {
+    if (!ws['!ref']) return XLSX.utils.sheet_to_csv(ws);
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    if (range.e.r < 1) return XLSX.utils.sheet_to_csv(ws); // single row — nothing to skip
+
+    // Check if row 0 is a title row: first cell has a value, all other cells in that row are empty
+    const firstCell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
+    if (!firstCell || !firstCell.v) return XLSX.utils.sheet_to_csv(ws);
+
+    let isTitleRow = true;
+    for (let c = range.s.c + 1; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+        if (cell && cell.v !== undefined && cell.v !== '') { isTitleRow = false; break; }
+    }
+
+    if (!isTitleRow) return XLSX.utils.sheet_to_csv(ws);
+
+    // Skip row 0 by adjusting the range
+    const trimmedRange = { ...range, s: { ...range.s, r: 1 } };
+    return XLSX.utils.sheet_to_csv(ws, { range: trimmedRange });
+}
+
 function showColumnFilterModal(file, headers, originalSizeBytes, uploadStatus, encoding = 'UTF-8') {
     return new Promise((resolve) => {
         // Remove any existing modal

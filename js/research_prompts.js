@@ -78,7 +78,11 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
         if (ds.metadata?.codebook) {
             prompt += `변수 코드북:\n`;
             for (const [sheetName, rows] of Object.entries(ds.metadata.codebook)) {
-                prompt += `  [${sheetName}]: ${JSON.stringify(rows.slice(0, 50))}\n`;
+                // 변수정보(변수 설명)는 전체, 변수값(코드 레이블)은 500행 제한
+                const isValueSheet = sheetName.includes('변수값') || sheetName.toLowerCase().includes('value');
+                const limit = isValueSheet ? 500 : rows.length;
+                prompt += `  [${sheetName}] (${rows.length}행 중 ${Math.min(rows.length, limit)}행 표시):\n`;
+                prompt += `  ${JSON.stringify(rows.slice(0, limit))}\n`;
             }
         }
 
@@ -161,7 +165,9 @@ ${analysisGuide[analysisType] || ''}
 
         if (ds.metadata?.codebook) {
             for (const [sheetName, rows] of Object.entries(ds.metadata.codebook)) {
-                prompt += `- 코드북(${sheetName}): ${JSON.stringify(rows.slice(0, 30))}\n`;
+                const isValueSheet = sheetName.includes('변수값') || sheetName.toLowerCase().includes('value');
+                const limit = isValueSheet ? 500 : rows.length;
+                prompt += `- 코드북(${sheetName}): ${JSON.stringify(rows.slice(0, limit))}\n`;
             }
         }
     }

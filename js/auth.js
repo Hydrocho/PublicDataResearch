@@ -1073,6 +1073,27 @@ export async function setTeacherResearchId(id, checked) {
     }
 }
 
+/** 교사 테스트 데이터셋 일괄 선택/해제 (전체 체크용 — DB 요청 1회) */
+export async function setTeacherResearchIdBulk(ids, checked) {
+    if (!ids || ids.length === 0) return;
+    const email = await getTeacherEmail();
+    if (!email) return;
+    if (checked) {
+        const rows = ids.map(id => ({ teacher_email: email, dataset_id: id }));
+        const { error } = await supabaseClient
+            .from('teacher_test_datasets')
+            .upsert(rows, { onConflict: 'teacher_email,dataset_id' });
+        if (error) console.error('setTeacherResearchIdBulk insert error:', error);
+    } else {
+        const { error } = await supabaseClient
+            .from('teacher_test_datasets')
+            .delete()
+            .eq('teacher_email', email)
+            .in('dataset_id', ids);
+        if (error) console.error('setTeacherResearchIdBulk delete error:', error);
+    }
+}
+
 
 /** 선택된 테스트 데이터셋 목록 조회 (학생 이름 포함) */
 export async function fetchTeacherTestDatasets() {
