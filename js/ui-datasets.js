@@ -202,26 +202,42 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             </div>
         </div>
 
-        <!-- Keyword Search Box -->
+        <!-- Keyword Search & Sorting Box -->
         <div style="margin-bottom:20px; padding:18px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div style="font-weight:700; font-size:0.95rem; color:var(--secondary); display:flex; align-items:center; gap:8px;">
-                    <i data-lucide="search" size="18" style="color:var(--primary);"></i>
-                    데이터셋 키워드 검색
+                    <i data-lucide="filter" size="18" style="color:var(--primary);"></i>
+                    데이터 검색 및 정렬 설정
                 </div>
-                <div style="display:flex; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #e2e8f0;">
-                    <label style="cursor:pointer; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:700; transition:all 0.2s;" class="search-logic-label active">
-                        <input type="radio" name="search-logic" value="and" checked style="display:none;"> AND
-                    </label>
-                    <label style="cursor:pointer; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:700; transition:all 0.2s;" class="search-logic-label">
-                        <input type="radio" name="search-logic" value="or" style="display:none;"> OR
-                    </label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div style="display:flex; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <label style="cursor:pointer; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:700; transition:all 0.2s;" class="search-logic-label active">
+                            <input type="radio" name="search-logic" value="and" checked style="display:none;"> AND
+                        </label>
+                        <label style="cursor:pointer; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:700; transition:all 0.2s;" class="search-logic-label">
+                            <input type="radio" name="search-logic" value="or" style="display:none;"> OR
+                        </label>
+                    </div>
                 </div>
             </div>
-            <div style="position:relative;">
-                <input type="text" id="dataset-search-input" placeholder="검색할 키워드를 입력하세요 (여러 개는 공백으로 구분)" 
-                       style="width:100%; padding:10px 15px 10px 40px; border:1px solid #e2e8f0; border-radius:10px; font-size:0.9rem; font-family:inherit; outline:none; transition:all 0.2s;">
-                <i data-lucide="search" size="16" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+            
+            <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
+                <div style="position:relative; flex:1; min-width:300px;">
+                    <input type="text" id="dataset-search-input" placeholder="키워드로 데이터셋 검색 (여러 개는 공백 구분)..." 
+                           style="width:100%; padding:10px 15px 10px 40px; border:1px solid #e2e8f0; border-radius:10px; font-size:0.9rem; font-family:inherit; outline:none; transition:all 0.2s;">
+                    <i data-lucide="search" size="16" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:8px; padding-left:15px; border-left:2px solid #f1f5f9;">
+                    <i data-lucide="list-ordered" size="16" style="color:#64748b;"></i>
+                    <select id="teacher-ds-sort-select" style="font-size:0.85rem; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:10px; background:white; color:#475569; outline:none; cursor:pointer; font-weight:600;">
+                        <option value="time-desc">최신 업로드순</option>
+                        <option value="time-asc">과거 업로드순</option>
+                        <option value="name-asc">데이터 이름순 (ㄱ-ㅎ)</option>
+                        <option value="name-desc">데이터 이름순 (ㅎ-ㄱ)</option>
+                        <option value="size-desc">용량 큰 순</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -314,7 +330,14 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                                </span>`
                             : `<span style="font-size:0.85rem;color:#4b5563;">${ownerName}</span>`;
                         return `
-                        <tr class="clickable-row data-row" data-id="${ds.id}" data-student="${ds.student_id}" data-teacher-owned="${isTeacherOwned}" style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
+                        <tr class="clickable-row data-row ds-row" 
+                            data-id="${ds.id}" 
+                            data-student="${ds.student_id}" 
+                            data-teacher-owned="${isTeacherOwned}" 
+                            data-name="${ds.data_name}"
+                            data-created="${ds.created_at}"
+                            data-size="${sizeKb}"
+                            style="border-bottom:1px solid var(--glass-border);cursor:pointer;${isTeacherOwned ? 'background:#f5f3ff;' : ''}">
                             <td style="padding:12px; text-align:center;" onclick="event.stopPropagation()">
                                 <input type="checkbox" class="ds-row-chk" data-id="${ds.id}" style="width:16px;height:16px;cursor:pointer;">
                             </td>
@@ -586,6 +609,28 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             };
         };
     });
+
+    // Sorting Logic
+    const sortSelect = container.querySelector('#teacher-ds-sort-select');
+    if (sortSelect) {
+        sortSelect.onchange = () => {
+            const mode = sortSelect.value;
+            const tbody = container.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('.ds-row'));
+            
+            rows.sort((a, b) => {
+                if (mode === 'time-desc') return new Date(b.dataset.created) - new Date(a.dataset.created);
+                if (mode === 'time-asc') return new Date(a.dataset.created) - new Date(b.dataset.created);
+                if (mode === 'name-asc') return a.dataset.name.localeCompare(b.dataset.name, 'ko');
+                if (mode === 'name-desc') return b.dataset.name.localeCompare(a.dataset.name, 'ko');
+                if (mode === 'size-desc') return parseFloat(b.dataset.size) - parseFloat(a.dataset.size);
+                return 0;
+            });
+            
+            // Re-append to DOM (maintains event listeners)
+            rows.forEach(row => tbody.appendChild(row));
+        };
+    }
 
     // Bulk Delete Logic
     const dsBulkAllChk = container.querySelector('#ds-bulk-all-chk');
