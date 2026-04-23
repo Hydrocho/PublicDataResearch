@@ -278,6 +278,64 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             </div>
         </div>
 
+        <!-- Bulk Name Edit Toggle -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <button id="toggle-bulk-name-edit-btn" class="btn-secondary" style="font-size:0.82rem;padding:7px 16px;display:flex;align-items:center;gap:7px;border-color:#a5b4fc;color:#4338ca;background:#eef2ff;">
+                <i data-lucide="pencil-line" size="15"></i> 이름 일괄 편집
+            </button>
+        </div>
+
+        <!-- Bulk Name Edit Panel -->
+        <div id="bulk-name-edit-panel" style="display:none;margin-bottom:20px;border:2px solid #a5b4fc;border-radius:12px;overflow:hidden;">
+            <div style="background:#eef2ff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-weight:700;color:#3730a3;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                    <i data-lucide="pencil-line" size="16"></i> 교사 데이터 이름 일괄 편집
+                    <span style="font-size:0.78rem;font-weight:500;color:#6366f1;">(교사가 등록한 자료만 편집 가능)</span>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button id="bulk-name-save-btn" class="btn-primary" style="font-size:0.82rem;padding:7px 18px;background:#4f46e5;border-color:#4f46e5;font-weight:700;display:flex;align-items:center;gap:6px;">
+                        <i data-lucide="save" size="14"></i> 전체 저장
+                    </button>
+                    <button id="bulk-name-close-btn" class="btn-secondary" style="font-size:0.82rem;padding:7px 14px;">닫기</button>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f3ff;text-align:left;border-bottom:2px solid #c7d2fe;">
+                            <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;width:40px;">#</th>
+                            <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;">데이터셋 이름</th>
+                            <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;">파일 표시명 (metadata.filename)</th>
+                            <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;width:70px;text-align:center;">상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulk-name-edit-tbody">
+                        ${datasets
+                            .filter(ds => teacherEmail && (ds.student_id === teacherEmail || ds.metadata?.teacher_email === teacherEmail))
+                            .map((ds, idx) => `
+                            <tr data-id="${ds.id}" style="border-bottom:1px solid #e0e7ff;">
+                                <td style="padding:10px 14px;font-size:0.82rem;color:#94a3b8;">${idx + 1}</td>
+                                <td style="padding:8px 14px;">
+                                    <input class="bulk-name-input" data-id="${ds.id}" data-field="data_name" data-original="${(ds.data_name || '').replace(/"/g, '&quot;')}"
+                                        value="${(ds.data_name || '').replace(/"/g, '&quot;')}"
+                                        style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem;font-family:inherit;min-width:180px;">
+                                </td>
+                                <td style="padding:8px 14px;">
+                                    <input class="bulk-filename-input" data-id="${ds.id}" data-field="filename" data-original="${((ds.metadata?.filename || ds.metadata?.name || '')).replace(/"/g, '&quot;')}"
+                                        value="${((ds.metadata?.filename || ds.metadata?.name || '')).replace(/"/g, '&quot;')}"
+                                        placeholder="(파일 표시명 없음)"
+                                        style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.88rem;font-family:inherit;min-width:180px;color:#475569;">
+                                </td>
+                                <td style="padding:10px 14px;text-align:center;" class="bulk-row-status-${ds.id}"></td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${datasets.filter(ds => teacherEmail && (ds.student_id === teacherEmail || ds.metadata?.teacher_email === teacherEmail)).length === 0
+                    ? '<div style="text-align:center;padding:30px;color:#94a3b8;">편집 가능한 교사 등록 데이터셋이 없습니다.</div>' : ''}
+            </div>
+            <div id="bulk-name-save-result" style="display:none;padding:12px 20px;font-size:0.85rem;font-weight:700;"></div>
+        </div>
+
         <div id="teacher-management-table-wrap">
             <table style="width:100%;border-collapse:collapse;margin-top:4px;">
                 <thead>
@@ -808,6 +866,132 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         };
     }
 
+    // Bulk Name Edit Panel logic
+    const toggleBulkNameEditBtn = container.querySelector('#toggle-bulk-name-edit-btn');
+    const bulkNameEditPanel = container.querySelector('#bulk-name-edit-panel');
+    const bulkNameSaveBtn = container.querySelector('#bulk-name-save-btn');
+    const bulkNameCloseBtn = container.querySelector('#bulk-name-close-btn');
+
+    if (toggleBulkNameEditBtn && bulkNameEditPanel) {
+        toggleBulkNameEditBtn.onclick = () => {
+            const isOpen = bulkNameEditPanel.style.display !== 'none';
+            bulkNameEditPanel.style.display = isOpen ? 'none' : 'block';
+            toggleBulkNameEditBtn.innerHTML = isOpen
+                ? '<i data-lucide="pencil-line" size="15"></i> 이름 일괄 편집'
+                : '<i data-lucide="x" size="15"></i> 편집 패널 닫기';
+            toggleBulkNameEditBtn.style.background = isOpen ? '#eef2ff' : '#f1f5f9';
+            if (window.lucide) lucide.createIcons();
+        };
+    }
+
+    if (bulkNameCloseBtn) {
+        bulkNameCloseBtn.onclick = () => {
+            if (bulkNameEditPanel) bulkNameEditPanel.style.display = 'none';
+            if (toggleBulkNameEditBtn) {
+                toggleBulkNameEditBtn.innerHTML = '<i data-lucide="pencil-line" size="15"></i> 이름 일괄 편집';
+                toggleBulkNameEditBtn.style.background = '#eef2ff';
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+    }
+
+    if (bulkNameSaveBtn) {
+        bulkNameSaveBtn.onclick = async () => {
+            const { updateDatasetDetails } = await import('./auth.js');
+
+            const nameInputs = container.querySelectorAll('.bulk-name-input');
+            const fileInputs = container.querySelectorAll('.bulk-filename-input');
+
+            // Collect changed rows: group by id
+            const changes = {};
+            nameInputs.forEach(inp => {
+                const id = inp.dataset.id;
+                const newVal = inp.value.trim();
+                if (newVal && newVal !== inp.dataset.original) {
+                    if (!changes[id]) changes[id] = { id };
+                    changes[id].data_name = newVal;
+                }
+            });
+            fileInputs.forEach(inp => {
+                const id = inp.dataset.id;
+                const newVal = inp.value.trim();
+                if (newVal !== inp.dataset.original) {
+                    if (!changes[id]) changes[id] = { id };
+                    changes[id].filename = newVal;
+                }
+            });
+
+            const toSave = Object.values(changes);
+            if (toSave.length === 0) {
+                const resultEl = container.querySelector('#bulk-name-save-result');
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.background = '#fef9c3';
+                    resultEl.style.color = '#92400e';
+                    resultEl.innerText = '변경된 내용이 없습니다.';
+                    setTimeout(() => { resultEl.style.display = 'none'; }, 2500);
+                }
+                return;
+            }
+
+            bulkNameSaveBtn.disabled = true;
+            bulkNameSaveBtn.innerHTML = '<i class="spinner-sm"></i> 저장 중...';
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const change of toSave) {
+                const statusCell = container.querySelector(`.bulk-row-status-${change.id}`);
+                try {
+                    const updates = {};
+                    if (change.data_name) updates.data_name = change.data_name;
+                    if ('filename' in change) {
+                        const ds = datasets.find(d => String(d.id) === change.id);
+                        updates.metadata = { ...(ds?.metadata || {}), filename: change.filename };
+                    }
+                    const { error } = await updateDatasetDetails(change.id, updates);
+                    if (error) throw error;
+
+                    // Update original values so re-saves don't flag them again
+                    const nInp = container.querySelector(`.bulk-name-input[data-id="${change.id}"]`);
+                    const fInp = container.querySelector(`.bulk-filename-input[data-id="${change.id}"]`);
+                    if (nInp && change.data_name) nInp.dataset.original = change.data_name;
+                    if (fInp && 'filename' in change) fInp.dataset.original = change.filename;
+
+                    if (statusCell) statusCell.innerHTML = '<i data-lucide="check-circle" size="16" style="color:#16a34a;"></i>';
+                    successCount++;
+                } catch (err) {
+                    if (statusCell) statusCell.innerHTML = '<i data-lucide="x-circle" size="16" style="color:#dc2626;" title="' + err.message + '"></i>';
+                    failCount++;
+                }
+            }
+
+            if (window.lucide) lucide.createIcons();
+
+            const resultEl = container.querySelector('#bulk-name-save-result');
+            if (resultEl) {
+                resultEl.style.display = 'block';
+                if (failCount === 0) {
+                    resultEl.style.background = '#dcfce7';
+                    resultEl.style.color = '#166534';
+                    resultEl.innerText = `✅ ${successCount}건 저장 완료!`;
+                } else {
+                    resultEl.style.background = '#fee2e2';
+                    resultEl.style.color = '#991b1b';
+                    resultEl.innerText = `⚠️ ${successCount}건 저장, ${failCount}건 실패`;
+                }
+                setTimeout(() => { resultEl.style.display = 'none'; }, 3500);
+            }
+
+            bulkNameSaveBtn.disabled = false;
+            bulkNameSaveBtn.innerHTML = '<i data-lucide="save" size="14"></i> 전체 저장';
+            if (window.lucide) lucide.createIcons();
+
+            // Refresh the main table labels without full reload
+            if (successCount > 0 && onTeacherUploadSuccess) onTeacherUploadSuccess();
+        };
+    }
+
     // Row click → modal
     container.querySelectorAll('.clickable-row').forEach(row => {
         row.onclick = (e) => {
@@ -818,6 +1002,15 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
             const ds = datasets.find(d => String(d.id) === String(dsId));
             if (ds) openDatasetModal(ds, true, onTeacherUploadSuccess);
         };
+    });
+
+    // Highlight changed rows in the bulk edit panel
+    container.querySelectorAll('.bulk-name-input, .bulk-filename-input').forEach(inp => {
+        inp.addEventListener('input', () => {
+            const changed = inp.value.trim() !== inp.dataset.original;
+            inp.style.borderColor = changed ? '#6366f1' : '#e2e8f0';
+            inp.style.background = changed ? '#f5f3ff' : '';
+        });
     });
 
     if (teacherEmail) setupTeacherUploadPanel(container, teacherEmail, onTeacherUploadSuccess);
