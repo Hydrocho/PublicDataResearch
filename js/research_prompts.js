@@ -1,4 +1,9 @@
-import { fetchDatasetPreview } from './ui.js';
+import { fetchDatasetPreview, fetchDatasetAll } from './ui.js';
+
+function isVariableInfoFile(name = '') {
+    const n = name.replace(/\s/g, '').toLowerCase();
+    return n.includes('변수정보') || n.includes('변수info');
+}
 
 /**
  * Generates a comprehensive prompt for AI based on research-selected datasets.
@@ -57,19 +62,41 @@ export async function generateProblemDefinitionPrompt(datasets, researcherOpinio
 `;
 
         try {
-            // Fetch sample — 10행으로 늘려 AI가 데이터 구조를 더 잘 파악하도록 개선
-            const preview = await fetchDatasetPreview(ds.file_url, ds.data_name);
-            if (preview && preview.data && preview.data.length > 0) {
-                const sampleRows = preview.data.slice(0, 10); // [수정] 3 → 10행
-                const headers = preview.fields || Object.keys(sampleRows[0]);
+            if (isVariableInfoFile(fileName)) {
+                // 변수정보 파일: 전체 행을 로드하여 "변수코드: 레이블" 형태의 코드북으로 변환
+                const full = await fetchDatasetAll(ds.file_url, ds.data_name);
+                if (full && full.data && full.data.length > 0) {
+                    // 컬럼명 탐색: 변수(코드), 레이블 컬럼을 유연하게 찾음
+                    const fields = full.fields || Object.keys(full.data[0]);
+                    const varCol   = fields.find(f => /^변수$|^variable$|^var$/i.test(f.trim())) || fields[0];
+                    const posCol   = fields.find(f => /위치|position|pos/i.test(f.trim()));
+                    const labelCol = fields.find(f => /레이블|label/i.test(f.trim())) || fields[2];
 
-                prompt += `컬럼 구성: ${headers.join(', ')}\n`;
-                prompt += `데이터 샘플(JSON): ${JSON.stringify(sampleRows, null, 2)}\n`;
-                const rowCount = ds.metadata?.row_count ?? ds.total_rows;
-                const rowCountStr = (rowCount && Number(rowCount) > 0) ? `${Number(rowCount).toLocaleString()}행` : '데이터 분석 중 (상세 샘플 참조)';
-                prompt += `전체 데이터 행 수: ${rowCountStr}\n`;
+                    prompt += `[변수 코드북 — 전체 ${full.data.length}개 변수]\n`;
+                    prompt += `(형식: 변수코드${posCol ? ' (위치)' : ''}: 레이블)\n`;
+                    full.data.forEach(row => {
+                        const code  = (row[varCol]   ?? '').toString().trim();
+                        const label = (row[labelCol] ?? '').toString().trim();
+                        const pos   = posCol ? (row[posCol] ?? '').toString().trim() : '';
+                        if (code) prompt += `${code}${pos ? ` (${pos})` : ''}: ${label}\n`;
+                    });
+                } else {
+                    prompt += `(변수정보 파일을 불러올 수 없습니다.)\n`;
+                }
             } else {
-                prompt += `(데이터 샘플을 불러올 수 없습니다.)\n`;
+                // 일반 데이터 파일: 10행 샘플
+                const preview = await fetchDatasetPreview(ds.file_url, ds.data_name);
+                if (preview && preview.data && preview.data.length > 0) {
+                    const sampleRows = preview.data.slice(0, 10);
+                    const headers = preview.fields || Object.keys(sampleRows[0]);
+                    prompt += `컬럼 구성: ${headers.join(', ')}\n`;
+                    prompt += `데이터 샘플(JSON): ${JSON.stringify(sampleRows, null, 2)}\n`;
+                    const rowCount = ds.metadata?.row_count ?? ds.total_rows;
+                    const rowCountStr = (rowCount && Number(rowCount) > 0) ? `${Number(rowCount).toLocaleString()}행` : '데이터 분석 중 (상세 샘플 참조)';
+                    prompt += `전체 데이터 행 수: ${rowCountStr}\n`;
+                } else {
+                    prompt += `(데이터 샘플을 불러올 수 없습니다.)\n`;
+                }
             }
         } catch (err) {
             prompt += `(데이터 미리보기 로딩 실패: ${err.message})\n`;

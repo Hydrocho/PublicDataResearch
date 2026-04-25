@@ -127,8 +127,14 @@ export async function onLoadDatasets(state, changeStep) {
     lucide.createIcons();
 
     // ── 내 데이터 리스트 렌더링 (UI 컴포넌트 사용) ─────────────────────────
+    // Sort: teacher-uploaded first (data_name asc), then student's own (original order)
+    const isTeacherUploaded = (ds) => !!(ds.metadata?.teacher_email);
+    const teacherItems = [...ownData].filter(isTeacherUploaded).sort((a, b) => (a.data_name || '').localeCompare(b.data_name || '', 'ko'));
+    const studentItems = ownData.filter(ds => !isTeacherUploaded(ds));
+    const sortedOwnData = [...teacherItems, ...studentItems];
+
     const { renderDatasetsList } = await import('./ui.js');
-    renderDatasetsList(ownData, 'own-datasets-list-root', 
+    renderDatasetsList(sortedOwnData, 'own-datasets-list-root',
         async (id) => { // onDelete
             if (!confirm('정말로 이 데이터셋을 삭제하시겠습니까?')) return;
             const { error } = await deleteStudentDataset(id, state.user.student_id);

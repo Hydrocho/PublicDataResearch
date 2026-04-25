@@ -158,6 +158,12 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         return;
     }
 
+    // Sort: teacher-uploaded datasets first (by data_name asc), then the rest in original order
+    const isTeacherDs = (ds) => teacherEmail && (ds.student_id === teacherEmail || ds.metadata?.teacher_email === teacherEmail);
+    const teacherOwned = [...datasets].filter(isTeacherDs).sort((a, b) => (a.data_name || '').localeCompare(b.data_name || '', 'ko'));
+    const others = datasets.filter(ds => !isTeacherDs(ds));
+    datasets = [...teacherOwned, ...others];
+
     const students = [];
     const seenIds = new Set();
     datasets.forEach(ds => {
@@ -304,7 +310,9 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                     <thead>
                         <tr style="background:#f5f3ff;text-align:left;border-bottom:2px solid #c7d2fe;">
                             <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;width:40px;">#</th>
-                            <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;">데이터셋 이름</th>
+                            <th id="bulk-name-sort-th" style="padding:10px 14px;font-size:0.8rem;color:#4338ca;cursor:pointer;user-select:none;white-space:nowrap;">
+                                데이터셋 이름 <i data-lucide="chevrons-up-down" size="13" style="vertical-align:middle;opacity:0.6;"></i>
+                            </th>
                             <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;">파일 표시명 (metadata.filename)</th>
                             <th style="padding:10px 14px;font-size:0.8rem;color:#4338ca;width:70px;text-align:center;">상태</th>
                         </tr>
@@ -1004,6 +1012,36 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
         };
     });
 
+    // Bulk edit panel: sort by name header click
+    const bulkNameSortTh = container.querySelector('#bulk-name-sort-th');
+    const bulkNameTbody = container.querySelector('#bulk-name-edit-tbody');
+    if (bulkNameSortTh && bulkNameTbody) {
+        let sortAsc = true;
+        bulkNameSortTh.onclick = () => {
+            const rows = Array.from(bulkNameTbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const aVal = a.querySelector('.bulk-name-input')?.value || '';
+                const bVal = b.querySelector('.bulk-name-input')?.value || '';
+                return sortAsc
+                    ? aVal.localeCompare(bVal, 'ko')
+                    : bVal.localeCompare(aVal, 'ko');
+            });
+            rows.forEach((row, i) => {
+                const numCell = row.querySelector('td:first-child');
+                if (numCell) numCell.textContent = i + 1;
+                bulkNameTbody.appendChild(row);
+            });
+            sortAsc = !sortAsc;
+            const icon = bulkNameSortTh.querySelector('i');
+            if (icon) {
+                icon.setAttribute('data-lucide', sortAsc ? 'chevrons-up-down' : 'chevron-down');
+                if (!sortAsc) icon.style.transform = 'scaleY(-1)';
+                else icon.style.transform = '';
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+    }
+
     // Highlight changed rows in the bulk edit panel
     container.querySelectorAll('.bulk-name-input, .bulk-filename-input').forEach(inp => {
         inp.addEventListener('input', () => {
@@ -1377,6 +1415,28 @@ export async function openDatasetModal(dataset, isTeacher = false, onUpdate = nu
 
     if (closeBtn) closeBtn.onclick = () => modal.style.display = 'none';
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
+
+export async function fetchDatasetAll(fileUrl, _fileName = '') {
+    let finalUrl = fileUrl;
+    if (!fileUrl.startsWith('http')) {
+        const { data } = supabaseClient.storage.from('datasets').getPublicUrl(fileUrl);
+        finalUrl = data.publicUrl;
+    }
+    const response = await fetch(finalUrl);
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(buffer); }
+    catch (e) { text = new TextDecoder('euc-kr').decode(buffer); }
+    return new Promise((resolve, reject) => {
+        Papa.parse(text, {
+            header: true,
+            skipEmptyLines: 'greedy',
+            complete: (r) => resolve({ data: r.data, fields: r.meta.fields }),
+            error: (err) => reject(new Error(err.message || '파싱 실패')),
+        });
+    });
 }
 
 export async function fetchDatasetPreview(fileUrl, fileName = '') {
