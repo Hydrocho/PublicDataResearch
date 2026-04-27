@@ -26,6 +26,7 @@ export function renderStepsNav(currentStep, state, onStepChange) {
         { id: 9, title: "1.5단계: 주제 탐색", icon: "compass" },
         { id: 1, title: "2단계: 데이터 저장", icon: "download" },
         { id: 2, title: "3단계: 데이터 관리", icon: "list" },
+        { id: 10, title: "3.5단계: 데이터 미리보기", icon: "table-2" },
         { id: 3, title: "4단계: 문제 정의", icon: "database" },
         { id: 4, title: "5단계: 전처리", icon: "map" },
         { id: 5, title: "6단계: AI 분석", icon: "brain" },

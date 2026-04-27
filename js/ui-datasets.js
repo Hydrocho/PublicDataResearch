@@ -1417,6 +1417,122 @@ export async function openDatasetModal(dataset, isTeacher = false, onUpdate = nu
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
+function isVarInfoFileName(name = '') {
+    const n = name.replace(/\s/g, '').toLowerCase();
+    return n.includes('변수정보') || n.includes('변수info');
+}
+
+export async function renderDatasetSampleViewer(datasets, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!datasets || datasets.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">연구 활용으로 선택된 데이터셋이 없습니다.<br>3단계에서 데이터셋의 <strong>연구 활용</strong> 체크박스를 선택해 주세요.</p></div>';
+        return;
+    }
+
+    // 1. 초기 뼈대부터 먼저 렌더링 (사용자 경험 개선)
+    container.innerHTML = datasets.map((ds, idx) => {
+        const fileName = (ds.metadata?.filename || ds.data_name || '').trim();
+        const isVarInfo = isVarInfoFileName(fileName);
+        return `
+        <div style="margin-bottom:20px;border:1px solid ${isVarInfo ? '#c7d2fe' : '#e2e8f0'};border-radius:12px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:${isVarInfo ? '#eef2ff' : '#f8fafc'};border-bottom:1px solid ${isVarInfo ? '#c7d2fe' : '#e2e8f0'};">
+                <div style="display:flex;align-items:center;gap:10px;font-weight:700;color:${isVarInfo ? '#3730a3' : 'var(--secondary)'};">
+                    <i data-lucide="${isVarInfo ? 'list' : 'file-spreadsheet'}" size="16"></i>
+                    ${fileName}
+                    ${isVarInfo ? '<span style="font-size:0.72rem;font-weight:500;background:#c7d2fe;color:#3730a3;padding:2px 8px;border-radius:20px;">변수정보</span>' : ''}
+                </div>
+                <button class="copy-sample-btn btn-secondary" data-idx="${idx}" style="font-size:0.78rem;padding:5px 14px;display:none;align-items:center;gap:5px;">
+                    <i data-lucide="copy" size="13"></i> 복사
+                </button>
+            </div>
+            <pre id="ds-sample-text-${idx}" style="margin:0;padding:16px 20px;font-size:0.8rem;line-height:1.6;background:${isVarInfo ? '#f5f3ff' : 'white'};color:#64748b;white-space:pre-wrap;word-break:break-all;max-height:380px;overflow-y:auto;font-family:'Consolas','D2Coding',monospace;">데이터를 불러오는 중입니다...</pre>
+        </div>`;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+    // 2. 하나씩 데이터를 순차적으로 로드해와서 채우기 (동시 접속 수 제한 및 오류 방지)
+    for (let idx = 0; idx < datasets.length; idx++) {
+        const ds = datasets[idx];
+        const fileName = (ds.metadata?.filename || ds.data_name || '').trim();
+        const isVarInfo = isVarInfoFileName(fileName);
+        const preEl = document.getElementById(`ds-sample-text-${idx}`);
+        const copyBtn = container.querySelector(`.copy-sample-btn[data-idx="${idx}"]`);
+        
+        let text = '';
+        try {
+            if (isVarInfo) {
+                const full = await fetchDatasetAll(ds.file_url);
+                if (full && full.data && full.data.length > 0) {
+                    const fields = full.fields || Object.keys(full.data[0]);
+                    const varCol   = fields.find(f => /^변수$|^variable$|^var$/i.test(f.trim())) || fields[0];
+                    const posCol   = fields.find(f => /위치|position|pos/i.test(f.trim()));
+                    const labelCol = fields.find(f => /레이블|label/i.test(f.trim())) || fields[2];
+                    text += `[변수 코드북 — 전체 ${full.data.length}개 변수]\n`;
+                    text += `(형식: 변수코드${posCol ? ' (위치)' : ''}: 레이블)\n\n`;
+                    full.data.forEach(row => {
+                        const code  = (row[varCol]   ?? '').toString().trim();
+                        const label = (row[labelCol] ?? '').toString().trim();
+                        const pos   = posCol ? (row[posCol] ?? '').toString().trim() : '';
+                        if (code) text += `${code}${pos ? ` (${pos})` : ''}: ${label}\n`;
+                    });
+                } else {
+                    text = '(변수정보를 불러올 수 없습니다.)';
+                }
+            } else {
+                const preview = await fetchDatasetPreview(ds.file_url, ds.data_name);
+                if (preview && preview.data && preview.data.length > 0) {
+                    const sampleRows = preview.data.slice(0, 10);
+                    const headers = preview.fields || Object.keys(sampleRows[0]);
+                    const rowCount = ds.metadata?.row_count;
+                    text += `[파일명: ${fileName}]\n`;
+                    if (rowCount) text += `전체 행 수: ${Number(rowCount).toLocaleString()}행\n`;
+                    text += `\n[컬럼 구성 (${headers.length}개)]\n${headers.join(', ')}\n`;
+                    text += `\n[데이터 샘플 — 상위 ${sampleRows.length}행]\n`;
+                    sampleRows.forEach((row, i) => {
+                        text += `--- 행 ${i + 1} ---\n`;
+                        headers.forEach(h => { text += `  ${h}: ${row[h] ?? ''}\n`; });
+                    });
+                } else {
+                    text = '(데이터를 불러올 수 없습니다.)';
+                }
+            }
+        } catch (err) {
+            console.error(`Error loading sample for ${fileName}:`, err);
+            text = `(로딩 실패: ${err.message})`;
+            if (preEl) preEl.style.color = '#ef4444';
+        }
+
+        if (preEl) {
+            preEl.innerText = text;
+            preEl.style.color = '#1e293b'; // 로딩 완료 후 색상 변경
+        }
+        if (copyBtn && text && !text.startsWith('(로딩 실패')) {
+            copyBtn.style.display = 'flex';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(text).then(() => {
+                    const origHtml = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i data-lucide="check" size="13"></i> 복사됨!';
+                    copyBtn.style.background = '#dcfce7';
+                    copyBtn.style.borderColor = '#86efac';
+                    if (window.lucide) lucide.createIcons();
+                    setTimeout(() => {
+                        copyBtn.innerHTML = origHtml;
+                        copyBtn.style.background = '';
+                        copyBtn.style.borderColor = '';
+                        if (window.lucide) lucide.createIcons();
+                    }, 2500);
+                });
+            };
+        }
+        
+        // 브라우저 렌더링 여유를 주기 위해 아주 짧은 지연
+        await new Promise(r => setTimeout(r, 50));
+    }
+}
+
 export async function fetchDatasetAll(fileUrl, _fileName = '') {
     let finalUrl = fileUrl;
     if (!fileUrl.startsWith('http')) {

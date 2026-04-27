@@ -242,6 +242,41 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     setTimeout(() => state.onLoadDatasets(), 100);
                 }
                 break;
+            case 10: // 3.5단계: 데이터 미리보기
+                content = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <h2>📋 3.5단계: 데이터 내용 미리보기</h2>
+                        <span class="text-muted" style="font-size:0.9rem;">연구 활용으로 선택된 데이터의 실제 내용을 확인하고 복사합니다.</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
+                            <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">3.5단계 역할</div>
+                            <div style="font-size:0.88rem;color:#166534;line-height:1.55;">4단계 AI 프롬프트에 실제로 들어가는 데이터 내용을 미리 확인합니다. 데이터가 올바른지 검토한 뒤 4단계로 넘어가세요.</div>
+                        </div>
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
+                            <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">변수정보 파일</div>
+                            <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">파일명에 <strong>변수정보</strong>가 포함된 파일은 모든 변수 코드와 레이블을 전체 목록으로 표시합니다.</div>
+                        </div>
+                        <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
+                            <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">복사 방법</div>
+                            <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">각 데이터셋 오른쪽 상단의 <strong>복사</strong> 버튼으로 해당 내용을 클립보드에 복사할 수 있습니다.</div>
+                        </div>
+                    </div>
+                    <div id="step-3half-root" style="min-height:300px;"></div>
+                `;
+                setTimeout(async () => {
+                    const { fetchAllResearchDatasets } = await import('./auth.js');
+                    const { renderDatasetSampleViewer } = await import('./ui-datasets.js');
+                    const { data, error } = await fetchAllResearchDatasets(state.user.student_id);
+                    if (error) {
+                        const el = document.getElementById('step-3half-root');
+                        if (el) el.innerHTML = `<p class="text-muted">데이터 로딩 실패: ${error.message}</p>`;
+                        return;
+                    }
+                    await renderDatasetSampleViewer(data || [], 'step-3half-root');
+                }, 50);
+                break;
+
             case 3: // 4단계: 문제 정의 (Step 1)
                 content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
                 setTimeout(async () => {

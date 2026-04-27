@@ -236,6 +236,7 @@ async function showTeacherDashboard(email) {
     const tabTeacherStep1 = document.getElementById('tab-teacher-step1');
     const tabTeacherStep2 = document.getElementById('tab-teacher-step2');
     const tabTeacherStep3 = document.getElementById('tab-teacher-step3');
+    const tabStep3Half = document.getElementById('tab-step-3half');
     const tabStep1 = document.getElementById('tab-step1');
     const tabStep2 = document.getElementById('tab-step2');
     const tabCompetitions = document.getElementById('tab-competitions');
@@ -251,11 +252,12 @@ async function showTeacherDashboard(email) {
     const viewStep2 = document.getElementById('teacher-step2-view');
     const viewCompetitions = document.getElementById('teacher-competitions-view');
     const viewManagement = document.getElementById('teacher-management-view');
+    const viewStep3Half = document.getElementById('teacher-step-3half-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t?.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => { if(v) v.style.display = 'none'; });
+        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep3Half, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep3Half, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => { if(v) v.style.display = 'none'; });
         activeTab.classList.add('active');
         activeView.style.display = 'block';
     };
@@ -770,6 +772,26 @@ async function showTeacherDashboard(email) {
         switchTab(tabTeacherStep3, viewManagement);
         await loadManagementTab();
     };
+
+    // ── 3.5단계: 데이터 내용 미리보기 ──────────────────────────────────
+    const loadStep3Half = async () => {
+        const content = viewStep3Half?.querySelector('#teacher-step-3half-content');
+        if (content) content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        const { renderDatasetSampleViewer } = await import('./ui-datasets.js');
+        const { fetchTeacherTestDatasets } = await import('./auth.js');
+        const { data } = await fetchTeacherTestDatasets();
+        await renderDatasetSampleViewer(data || [], 'teacher-step-3half-content');
+    };
+
+    if (tabStep3Half) {
+        tabStep3Half.onclick = async () => {
+            switchTab(tabStep3Half, viewStep3Half);
+            await loadStep3Half();
+        };
+    }
+
+    const refreshStep3HalfBtn = document.getElementById('refresh-step-3half-btn');
+    if (refreshStep3HalfBtn) refreshStep3HalfBtn.onclick = loadStep3Half;
 
     const showStep1Monitor = () => {
         document.getElementById('step1-monitor-section').style.display = 'block';

@@ -206,6 +206,10 @@
                         <i data-lucide="database"></i>
                         <span>3단계: 전체 데이터 관리</span>
                     </div>
+                    <div id="tab-step-3half" class="nav-item">
+                        <i data-lucide="table-2"></i>
+                        <span>3.5단계: 데이터 미리보기</span>
+                    </div>
                     <div id="tab-step1" class="nav-item">
                         <i data-lucide="lightbulb"></i>
                         <span>4단계: 문제 정의</span>
@@ -361,6 +365,23 @@
                             <strong>교사 테스트 활용</strong>을 체크하면 4/5단계 테스트 모드에서 해당 데이터를 직접 사용할 수 있습니다.
                         </p>
                         <div id="teacher-dataset-list"></div>
+                    </div>
+                </div>
+
+                <!-- Teacher View: Step 3.5 Data Preview -->
+                <div id="teacher-step-3half-view" class="view-section" style="display: none;">
+                    <div class="glass card" style="padding: 30px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                            <h3 style="display:flex;align-items:center;gap:10px;margin:0;">
+                                <i data-lucide="table-2" style="color:#6366f1;"></i>
+                                3.5단계: 데이터 내용 미리보기
+                            </h3>
+                            <button id="refresh-step-3half-btn" class="btn-secondary" style="padding:6px 15px;font-size:0.85rem;">
+                                <i data-lucide="refresh-cw" size="14" style="vertical-align:middle;margin-right:4px;"></i>새로고침
+                            </button>
+                        </div>
+                        <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;"><strong>교사 테스트 활용</strong> 체크된 데이터셋의 내용을 미리 확인하고 복사할 수 있습니다.</p>
+                        <div id="teacher-step-3half-content" style="min-height:300px;"></div>
                     </div>
                 </div>
 
