@@ -245,6 +245,17 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                     </select>
                 </div>
             </div>
+
+            <!-- New: Filter for Teacher Test Checked items -->
+            <div style="margin-top:15px; padding-top:12px; border-top:1px solid #f1f5f9;">
+                <label style="display:inline-flex; align-items:center; gap:10px; cursor:pointer; padding:6px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; transition:all 0.2s; user-select:none;">
+                    <input type="checkbox" id="filter-teacher-test-only-chk" style="width:16px; height:16px; accent-color:#f59e0b; cursor:pointer;">
+                    <span style="font-size:0.88rem; font-weight:700; color:#92400e;">
+                        <i data-lucide="flask-conical" size="14" style="vertical-align:middle; margin-right:4px;"></i>
+                        교사 테스트 활용 체크된 자료만 보기
+                    </span>
+                </label>
+            </div>
         </div>
 
         <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.85rem;color:#92400e;display:flex;align-items:center;gap:8px;">
@@ -456,6 +467,10 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
 
         const showTeacher = selectedIds.includes('__teacher__');
 
+        // Teacher test only filter
+        const teacherTestOnlyChk = container.querySelector('#filter-teacher-test-only-chk');
+        const showTeacherTestOnly = teacherTestOnlyChk?.checked || false;
+
         // Keywords search
         const searchInput = container.querySelector('#dataset-search-input');
         const searchLogic = container.querySelector('input[name="search-logic"]:checked')?.value || 'and';
@@ -508,6 +523,12 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                 shouldShow = true;
             }
 
+            // Teacher Test Only filter
+            if (shouldShow && showTeacherTestOnly) {
+                const isChecked = teacherIds.includes(String(dsId));
+                if (!isChecked) shouldShow = false;
+            }
+
             // Keyword filtering
             if (shouldShow && keywords.length > 0) {
                 const dataName = (ds?.data_name || "").toLowerCase();
@@ -552,6 +573,15 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     };
 
     filterChecks.forEach(chk => chk.addEventListener('change', () => { updateFilter(); syncBulkUI(); syncAllChkDeferred(); }));
+
+    const teacherTestOnlyFilter = container.querySelector('#filter-teacher-test-only-chk');
+    if (teacherTestOnlyFilter) {
+        teacherTestOnlyFilter.onchange = () => {
+            updateFilter();
+            syncBulkUI();
+            syncAllChkDeferred();
+        };
+    }
 
     const filterAllBtn = container.querySelector('#filter-all-btn');
     if (filterAllBtn) filterAllBtn.onclick = () => { filterChecks.forEach(chk => chk.checked = true); updateFilter(); syncBulkUI(); syncAllChkDeferred(); };
