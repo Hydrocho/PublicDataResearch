@@ -1,5 +1,19 @@
 import { supabaseClient } from './config.js';
 
+// ── 부제목 localStorage 헬퍼 ─────────────────────────────────
+const SUBTITLE_KEY = 'step5_subtitles';
+function getSubtitles() {
+    try { return JSON.parse(localStorage.getItem(SUBTITLE_KEY) || '{}'); } catch { return {}; }
+}
+function getSubtitle(logId) { return getSubtitles()[String(logId)] || ''; }
+function setSubtitle(logId, text) {
+    const map = getSubtitles();
+    if (text.trim()) map[String(logId)] = text.trim();
+    else delete map[String(logId)];
+    localStorage.setItem(SUBTITLE_KEY, JSON.stringify(map));
+}
+// ─────────────────────────────────────────────────────────────
+
 export async function renderPreprocessingView(containerId, {
     getOwnLogsFn,
     getTeamLogsFn = null,
@@ -236,11 +250,18 @@ export async function renderPreprocessingView(containerId, {
                         <div class="glass card research-log-card ${isSelected ? 'active' : ''}"
                              data-id="${log.id}"
                              style="padding:20px;cursor:pointer;border-left:4px solid ${isSelected ? 'var(--primary)' : 'var(--glass-border)'};transition:all 0.2s;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
                                 <span style="font-size:0.8rem;color:var(--primary);font-weight:500;">
                                     <i data-lucide="clock" size="12" style="vertical-align:middle;"></i> ${dateStr}
                                 </span>
                                 ${isSelected ? '<span class="tag" style="background:var(--primary);color:white;scale:0.8;">선택됨</span>' : ''}
+                            </div>
+                            <div class="subtitle-display-row" data-id="${log.id}" style="margin-bottom:10px;min-height:22px;">
+                                ${logData.subtitle || getSubtitle(log.id)
+                                    ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;color:#5b21b6;font-size:0.78rem;font-weight:600;border-radius:5px;padding:2px 9px;">
+                                            <i data-lucide="tag" size="11"></i>${logData.subtitle || getSubtitle(log.id)}
+                                       </span>`
+                                    : `<span style="font-size:0.75rem;color:#cbd5e1;font-style:italic;">부제목 없음</span>`}
                             </div>
                             <div style="margin-bottom:12px;">
                                 <strong style="display:block;font-size:0.9rem;color:var(--secondary);margin-bottom:5px;">분석 관점:</strong>
@@ -250,8 +271,19 @@ export async function renderPreprocessingView(containerId, {
                                 <strong style="display:block;font-size:0.9rem;color:var(--secondary);margin-bottom:5px;">AI 제안 요약:</strong>
                                 <p style="font-size:0.9rem;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;margin:0;">${logData.answer}</p>
                             </div>
-                            <div style="text-align:right;margin-top:15px;">
-                                ${onDelete ? `<button class="btn-secondary delete-research-btn" data-id="${log.id}" style="font-size:0.8rem;padding:6px 15px;background:#fee2e2;color:#dc2626;border-color:#fecaca;margin-right:8px;">삭제</button>` : ''}
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+                                <div style="display:flex;gap:6px;">
+                                    <button class="btn-secondary edit-subtitle-btn" data-id="${log.id}"
+                                        style="font-size:0.78rem;padding:5px 12px;display:flex;align-items:center;gap:5px;"
+                                        title="부제목 편집">
+                                        <i data-lucide="pencil" size="12"></i> 부제목
+                                    </button>
+                                    ${onDelete ? `<button class="btn-secondary delete-research-btn" data-id="${log.id}"
+                                        style="font-size:0.78rem;padding:5px 12px;background:#fee2e2;color:#dc2626;border-color:#fecaca;display:flex;align-items:center;gap:5px;"
+                                        title="이 연구 기록 삭제">
+                                        <i data-lucide="trash-2" size="12"></i> 삭제
+                                    </button>` : ''}
+                                </div>
                                 <button class="btn-primary select-research-btn" data-id="${log.id}" style="font-size:0.8rem;padding:6px 15px;">${isSelected ? '현재 선택됨' : '선택하기'}</button>
                             </div>
                         </div>`;
@@ -325,6 +357,65 @@ export async function renderPreprocessingView(containerId, {
     canvasInner.querySelectorAll('.research-log-card').forEach(card => {
         card.onclick = () => setSelectedIdAndRerender(card.dataset.id);
     });
+
+    // ── 부제목 편집 핸들러 ──────────────────────────────────────
+    canvasInner.querySelectorAll('.edit-subtitle-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const logId = btn.dataset.id;
+            const displayRow = canvasInner.querySelector(`.subtitle-display-row[data-id="${logId}"]`);
+            if (!displayRow) return;
+
+            // 이미 편집 중이면 취소
+            if (displayRow.querySelector('.subtitle-input')) return;
+
+            const current = getSubtitle(logId);
+            displayRow.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">
+                    <input class="subtitle-input" type="text" value="${current}"
+                        maxlength="40"
+                        placeholder="부제목 입력 (최대 40자)"
+                        style="flex:1;border:1px solid var(--primary);border-radius:6px;padding:4px 10px;font-size:0.82rem;font-family:inherit;outline:none;min-width:0;">
+                    <button class="subtitle-save-btn btn-primary" data-id="${logId}"
+                        style="font-size:0.75rem;padding:4px 10px;white-space:nowrap;">저장</button>
+                    <button class="subtitle-cancel-btn btn-secondary"
+                        style="font-size:0.75rem;padding:4px 8px;">✕</button>
+                </div>`;
+
+            const input = displayRow.querySelector('.subtitle-input');
+            input.focus();
+            input.select();
+
+            const saveSubtitle = () => {
+                const text = input.value;
+                setSubtitle(logId, text);
+                const saved = getSubtitle(logId);
+                displayRow.innerHTML = saved
+                    ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;color:#5b21b6;font-size:0.78rem;font-weight:600;border-radius:5px;padding:2px 9px;">
+                            <i data-lucide="tag" size="11"></i>${saved}
+                       </span>`
+                    : `<span style="font-size:0.75rem;color:#cbd5e1;font-style:italic;">부제목 없음</span>`;
+                if (window.lucide) lucide.createIcons();
+            };
+
+            displayRow.querySelector('.subtitle-save-btn').onclick = (e) => { e.stopPropagation(); saveSubtitle(); };
+            displayRow.querySelector('.subtitle-cancel-btn').onclick = (e) => {
+                e.stopPropagation();
+                const old = getSubtitle(logId);
+                displayRow.innerHTML = old
+                    ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;color:#5b21b6;font-size:0.78rem;font-weight:600;border-radius:5px;padding:2px 9px;">
+                            <i data-lucide="tag" size="11"></i>${old}
+                       </span>`
+                    : `<span style="font-size:0.75rem;color:#cbd5e1;font-style:italic;">부제목 없음</span>`;
+                if (window.lucide) lucide.createIcons();
+            };
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); saveSubtitle(); }
+                if (e.key === 'Escape') displayRow.querySelector('.subtitle-cancel-btn').click();
+            };
+        };
+    });
+    // ──────────────────────────────────────────────────────────
 }
 
 export function renderTeacherPreprocessing(logs, containerId) {
