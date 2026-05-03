@@ -306,7 +306,7 @@ export async function renderPreprocessingView(containerId, {
                         <div class="glass card research-log-card ${isSelected ? 'active' : ''}"
                              data-id="${log.id}"
                              style="padding:20px;cursor:pointer;border-left:4px solid ${isSelected ? '#0284c7' : '#bae6fd'};background:#f0f9ff;transition:all 0.2s;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <span style="font-size:0.8rem;color:#0369a1;font-weight:500;">
                                         <i data-lucide="clock" size="12" style="vertical-align:middle;"></i> ${dateStr}
@@ -314,6 +314,13 @@ export async function renderPreprocessingView(containerId, {
                                     <span style="font-size:0.75rem;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 8px;font-weight:600;">${log._memberName}</span>
                                 </div>
                                 ${isSelected ? '<span class="tag" style="background:#0284c7;color:white;scale:0.8;">선택됨</span>' : ''}
+                            </div>
+                            <div class="subtitle-display-row" data-id="${log.id}" style="margin-bottom:10px;min-height:22px;">
+                                ${logData.subtitle || getSubtitle(log.id)
+                                    ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#e0f2fe;color:#0369a1;font-size:0.78rem;font-weight:600;border-radius:5px;padding:2px 9px;">
+                                            <i data-lucide="tag" size="11"></i>${logData.subtitle || getSubtitle(log.id)}
+                                       </span>`
+                                    : `<span style="font-size:0.75rem;color:#cbd5e1;font-style:italic;opacity:0.5;">부제목 없음</span>`}
                             </div>
                             <div style="margin-bottom:12px;">
                                 <strong style="display:block;font-size:0.9rem;color:var(--secondary);margin-bottom:5px;">분석 관점:</strong>
@@ -323,7 +330,8 @@ export async function renderPreprocessingView(containerId, {
                                 <strong style="display:block;font-size:0.9rem;color:var(--secondary);margin-bottom:5px;">AI 제안 요약:</strong>
                                 <p style="font-size:0.9rem;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;margin:0;">${logData.answer}</p>
                             </div>
-                            <div style="text-align:right;margin-top:15px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+                                <div></div>
                                 <button class="btn-primary select-research-btn" data-id="${log.id}" style="font-size:0.8rem;padding:6px 15px;background:#0284c7;border-color:#0284c7;">${isSelected ? '현재 선택됨' : '선택하기'}</button>
                             </div>
                         </div>`;

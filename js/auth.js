@@ -1272,6 +1272,20 @@ export async function fetchTeacherTestActivityLogs() {
     return { data: logs, error: null };
 }
 
+/** 교사 4단계 테스트 로그 삭제 */
+export async function deleteTeacherTestActivityLog(logId) {
+    const email = await getTeacherEmail();
+    if (!email) return { error: '로그인이 필요합니다.' };
+
+    const { error } = await supabaseClient
+        .from('teacher_test_logs')
+        .delete()
+        .eq('teacher_email', email)
+        .eq('id', logId);
+
+    return { error };
+}
+
 /** 5단계 선택 상태 — UI 세션 내 상태이므로 localStorage 유지 */
 export function getTeacherSelectedResearchId() {
     return localStorage.getItem('teacher_selected_research_id') || null;

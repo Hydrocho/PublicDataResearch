@@ -938,6 +938,7 @@ async function showTeacherDashboard(email) {
             fetchTeacherTestDatasets,
             getTeacherSelectedResearchId,
             setTeacherSelectedResearchId,
+            deleteTeacherTestActivityLog,
         } = await import('./auth.js');
         await UI.renderPreprocessingView('teacher-step2-test-container', {
             getOwnLogsFn: () => fetchTeacherTestActivityLogs(),
@@ -948,7 +949,11 @@ async function showTeacherDashboard(email) {
                 setTeacherSelectedResearchId(id);
                 loadStep2Test();
             },
-            onDelete: null,
+            onDelete: async (id) => {
+                const { error } = await deleteTeacherTestActivityLog(id);
+                if (error) alert('삭제 중 오류가 발생했습니다: ' + error.message);
+                else await loadStep2Test();
+            },
             onGoToStep4: () => {
                 tabStep1.click();
                 setTimeout(() => document.getElementById('step1-tab-test-btn')?.click(), 100);
