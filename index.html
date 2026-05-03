@@ -376,11 +376,19 @@
                                 <i data-lucide="table-2" style="color:#6366f1;"></i>
                                 3.5단계: 데이터 내용 미리보기
                             </h3>
-                            <button id="refresh-step-3half-btn" class="btn-secondary" style="padding:6px 15px;font-size:0.85rem;">
-                                <i data-lucide="refresh-cw" size="14" style="vertical-align:middle;margin-right:4px;"></i>새로고침
-                            </button>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <button id="bulk-analysis-on-btn" class="btn-primary" style="padding:6px 15px;font-size:0.85rem;background:#059669;border-color:#059669;display:flex;align-items:center;gap:5px;">
+                                    <i data-lucide="check-square" size="14"></i>전체 분석용 설정
+                                </button>
+                                <button id="bulk-analysis-off-btn" class="btn-secondary" style="padding:6px 15px;font-size:0.85rem;display:flex;align-items:center;gap:5px;">
+                                    <i data-lucide="square" size="14"></i>전체 분석용 해제
+                                </button>
+                                <button id="refresh-step-3half-btn" class="btn-secondary" style="padding:6px 15px;font-size:0.85rem;">
+                                    <i data-lucide="refresh-cw" size="14" style="vertical-align:middle;margin-right:4px;"></i>새로고침
+                                </button>
+                            </div>
                         </div>
-                        <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;"><strong>교사 테스트 활용</strong> 체크된 데이터셋의 내용을 미리 확인하고 복사할 수 있습니다.</p>
+                        <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;"><strong>교사 테스트 활용</strong> 체크된 데이터셋의 내용을 미리 확인하고 복사할 수 있습니다. 전체 분석용 설정/해제 버튼으로 3단계의 모든 데이터셋 <strong>연구 활용</strong> 상태를 한 번에 변경할 수 있습니다.</p>
                         <div id="teacher-step-3half-content" style="min-height:300px;"></div>
                     </div>
                 </div>

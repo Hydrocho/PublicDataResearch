@@ -1135,6 +1135,15 @@ export async function setTeacherResearchIdBulk(ids, checked) {
 }
 
 
+/** 모든 데이터셋의 is_research_use를 일괄 설정 (교사 전용) */
+export async function bulkSetResearchUseForTeacher(isUse) {
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .update({ is_research_use: isUse })
+        .not('id', 'is', null);
+    return { data, error };
+}
+
 /** 선택된 테스트 데이터셋 목록 조회 (학생 이름 포함) */
 export async function fetchTeacherTestDatasets() {
     const storedIds = await getTeacherResearchIds();

@@ -776,11 +776,59 @@ async function showTeacherDashboard(email) {
     // ── 3.5단계: 데이터 내용 미리보기 ──────────────────────────────────
     const loadStep3Half = async () => {
         const content = viewStep3Half?.querySelector('#teacher-step-3half-content');
-        if (content) content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+        if (!content) return;
+        content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
+
         const { renderDatasetSampleViewer } = await import('./ui-datasets.js');
-        const { fetchTeacherTestDatasets } = await import('./auth.js');
-        const { data } = await fetchTeacherTestDatasets();
-        await renderDatasetSampleViewer(data || [], 'teacher-step-3half-content');
+        const { fetchAllDatasetsForTeacher, getTeacherResearchIds, setTeacherResearchId, fetchTeacherTestDatasets } = await import('./auth.js');
+
+        const [{ data: allDs }, storedIds, { data: previewDs }] = await Promise.all([
+            fetchAllDatasetsForTeacher(),
+            getTeacherResearchIds(),
+            fetchTeacherTestDatasets(),
+        ]);
+
+        const all = allDs || [];
+
+        content.innerHTML = `
+            <div style="margin-bottom:18px;padding:14px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                <div style="font-size:0.85rem;font-weight:700;color:#475569;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                    <i data-lucide="layers" size="15"></i> 미리보기 포함 데이터 선택
+                    <span style="font-size:0.75rem;font-weight:400;color:#94a3b8;">클릭으로 추가/제거</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:7px;" id="step3half-chip-list">
+                    ${all.length === 0
+                        ? '<span style="color:#94a3b8;font-size:0.85rem;">등록된 데이터셋이 없습니다.</span>'
+                        : all.map(ds => {
+                            const sel = storedIds.includes(String(ds.id));
+                            return `<button class="ds-preview-chip" data-id="${ds.id}"
+                                style="padding:5px 13px;border-radius:20px;font-size:0.82rem;font-weight:600;cursor:pointer;
+                                       border:1.5px solid ${sel ? '#6366f1' : '#e2e8f0'};
+                                       background:${sel ? '#eef2ff' : 'white'};
+                                       color:${sel ? '#4338ca' : '#94a3b8'};
+                                       display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;">
+                                <i data-lucide="${sel ? 'check' : 'plus'}" size="12"></i>${ds.data_name}
+                            </button>`;
+                        }).join('')
+                    }
+                </div>
+            </div>
+            <div id="step3half-preview-area" style="min-height:200px;"></div>
+        `;
+
+        if (window.lucide) lucide.createIcons();
+
+        await renderDatasetSampleViewer(previewDs || [], 'step3half-preview-area');
+
+        content.querySelectorAll('.ds-preview-chip').forEach(btn => {
+            btn.onclick = async () => {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                const nowSel = storedIds.includes(String(btn.dataset.id));
+                await setTeacherResearchId(btn.dataset.id, !nowSel);
+                await loadStep3Half();
+            };
+        });
     };
 
     if (tabStep3Half) {
@@ -792,6 +840,27 @@ async function showTeacherDashboard(email) {
 
     const refreshStep3HalfBtn = document.getElementById('refresh-step-3half-btn');
     if (refreshStep3HalfBtn) refreshStep3HalfBtn.onclick = loadStep3Half;
+
+    const bulkAnalysisOnBtn = document.getElementById('bulk-analysis-on-btn');
+    const bulkAnalysisOffBtn = document.getElementById('bulk-analysis-off-btn');
+
+    const handleBulkAnalysis = async (isUse) => {
+        const label = isUse ? '전체 분석용 설정' : '전체 분석용 해제';
+        if (!confirm(`3단계의 모든 데이터셋을 "${label}"하시겠습니까?`)) return;
+        const btn = isUse ? bulkAnalysisOnBtn : bulkAnalysisOffBtn;
+        if (btn) btn.disabled = true;
+        const { bulkSetResearchUseForTeacher } = await import('./auth.js');
+        const { error } = await bulkSetResearchUseForTeacher(isUse);
+        if (btn) btn.disabled = false;
+        if (error) {
+            alert('오류 발생: ' + error.message);
+        } else {
+            alert(`완료: 모든 데이터셋이 ${isUse ? '분석용으로 설정' : '분석용 해제'}되었습니다.`);
+        }
+    };
+
+    if (bulkAnalysisOnBtn) bulkAnalysisOnBtn.onclick = () => handleBulkAnalysis(true);
+    if (bulkAnalysisOffBtn) bulkAnalysisOffBtn.onclick = () => handleBulkAnalysis(false);
 
     const showStep1Monitor = () => {
         document.getElementById('step1-monitor-section').style.display = 'block';
