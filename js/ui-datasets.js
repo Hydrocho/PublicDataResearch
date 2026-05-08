@@ -1449,7 +1449,7 @@ export async function openDatasetModal(dataset, isTeacher = false, onUpdate = nu
 
 function isVarInfoFileName(name = '') {
     const n = name.replace(/\s/g, '').toLowerCase();
-    return n.includes('변수정보') || n.includes('변수info');
+    return n.includes('변수정보') || n.includes('변수info') || n.includes('변수값') || n.includes('코드북') || n.includes('데이터정의');
 }
 
 export async function renderDatasetSampleViewer(datasets, containerId) {
@@ -1471,7 +1471,7 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
                 <div style="display:flex;align-items:center;gap:10px;font-weight:700;color:${isVarInfo ? '#3730a3' : 'var(--secondary)'};">
                     <i data-lucide="${isVarInfo ? 'list' : 'file-spreadsheet'}" size="16"></i>
                     ${fileName}
-                    ${isVarInfo ? '<span style="font-size:0.72rem;font-weight:500;background:#c7d2fe;color:#3730a3;padding:2px 8px;border-radius:20px;">변수정보</span>' : ''}
+                    ${isVarInfo ? '<span style="font-size:0.72rem;font-weight:500;background:#c7d2fe;color:#3730a3;padding:2px 8px;border-radius:20px;">정보/정의서</span>' : ''}
                 </div>
                 <button class="copy-sample-btn btn-secondary" data-idx="${idx}" style="font-size:0.78rem;padding:5px 14px;display:none;align-items:center;gap:5px;">
                     <i data-lucide="copy" size="13"></i> 복사
@@ -1500,13 +1500,14 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
                     const varCol   = fields.find(f => /^변수$|^variable$|^var$/i.test(f.trim())) || fields[0];
                     const posCol   = fields.find(f => /위치|position|pos/i.test(f.trim()));
                     const labelCol = fields.find(f => /레이블|label/i.test(f.trim())) || fields[2];
-                    text += `[변수 코드북 — 전체 ${full.data.length}개 변수]\n`;
-                    text += `(형식: 변수코드${posCol ? ' (위치)' : ''}: 레이블)\n\n`;
-                    full.data.forEach(row => {
-                        const code  = (row[varCol]   ?? '').toString().trim();
-                        const label = (row[labelCol] ?? '').toString().trim();
-                        const pos   = posCol ? (row[posCol] ?? '').toString().trim() : '';
-                        if (code) text += `${code}${pos ? ` (${pos})` : ''}: ${label}\n`;
+                    text += `[${fileName} — 전체 ${full.data.length}행]\n`;
+                    text += `(이 파일은 메타데이터 또는 정의서이므로 전체 내용을 표시합니다.)\n\n`;
+                    
+                    const headers = full.fields || Object.keys(full.data[0] || {});
+                    full.data.forEach((row, i) => {
+                        text += `[행 ${i + 1}] `;
+                        text += headers.map(h => `${h}: ${row[h] ?? ''}`).join(' | ');
+                        text += `\n`;
                     });
                 } else {
                     text = '(변수정보를 불러올 수 없습니다.)';
@@ -1514,13 +1515,13 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
             } else {
                 const preview = await fetchDatasetPreview(ds.file_url, ds.data_name);
                 if (preview && preview.data && preview.data.length > 0) {
-                    const sampleRows = preview.data.slice(0, 10);
+                    const sampleRows = preview.data.slice(0, 20);
                     const headers = preview.fields || Object.keys(sampleRows[0]);
                     const rowCount = ds.metadata?.row_count;
                     text += `[파일명: ${fileName}]\n`;
                     if (rowCount) text += `전체 행 수: ${Number(rowCount).toLocaleString()}행\n`;
                     text += `\n[컬럼 구성 (${headers.length}개)]\n${headers.join(', ')}\n`;
-                    text += `\n[데이터 샘플 — 상위 ${sampleRows.length}행]\n`;
+                    text += `\n[데이터 샘플 — 상위 ${sampleRows.length}행 (동일 패턴 반복 데이터)]\n`;
                     sampleRows.forEach((row, i) => {
                         text += `--- 행 ${i + 1} ---\n`;
                         headers.forEach(h => { text += `  ${h}: ${row[h] ?? ''}\n`; });
