@@ -1473,9 +1473,14 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
                     ${fileName}
                     ${isVarInfo ? '<span style="font-size:0.72rem;font-weight:500;background:#c7d2fe;color:#3730a3;padding:2px 8px;border-radius:20px;">정보/정의서</span>' : ''}
                 </div>
-                <button class="copy-sample-btn btn-secondary" data-idx="${idx}" style="font-size:0.78rem;padding:5px 14px;display:none;align-items:center;gap:5px;">
-                    <i data-lucide="copy" size="13"></i> 복사
-                </button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="view-all-btn btn-secondary" data-idx="${idx}" style="font-size:0.75rem;padding:4px 12px;display:none;align-items:center;gap:5px;background:#f1f5f9;border-color:#e2e8f0;color:#475569;">
+                        <i data-lucide="maximize" size="13"></i> 전체 보기
+                    </button>
+                    <button class="copy-sample-btn btn-secondary" data-idx="${idx}" style="font-size:0.78rem;padding:5px 14px;display:none;align-items:center;gap:5px;">
+                        <i data-lucide="copy" size="13"></i> 복사
+                    </button>
+                </div>
             </div>
             <pre id="ds-sample-text-${idx}" style="margin:0;padding:16px 20px;font-size:0.8rem;line-height:1.6;background:${isVarInfo ? '#f5f3ff' : 'white'};color:#64748b;white-space:pre-wrap;word-break:break-all;max-height:380px;overflow-y:auto;font-family:'Consolas','D2Coding',monospace;">데이터를 불러오는 중입니다...</pre>
         </div>`;
@@ -1538,7 +1543,43 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
 
         if (preEl) {
             preEl.innerText = text;
-            preEl.style.color = '#1e293b'; // 로딩 완료 후 색상 변경
+            preEl.style.color = '#1e293b'; 
+        }
+
+        // '전체 보기' 버튼 핸들러
+        const viewAllBtn = container.querySelector(`.view-all-btn[data-idx="${idx}"]`);
+        if (viewAllBtn) {
+            // 행 수가 20개를 넘을 것으로 예상되는 경우에만 버튼 표시 (row_count 활용)
+            const rowCount = ds.metadata?.row_count || 0;
+            if (rowCount > 20 || !rowCount) {
+                viewAllBtn.style.display = 'flex';
+            }
+
+            viewAllBtn.onclick = async () => {
+                viewAllBtn.disabled = true;
+                viewAllBtn.innerHTML = '<i class="spinner-sm"></i> 로딩 중...';
+                try {
+                    const full = await fetchDatasetAll(ds.file_url);
+                    if (full && full.data) {
+                        let fullText = `[${fileName} — 전체 ${full.data.length}행]\n\n`;
+                        const headers = full.fields || Object.keys(full.data[0] || {});
+                        full.data.forEach((row, i) => {
+                            fullText += `[행 ${i + 1}] `;
+                            fullText += headers.map(h => `${h}: ${row[h] ?? ''}`).join(' | ');
+                            fullText += `\n`;
+                        });
+                        preEl.innerText = fullText;
+                        text = fullText; // 복사 버튼용 데이터 업데이트
+                        viewAllBtn.innerHTML = '<i data-lucide="check" size="13"></i> 전체 표시됨';
+                        viewAllBtn.style.background = '#e0f2fe';
+                        if (window.lucide) lucide.createIcons();
+                    }
+                } catch (err) {
+                    alert('전체 데이터를 불러오지 못했습니다: ' + err.message);
+                    viewAllBtn.disabled = false;
+                    viewAllBtn.innerHTML = '<i data-lucide="maximize" size="13"></i> 전체 보기';
+                }
+            };
         }
         if (copyBtn && text && !text.startsWith('(로딩 실패')) {
             copyBtn.style.display = 'flex';
