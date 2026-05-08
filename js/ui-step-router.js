@@ -815,6 +815,183 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     else renderApplyMode();
                 }, 50);
                 break;
+            case 11: // 6단계: 작업 파일 공유
+                content = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                        <div>
+                            <h2 style="margin:0;font-size:1.5rem;color:var(--secondary);">📤 6단계: 작업 파일 공유</h2>
+                            <p class="text-muted" style="margin:5px 0 0;font-size:0.9rem;">자신의 연구 결과물을 공유하고 다른 학생들의 자료를 참고할 수 있습니다.</p>
+                        </div>
+                        <button id="create-share-post-btn" class="btn-primary" style="padding:10px 20px;font-weight:600;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="plus-circle" size="18"></i> 자료 공유하기
+                        </button>
+                    </div>
+                    <div id="shared-posts-container" style="min-height:300px;">
+                        <div style="text-align:center;padding:100px 0;color:#94a3b8;">
+                            <div class="spinner" style="margin-bottom:15px;"></div>
+                            <p>공유된 자료를 불러오는 중입니다...</p>
+                        </div>
+                    </div>`;
+
+                // 게시판 초기 로딩
+                setTimeout(async () => {
+                    const { fetchSharedPosts } = await import('./auth.js');
+                    const boardContainer = document.getElementById('shared-posts-container');
+                    
+                    const loadBoard = async () => {
+                        const { data, error } = await fetchSharedPosts();
+                        if (error) {
+                            boardContainer.innerHTML = `<p style="color:red;text-align:center;padding:40px;">데이터 로딩 오류: ${error.message}</p>`;
+                            return;
+                        }
+                        
+                        if (!data || data.length === 0) {
+                            boardContainer.innerHTML = `
+                                <div style="text-align:center;padding:100px 0;background:#f8fafc;border-radius:16px;border:1px dashed #cbd5e1;">
+                                    <i data-lucide="inbox" size="48" style="margin-bottom:12px;opacity:0.3;"></i>
+                                    <p style="color:#64748b;">아직 공유된 자료가 없습니다.<br>첫 번째 공유글을 남겨보세요!</p>
+                                </div>`;
+                        } else {
+                            boardContainer.innerHTML = `
+                                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(350px, 1fr));gap:20px;">
+                                    ${data.map(post => `
+                                        <div class="glass card" style="padding:25px;display:flex;flex-direction:column;gap:15px;">
+                                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                                <h3 style="margin:0;font-size:1.1rem;line-height:1.4;">${post.title}</h3>
+                                                <span style="font-size:0.75rem;background:var(--primary-glow);color:var(--primary);padding:3px 8px;border-radius:4px;font-weight:700;">${post.author_name}</span>
+                                            </div>
+                                            <p style="font-size:0.9rem;color:#475569;margin:0;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${post.content || '설명이 없습니다.'}</p>
+                                            <div style="border-top:1px solid #f1f5f9;padding-top:15px;">
+                                                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+                                                    <i data-lucide="paperclip" size="14"></i> 첨부 파일 ${post.shared_files?.length || 0}개
+                                                </div>
+                                                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                                                    ${(post.shared_files || []).map(file => `
+                                                        <a href="${file.file_url}" target="_blank" download="${file.file_name}" class="btn-secondary" style="font-size:0.75rem;padding:6px 12px;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                                                            <i data-lucide="download" size="12"></i> ${file.file_name}
+                                                        </a>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                            <div style="font-size:0.7rem;color:#94a3b8;text-align:right;">${new Date(post.created_at).toLocaleString()}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>`;
+                        }
+                        if (window.lucide) lucide.createIcons();
+                    };
+
+                    await loadBoard();
+
+                    // [자료 공유하기] 버튼 클릭 시 모달 열기
+                    document.getElementById('create-share-post-btn').onclick = () => {
+                        const modal = document.createElement('div');
+                        modal.className = 'modal-overlay';
+                        modal.innerHTML = `
+                            <div class="modal-content" style="max-width:600px;">
+                                <div class="modal-header">
+                                    <h2>✨ 새로운 연구 자료 공유</h2>
+                                    <button class="close-modal" style="background:none;border:none;cursor:pointer;"><i data-lucide="x"></i></button>
+                                </div>
+                                <div class="modal-body-inner">
+                                    <div style="display:flex;flex-direction:column;gap:20px;">
+                                        <div>
+                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">공유 제목</label>
+                                            <input type="text" id="share-title" placeholder="연구 주제나 핵심 결과물을 한 줄로 설명해주세요." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
+                                        </div>
+                                        <div>
+                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">설명 (선택)</label>
+                                            <textarea id="share-content" placeholder="어떤 파일인지, 어떻게 활용하면 좋은지 설명해주세요." style="width:100%;height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:none;"></textarea>
+                                        </div>
+                                        <div>
+                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">파일 첨부 (여러 개 선택 가능)</label>
+                                            <div id="drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;background:#f8fafc;cursor:pointer;transition:all 0.2s;">
+                                                <i data-lucide="upload-cloud" size="32" style="color:#94a3b8;margin-bottom:10px;"></i>
+                                                <p style="font-size:0.85rem;color:#64748b;">여기에 파일을 끌어다 놓거나 클릭하여 선택하세요.</p>
+                                                <input type="file" id="share-files" multiple style="display:none;">
+                                            </div>
+                                            <div id="file-list-preview" style="margin-top:12px;display:flex;flex-direction:column;gap:5px;"></div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:30px;display:flex;gap:10px;">
+                                        <button id="cancel-share-btn" class="btn-secondary" style="flex:1;">취소</button>
+                                        <button id="submit-share-btn" class="btn-primary" style="flex:2;">📤 자료 업로드 및 공유하기</button>
+                                    </div>
+                                </div>
+                            </div>`;
+                        document.body.appendChild(modal);
+                        if (window.lucide) lucide.createIcons();
+
+                        const fileInput = modal.querySelector('#share-files');
+                        const dropZone = modal.querySelector('#drop-zone');
+                        const preview = modal.querySelector('#file-list-preview');
+                        let selectedFiles = [];
+
+                        const updatePreview = () => {
+                            preview.innerHTML = selectedFiles.map((f, i) => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;background:white;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;font-size:0.85rem;">
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <i data-lucide="file" size="14"></i>
+                                        <span>${f.name} <small style="color:#94a3b8;">(${(f.size/1024).toFixed(1)} KB)</small></span>
+                                    </div>
+                                    <button class="remove-file" data-index="${i}" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i data-lucide="trash-2" size="14"></i></button>
+                                </div>`).join('');
+                            if (window.lucide) lucide.createIcons();
+                            
+                            preview.querySelectorAll('.remove-file').forEach(btn => {
+                                btn.onclick = () => {
+                                    selectedFiles.splice(parseInt(btn.dataset.index), 1);
+                                    updatePreview();
+                                };
+                            });
+                        };
+
+                        dropZone.onclick = () => fileInput.click();
+                        fileInput.onchange = (e) => {
+                            selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
+                            updatePreview();
+                        };
+
+                        modal.querySelector('.close-modal').onclick = () => modal.remove();
+                        modal.querySelector('#cancel-share-btn').onclick = () => modal.remove();
+                        
+                        modal.querySelector('#submit-share-btn').onclick = async (e) => {
+                            const title = modal.querySelector('#share-title').value.trim();
+                            const content = modal.querySelector('#share-content').value.trim();
+                            
+                            if (!title) { alert('제목을 입력해주세요.'); return; }
+                            if (selectedFiles.length === 0) { alert('최소 하나 이상의 파일을 첨부해야 합니다.'); return; }
+
+                            const btn = e.target;
+                            const origText = btn.innerHTML;
+                            btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;"></div> 업로드 중...';
+                            btn.disabled = true;
+
+                            const { createSharedPost } = await import('./auth.js');
+                            const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                            
+                            const { success, error } = await createSharedPost(
+                                title, 
+                                content, 
+                                user.student_id || 'teacher', 
+                                user.name || '선생님', 
+                                selectedFiles
+                            );
+
+                            if (success) {
+                                alert('성공적으로 자료를 공유했습니다!');
+                                modal.remove();
+                                await loadBoard();
+                            } else {
+                                alert('업로드 실패: ' + (error.message || '알 수 없는 오류'));
+                                btn.innerHTML = origText;
+                                btn.disabled = false;
+                            }
+                        };
+                    };
+
+                }, 0);
+                break;
             default:
                 content = `<h2>개발 준비 중인 단계입니다.</h2>`;
         }

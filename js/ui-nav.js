@@ -19,19 +19,19 @@ export function renderCategories(onCategoryClick, selectedId) {
 }
 
 export function renderStepsNav(currentStep, state, onStepChange) {
-    const selectedTopic = state?.selectedTopic;
     const steps = [
-        { id: 8, title: "대회 참가 신청", icon: "users" },
-        { id: 0, title: "1단계: 데이터 탐색", icon: "search" },
-        { id: 9, title: "1.5단계: 주제 탐색", icon: "compass" },
-        { id: 1, title: "2단계: 데이터 저장", icon: "download" },
-        { id: 2, title: "3단계: 데이터 관리", icon: "list" },
-        { id: 10, title: "3.5단계: 데이터 미리보기", icon: "table-2" },
-        { id: 3, title: "4단계: 문제 정의", icon: "database" },
-        { id: 4, title: "5단계: 전처리", icon: "map" },
-        { id: 5, title: "6단계: AI 분석", icon: "brain" },
-        { id: 6, title: "7단계: 시각화", icon: "bar-chart" },
-        { id: 7, title: "8단계: 정책 제안", icon: "file-text" },
+        { id: 8, title: "대회 참가 신청", icon: "users", group: "HOME" },
+        { id: 0, title: "데이터 탐색", icon: "search", group: "준비 및 탐색", stepNum: "1" },
+        { id: 9, title: "연구 주제 탐색", icon: "compass", group: "준비 및 탐색", stepNum: "1.5" },
+        { id: 1, title: "데이터 저장", icon: "download", group: "데이터 분석", stepNum: "2" },
+        { id: 2, title: "데이터 관리", icon: "list", group: "데이터 분석", stepNum: "3" },
+        { id: 10, title: "데이터 미리보기", icon: "table-2", group: "데이터 분석", stepNum: "3.5" },
+        { id: 3, title: "문제 정의", icon: "database", group: "데이터 분석", stepNum: "4" },
+        { id: 4, title: "데이터 전처리", icon: "map", group: "데이터 분석", stepNum: "5" },
+        { id: 11, title: "작업 파일 공유", icon: "share-2", group: "결과 공유", stepNum: "6" },
+        { id: 5, title: "인공지능 분석", icon: "brain", group: "데이터 분석", stepNum: "7" },
+        { id: 6, title: "데이터 시각화", icon: "bar-chart", group: "데이터 분석", stepNum: "8" },
+        { id: 7, title: "정책 제안", icon: "file-text", group: "결과 공유", stepNum: "9" },
     ];
 
     const isMobile = window.innerWidth <= 768;
@@ -39,24 +39,41 @@ export function renderStepsNav(currentStep, state, onStepChange) {
 
     const navItems = document.getElementById('nav-items');
     if (!navItems) return;
-    navItems.innerHTML = finalSteps.map(step => {
+
+    let html = '';
+    let currentGroup = '';
+
+    finalSteps.forEach(step => {
+        if (step.group && step.group !== currentGroup) {
+            currentGroup = step.group;
+            if (!isMobile) {
+                html += `<div class="nav-section-title">${currentGroup}</div>`;
+            }
+        }
+
         const isActive = currentStep === step.id;
         const isComp = step.id === 8;
         let styleStr = '';
         if (isComp) {
             styleStr = isActive
-                ? 'background: var(--accent); color: white;'
+                ? 'background: white; color: var(--accent); border: 1px solid var(--accent);'
                 : 'background: #fff1f2; color: var(--accent); border: 1px solid #fecaca; margin-bottom: 12px; font-weight: 700;';
         }
-        return `
+
+        html += `
             <div class="nav-item ${isActive ? 'active' : ''}"
                  data-id="${step.id}"
                  ${styleStr ? `style="${styleStr}"` : ''}>
                 <i data-lucide="${step.icon}" size="18"></i>
-                <span>${step.title}</span>
+                <div style="display:flex;flex-direction:column;line-height:1.2;">
+                    ${step.stepNum ? `<span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP ${step.stepNum}</span>` : ''}
+                    <span style="font-size:0.92rem;">${step.title}</span>
+                </div>
             </div>
         `;
-    }).join('');
+    });
+
+    navItems.innerHTML = html;
     if (window.lucide) lucide.createIcons();
 
     document.querySelectorAll('.nav-item').forEach(item => {

@@ -241,6 +241,7 @@ async function showTeacherDashboard(email) {
     const tabStep2 = document.getElementById('tab-step2');
     const tabCompetitions = document.getElementById('tab-competitions');
     const tabTeachers = document.getElementById('tab-teachers');
+    const tabSharing = document.getElementById('tab-sharing');
 
     const viewStudents = document.getElementById('teacher-students-view');
     const viewAttendance = document.getElementById('teacher-attendance-view');
@@ -254,10 +255,11 @@ async function showTeacherDashboard(email) {
     const viewManagement = document.getElementById('teacher-management-view');
     const viewStep3Half = document.getElementById('teacher-step-3half-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
+    const viewSharing = document.getElementById('teacher-sharing-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep3Half, tabStep1, tabStep2, tabCompetitions, tabTeachers].forEach(t => t?.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep3Half, viewStep1, viewStep2, viewCompetitions, viewTeachers].forEach(v => { if(v) v.style.display = 'none'; });
+        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep3Half, tabStep1, tabStep2, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep3Half, viewStep1, viewStep2, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
         activeTab.classList.add('active');
         activeView.style.display = 'block';
     };
@@ -597,6 +599,12 @@ async function showTeacherDashboard(email) {
         if (progressList) progressList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
         const { data } = await fetchStudentProgressSnapshot();
         UI.renderStudentProgress(data, onViewStudentDetail);
+    };
+
+    tabSharing.onclick = async () => {
+        switchTab(tabSharing, viewSharing);
+        const { renderStepContent } = await import('./ui-step-router.js');
+        renderStepContent(11, state, (id) => {}, 'teacher-sharing-root');
     };
 
     // ── 1.5단계: 주제 탐색 ──────────────────────────────────

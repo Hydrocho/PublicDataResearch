@@ -1473,10 +1473,18 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
                     ${fileName}
                     ${isVarInfo ? '<span style="font-size:0.72rem;font-weight:500;background:#c7d2fe;color:#3730a3;padding:2px 8px;border-radius:20px;">정보/정의서</span>' : ''}
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <button class="view-all-btn btn-secondary" data-idx="${idx}" style="font-size:0.75rem;padding:4px 12px;display:none;align-items:center;gap:5px;background:#f1f5f9;border-color:#e2e8f0;color:#475569;">
-                        <i data-lucide="maximize" size="13"></i> 전체 보기
-                    </button>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <!-- Segmented Control for Mode Selection -->
+                    <div class="view-mode-selector" data-idx="${idx}" style="display:none; background:#f1f5f9; padding:3px; border-radius:8px; display:flex; align-items:center; border:1px solid #e2e8f0;">
+                        <label style="margin:0; padding:4px 10px; font-size:0.75rem; font-weight:600; cursor:pointer; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; gap:4px; color:#475569;" class="mode-label active">
+                            <input type="radio" name="view-mode-${idx}" value="sample" checked style="display:none;">
+                            샘플 데이터
+                        </label>
+                        <label style="margin:0; padding:4px 10px; font-size:0.75rem; font-weight:600; cursor:pointer; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; gap:4px; color:#94a3b8;" class="mode-label">
+                            <input type="radio" name="view-mode-${idx}" value="full" style="display:none;">
+                            전체 데이터
+                        </label>
+                    </div>
                     <button class="copy-sample-btn btn-secondary" data-idx="${idx}" style="font-size:0.78rem;padding:5px 14px;display:none;align-items:center;gap:5px;">
                         <i data-lucide="copy" size="13"></i> 복사
                     </button>
@@ -1546,40 +1554,73 @@ export async function renderDatasetSampleViewer(datasets, containerId) {
             preEl.style.color = '#1e293b'; 
         }
 
-        // '전체 보기' 버튼 핸들러
-        const viewAllBtn = container.querySelector(`.view-all-btn[data-idx="${idx}"]`);
-        if (viewAllBtn) {
-            // 행 수가 20개를 넘을 것으로 예상되는 경우에만 버튼 표시 (row_count 활용)
+        // '모드 선택' 라디오 버튼 핸들러
+        const selector = container.querySelector(`.view-mode-selector[data-idx="${idx}"]`);
+        if (selector) {
+            const previewText = text; 
+            let fullText = null;      
             const rowCount = ds.metadata?.row_count || 0;
+
+            // 20행 초과일 때만 선택기 노출
             if (rowCount > 20 || !rowCount) {
-                viewAllBtn.style.display = 'flex';
+                selector.style.display = 'flex';
             }
 
-            viewAllBtn.onclick = async () => {
-                viewAllBtn.disabled = true;
-                viewAllBtn.innerHTML = '<i class="spinner-sm"></i> 로딩 중...';
-                try {
-                    const full = await fetchDatasetAll(ds.file_url);
-                    if (full && full.data) {
-                        let fullText = `[${fileName} — 전체 ${full.data.length}행]\n\n`;
-                        const headers = full.fields || Object.keys(full.data[0] || {});
-                        full.data.forEach((row, i) => {
-                            fullText += `[행 ${i + 1}] `;
-                            fullText += headers.map(h => `${h}: ${row[h] ?? ''}`).join(' | ');
-                            fullText += `\n`;
-                        });
-                        preEl.innerText = fullText;
-                        text = fullText; // 복사 버튼용 데이터 업데이트
-                        viewAllBtn.innerHTML = '<i data-lucide="check" size="13"></i> 전체 표시됨';
-                        viewAllBtn.style.background = '#e0f2fe';
-                        if (window.lucide) lucide.createIcons();
+            const labels = selector.querySelectorAll('.mode-label');
+            selector.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.onchange = async () => {
+                    // UI 스타일 업데이트
+                    labels.forEach(l => {
+                        const r = l.querySelector('input');
+                        if (r.checked) {
+                            l.style.background = 'white';
+                            l.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                            l.style.color = 'var(--primary)';
+                        } else {
+                            l.style.background = 'transparent';
+                            l.style.boxShadow = 'none';
+                            l.style.color = '#94a3b8';
+                        }
+                    });
+
+                    if (radio.value === 'sample') {
+                        preEl.innerText = previewText;
+                        text = previewText;
+                    } else {
+                        if (fullText) {
+                            preEl.innerText = fullText;
+                            text = fullText;
+                        } else {
+                            preEl.innerText = '데이터 전체를 불러오는 중...';
+                            try {
+                                const full = await fetchDatasetAll(ds.file_url);
+                                if (full && full.data) {
+                                    let generated = `[${fileName} — 전체 ${full.data.length}행]\n\n`;
+                                    const headers = full.fields || Object.keys(full.data[0] || {});
+                                    full.data.forEach((row, i) => {
+                                        generated += `[행 ${i + 1}] `;
+                                        generated += headers.map(h => `${h}: ${row[h] ?? ''}`).join(' | ');
+                                        generated += `\n`;
+                                    });
+                                    fullText = generated;
+                                    preEl.innerText = fullText;
+                                    text = fullText;
+                                }
+                            } catch (err) {
+                                alert('전체 데이터를 불러오지 못했습니다: ' + err.message);
+                                const sampleRadio = selector.querySelector('input[value="sample"]');
+                                if (sampleRadio) {
+                                    sampleRadio.checked = true;
+                                    sampleRadio.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        }
                     }
-                } catch (err) {
-                    alert('전체 데이터를 불러오지 못했습니다: ' + err.message);
-                    viewAllBtn.disabled = false;
-                    viewAllBtn.innerHTML = '<i data-lucide="maximize" size="13"></i> 전체 보기';
-                }
-            };
+                };
+            });
+            // 초기 스타일 적용을 위해 change 이벤트 트리거
+            const checkedRadio = selector.querySelector('input[checked]');
+            if (checkedRadio) checkedRadio.dispatchEvent(new Event('change'));
         }
         if (copyBtn && text && !text.startsWith('(로딩 실패')) {
             copyBtn.style.display = 'flex';
