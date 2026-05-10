@@ -1335,9 +1335,13 @@ export async function createSharedPost(title, content, authorId, authorName, fil
         // 2. 파일 업로드 로직 (파일이 있는 경우)
         if (files.length > 0) {
             const uploadPromises = files.map(async (file) => {
-                const fileExt = file.name.split(".").pop();
-                const fileName = `${post.id}/${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-                const filePath = `uploads/${fileName}`;
+                // 확장자만 안전하게 추출 (특수문자 제거)
+                const parts = file.name.split(".");
+                const fileExt = parts.length > 1 ? parts.pop().toLowerCase() : "";
+                
+                // 스토리지 경로는 영어/숫자 위주의 안전한 고유 ID로 생성
+                const safeFileName = `${Math.random().toString(36).substring(2)}_${Date.now()}${fileExt ? "." + fileExt : ""}`;
+                const filePath = `uploads/${post.id}/${safeFileName}`;
 
                 const { error: uploadError } = await supabaseClient.storage
                     .from("shared-work-files")

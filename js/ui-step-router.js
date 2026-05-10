@@ -853,30 +853,179 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                 </div>`;
                         } else {
                             boardContainer.innerHTML = `
-                                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(350px, 1fr));gap:20px;">
-                                    ${data.map(post => `
-                                        <div class="glass card" style="padding:25px;display:flex;flex-direction:column;gap:15px;">
-                                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                                                <h3 style="margin:0;font-size:1.1rem;line-height:1.4;">${post.title}</h3>
-                                                <span style="font-size:0.75rem;background:var(--primary-glow);color:var(--primary);padding:3px 8px;border-radius:4px;font-weight:700;">${post.author_name}</span>
-                                            </div>
-                                            <p style="font-size:0.9rem;color:#475569;margin:0;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${post.content || '설명이 없습니다.'}</p>
-                                            <div style="border-top:1px solid #f1f5f9;padding-top:15px;">
-                                                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:5px;">
-                                                    <i data-lucide="paperclip" size="14"></i> 첨부 파일 ${post.shared_files?.length || 0}개
-                                                </div>
-                                                <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                                                    ${(post.shared_files || []).map(file => `
-                                                        <a href="${file.file_url}" target="_blank" download="${file.file_name}" class="btn-secondary" style="font-size:0.75rem;padding:6px 12px;text-decoration:none;display:flex;align-items:center;gap:5px;">
-                                                            <i data-lucide="download" size="12"></i> ${file.file_name}
-                                                        </a>
-                                                    `).join('')}
-                                                </div>
-                                            </div>
-                                            <div style="font-size:0.7rem;color:#94a3b8;text-align:right;">${new Date(post.created_at).toLocaleString()}</div>
-                                        </div>
-                                    `).join('')}
+                                <div style="background:white; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                                    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+                                        <thead>
+                                            <tr style="background:#f1f5f9; border-bottom:2px solid #e2e8f0;">
+                                                <th style="padding:15px 20px; width:60px; color:#64748b; font-weight:700;">번호</th>
+                                                <th style="padding:15px 20px; color:#64748b; font-weight:700;">제목</th>
+                                                <th style="padding:15px 20px; width:120px; color:#64748b; font-weight:700;">작성자</th>
+                                                <th style="padding:15px 20px; width:180px; color:#64748b; font-weight:700;">등록 일시</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${data.map((post, idx) => {
+                                                const dateStr = new Date(post.created_at).toLocaleString('ko-KR', {
+                                                    year: 'numeric', month: '2-digit', day: '2-digit',
+                                                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                                                    hour12: false
+                                                });
+                                                return `
+                                                    <tr class="post-row" data-id="${post.id}" style="border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;">
+                                                        <td style="padding:15px 20px; color:#94a3b8;">${data.length - idx}</td>
+                                                        <td style="padding:15px 20px; font-weight:600; color:var(--secondary);">
+                                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                                ${post.title}
+                                                                <span style="font-size:0.75rem; color:#94a3b8; font-weight:400;">[${post.shared_files?.length || 0}]</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style="padding:15px 20px;">
+                                                            <span style="background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:600;">${post.author_name}</span>
+                                                        </td>
+                                                        <td style="padding:15px 20px; color:#64748b; font-size:0.85rem;">${dateStr}</td>
+                                                    </tr>
+                                                    <tr id="detail-${post.id}" style="display:none; background:#f8fafc;">
+                                                        <td colspan="4" style="padding:25px 40px; border-bottom:1px solid #f1f5f9;">
+                                                            <div style="margin-bottom:20px;">
+                                                                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:#475569;">📝 자료 설명</h4>
+                                                                <p style="margin:0; font-size:0.9rem; color:#64748b; line-height:1.6; white-space:pre-wrap;">${post.content || '등록된 설명이 없습니다.'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:#475569; display:flex; align-items:center; gap:8px;">
+                                                                    <i data-lucide="paperclip" size="16"></i> 첨부 파일
+                                                                </h4>
+                                                                <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                                                    ${(post.shared_files || []).map(file => `
+                                                                        <button class="download-btn btn-secondary" 
+                                                                                data-url="${file.file_url}" 
+                                                                                data-name="${file.file_name}"
+                                                                                style="font-size:0.8rem; padding:8px 15px; cursor:pointer; display:flex; align-items:center; gap:8px; background:white; border:1px solid #e2e8f0; border-radius:8px;">
+                                                                            <i data-lucide="download" size="14"></i>
+                                                                            <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                                                                                <span style="font-weight:600;">${file.file_name}</span>
+                                                                                <span style="font-size:0.7rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
+                                                                            </div>
+                                                                        </button>
+                                                                    `).join('')}
+                                                                </div>
+                                                            </div>
+
+                                                            ${(() => {
+                                                                const userStr = localStorage.getItem('currentUser');
+                                                                const user = userStr ? JSON.parse(userStr) : {};
+                                                                
+                                                                // 1. 작성자 본인 확인
+                                                                const isAuthor = user.student_id && user.student_id === post.author_id;
+                                                                
+                                                                // 2. 교사 권한 확인 (데이터 구조 또는 현재 화면이 교사용 섹션인지 확인)
+                                                                const teacherSection = document.getElementById('teacher-section');
+                                                                const isTeacherView = teacherSection && teacherSection.style.display !== 'none';
+                                                                const isTeacherUser = (user.email && !user.student_id) || user.role === 'teacher';
+                                                                
+                                                                if (isAuthor || isTeacherView || isTeacherUser) {
+                                                                    return `
+                                                                        <div style="margin-top:25px; padding-top:20px; border-top:1px solid #e2e8f0; text-align:right;">
+                                                                            <button class="delete-post-btn btn-secondary" 
+                                                                                    data-id="${post.id}" 
+                                                                                    data-files='${JSON.stringify(post.shared_files || [])}'
+                                                                                    style="color:#ef4444; border-color:#fee2e2; background:#fff1f1; font-size:0.85rem; padding:8px 15px; cursor:pointer; border-radius:8px; font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+                                                                                <i data-lucide="trash-2" size="14"></i> 게시글 삭제하기
+                                                                            </button>
+                                                                        </div>`;
+                                                                }
+                                                                return '';
+                                                            })()}
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
                                 </div>`;
+                            
+                            // 삭제 버튼 기능 연결
+                            boardContainer.querySelectorAll('.delete-post-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm('정말로 이 게시글과 첨부 파일을 모두 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.')) return;
+                                    
+                                    const { id, files } = btn.dataset;
+                                    const parsedFiles = JSON.parse(files);
+                                    const { deleteSharedPost } = await import('./auth.js');
+                                    
+                                    btn.disabled = true;
+                                    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> 삭제 중...';
+                                    
+                                    const { success, error } = await deleteSharedPost(id, parsedFiles);
+                                    if (success) {
+                                        alert('게시글이 삭제되었습니다.');
+                                        await loadBoard();
+                                    } else {
+                                        alert('삭제 오류: ' + (error.message || '알 수 없는 오류'));
+                                        btn.disabled = false;
+                                        btn.innerHTML = '<i data-lucide="trash-2" size="14"></i> 게시글 삭제하기';
+                                        if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
+                            // 다운로드 버튼 기능 연결
+                            boardContainer.querySelectorAll('.download-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation(); // 행 클릭 이벤트 방지
+                                    const { url, name } = btn.dataset;
+                                    const icon = btn.querySelector('i');
+                                    const origInner = btn.innerHTML;
+                                    
+                                    try {
+                                        btn.disabled = true;
+                                        btn.style.opacity = '0.7';
+                                        btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> 다운로드 중...';
+                                        
+                                        const response = await fetch(url);
+                                        const blob = await response.blob();
+                                        const blobUrl = window.URL.createObjectURL(blob);
+                                        
+                                        const a = document.createElement('a');
+                                        a.href = blobUrl;
+                                        a.download = name; // 여기서 원본 파일명 지정
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(blobUrl);
+                                        a.remove();
+                                    } catch (err) {
+                                        console.error('Download failed:', err);
+                                        alert('파일 다운로드에 실패했습니다.');
+                                    } finally {
+                                        btn.disabled = false;
+                                        btn.style.opacity = '1';
+                                        btn.innerHTML = origInner;
+                                        if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
+                            // 행 클릭 시 상세 내용 토글
+                            boardContainer.querySelectorAll('.post-row').forEach(row => {
+                                row.onclick = () => {
+                                    const detailRow = document.getElementById(`detail-${row.dataset.id}`);
+                                    const isVisible = detailRow.style.display !== 'none';
+                                    
+                                    // 다른 열려있는 상세창 닫기 (선택 사항)
+                                    // boardContainer.querySelectorAll('[id^="detail-"]').forEach(d => d.style.display = 'none');
+                                    // boardContainer.querySelectorAll('.post-row').forEach(r => r.style.background = 'white');
+
+                                    if (isVisible) {
+                                        detailRow.style.display = 'none';
+                                        row.style.background = 'white';
+                                    } else {
+                                        detailRow.style.display = 'table-row';
+                                        row.style.background = '#f1f5f9';
+                                    }
+                                };
+                                row.onmouseover = () => { if(document.getElementById(`detail-${row.dataset.id}`).style.display === 'none') row.style.background = '#f8fafc'; };
+                                row.onmouseout = () => { if(document.getElementById(`detail-${row.dataset.id}`).style.display === 'none') row.style.background = 'white'; };
+                            });
                         }
                         if (window.lucide) lucide.createIcons();
                     };
@@ -893,29 +1042,31 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                     <h2>✨ 새로운 연구 자료 공유</h2>
                                     <button class="close-modal" style="background:none;border:none;cursor:pointer;"><i data-lucide="x"></i></button>
                                 </div>
-                                <div class="modal-body-inner">
-                                    <div style="display:flex;flex-direction:column;gap:20px;">
-                                        <div>
-                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">공유 제목</label>
-                                            <input type="text" id="share-title" placeholder="연구 주제나 핵심 결과물을 한 줄로 설명해주세요." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
-                                        </div>
-                                        <div>
-                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">설명 (선택)</label>
-                                            <textarea id="share-content" placeholder="어떤 파일인지, 어떻게 활용하면 좋은지 설명해주세요." style="width:100%;height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:none;"></textarea>
-                                        </div>
-                                        <div>
-                                            <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">파일 첨부 (여러 개 선택 가능)</label>
-                                            <div id="drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;background:#f8fafc;cursor:pointer;transition:all 0.2s;">
-                                                <i data-lucide="upload-cloud" size="32" style="color:#94a3b8;margin-bottom:10px;"></i>
-                                                <p style="font-size:0.85rem;color:#64748b;">여기에 파일을 끌어다 놓거나 클릭하여 선택하세요.</p>
-                                                <input type="file" id="share-files" multiple style="display:none;">
+                                <div class="modal-body"> <!-- 스크롤 가능 구역 추가 -->
+                                    <div class="modal-body-inner">
+                                        <div style="display:flex;flex-direction:column;gap:20px;">
+                                            <div>
+                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">공유 제목</label>
+                                                <input type="text" id="share-title" placeholder="연구 주제나 핵심 결과물을 한 줄로 설명해주세요." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
                                             </div>
-                                            <div id="file-list-preview" style="margin-top:12px;display:flex;flex-direction:column;gap:5px;"></div>
+                                            <div>
+                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">설명 (선택)</label>
+                                                <textarea id="share-content" placeholder="어떤 파일인지, 어떻게 활용하면 좋은지 설명해주세요." style="width:100%;height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:none;"></textarea>
+                                            </div>
+                                            <div>
+                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">파일 첨부 (여러 개 선택 가능)</label>
+                                                <div id="drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;background:#f8fafc;cursor:pointer;transition:all 0.2s;">
+                                                    <i data-lucide="upload-cloud" size="32" style="color:#94a3b8;margin-bottom:10px;"></i>
+                                                    <p style="font-size:0.85rem;color:#64748b;">여기에 파일을 끌어다 놓거나 클릭하여 선택하세요.</p>
+                                                    <input type="file" id="share-files" multiple style="display:none;">
+                                                </div>
+                                                <div id="file-list-preview" style="margin-top:12px;display:flex;flex-direction:column;gap:5px;"></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div style="margin-top:30px;display:flex;gap:10px;">
-                                        <button id="cancel-share-btn" class="btn-secondary" style="flex:1;">취소</button>
-                                        <button id="submit-share-btn" class="btn-primary" style="flex:2;">📤 자료 업로드 및 공유하기</button>
+                                        <div style="margin-top:30px;display:flex;gap:10px;padding-bottom:10px;">
+                                            <button id="cancel-share-btn" class="btn-secondary" style="flex:1;">취소</button>
+                                            <button id="submit-share-btn" class="btn-primary" style="flex:2;">📤 자료 업로드 및 공유하기</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>`;
