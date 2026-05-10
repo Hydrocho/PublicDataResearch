@@ -891,8 +891,18 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                                 <p style="margin:0; font-size:0.9rem; color:#64748b; line-height:1.6; white-space:pre-wrap;">${post.content || '등록된 설명이 없습니다.'}</p>
                                                             </div>
                                                             <div>
-                                                                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:#475569; display:flex; align-items:center; gap:8px;">
-                                                                    <i data-lucide="paperclip" size="16"></i> 첨부 파일
+                                                                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:#475569; display:flex; align-items:center; gap:8px; justify-content:space-between;">
+                                                                    <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="paperclip" size="16"></i> 첨부 파일</span>
+                                                                    ${post.shared_files && post.shared_files.length > 1 ? `
+                                                                        <button class="download-all-btn btn-primary" 
+                                                                                data-id="${post.id}" 
+                                                                                data-title="${post.title}"
+                                                                                data-author="${post.author_name}"
+                                                                                data-files='${JSON.stringify(post.shared_files)}'
+                                                                                style="font-size:0.75rem; padding:5px 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                                                            <i data-lucide="archive" size="14"></i> 모든 파일 한번에 받기 (.zip)
+                                                                        </button>
+                                                                    ` : ''}
                                                                 </h4>
                                                                 <div style="display:flex; flex-wrap:wrap; gap:10px;">
                                                                     ${(post.shared_files || []).map(file => `
@@ -969,6 +979,58 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                 };
                             });
 
+                            // 전체 다운로드 버튼 기능 연결
+                            boardContainer.querySelectorAll('.download-all-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    const { title, author, files } = btn.dataset;
+                                    const parsedFiles = JSON.parse(files);
+                                    const origInner = btn.innerHTML;
+                                    
+                                    try {
+                                        btn.disabled = true;
+                                        btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> 압축 중...';
+                                        
+                                        // JSZip이 로드되어 있는지 확인
+                                        if (typeof JSZip === 'undefined') {
+                                            const script = document.createElement('script');
+                                            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                                            document.head.appendChild(script);
+                                            await new Promise(resolve => script.onload = resolve);
+                                        }
+
+                                        const zip = new JSZip();
+                                        
+                                        // 모든 파일을 순차적으로 fetch하여 zip에 추가
+                                        const fetchPromises = parsedFiles.map(async (file) => {
+                                            const response = await fetch(file.file_url);
+                                            const blob = await response.blob();
+                                            zip.file(file.file_name, blob); // 폴더 없이 바로 루트에 추가
+                                        });
+                                        
+                                        await Promise.all(fetchPromises);
+                                        
+                                        const content = await zip.generateAsync({type: "blob"});
+                                        const zipUrl = window.URL.createObjectURL(content);
+                                        
+                                        const a = document.createElement('a');
+                                        a.href = zipUrl;
+                                        a.download = `${title}.zip`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(zipUrl);
+                                        a.remove();
+                                    } catch (err) {
+                                        console.error('Bulk download failed:', err);
+                                        alert('전체 다운로드 중 오류가 발생했습니다.');
+                                    } finally {
+                                        btn.disabled = false;
+                                        btn.innerHTML = origInner;
+                                        if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
                             // 다운로드 버튼 기능 연결
                             boardContainer.querySelectorAll('.download-btn').forEach(btn => {
                                 btn.onclick = async (e) => {
@@ -1011,16 +1073,39 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                     const detailRow = document.getElementById(`detail-${row.dataset.id}`);
                                     const isVisible = detailRow.style.display !== 'none';
                                     
-                                    // 다른 열려있는 상세창 닫기 (선택 사항)
-                                    // boardContainer.querySelectorAll('[id^="detail-"]').forEach(d => d.style.display = 'none');
-                                    // boardContainer.querySelectorAll('.post-row').forEach(r => r.style.background = 'white');
+                                    // [추가] 다른 모든 열려있는 상세창 닫기 및 스타일 초기화
+                                    if (!isVisible) {
+                                        boardContainer.querySelectorAll('[id^="detail-"]').forEach(d => {
+                                            d.style.display = 'none';
+                                            d.style.border = 'none';
+                                        });
+                                        boardContainer.querySelectorAll('.post-row').forEach(r => {
+                                            r.style.background = 'white';
+                                            r.style.border = 'none';
+                                            r.style.borderBottom = '1px solid #f1f5f9';
+                                            r.querySelector('td:nth-child(2)').style.color = 'var(--secondary)';
+                                        });
+                                    }
 
                                     if (isVisible) {
                                         detailRow.style.display = 'none';
                                         row.style.background = 'white';
+                                        row.style.border = 'none';
+                                        row.style.borderBottom = '1px solid #f1f5f9';
+                                        row.querySelector('td:nth-child(2)').style.color = 'var(--secondary)';
                                     } else {
                                         detailRow.style.display = 'table-row';
-                                        row.style.background = '#f1f5f9';
+                                        
+                                        // 제목 행 스타일: 위, 좌, 우 굵은 테두리
+                                        row.style.background = '#fff1f2';
+                                        row.style.border = '2px solid #fb7185';
+                                        row.style.borderBottom = 'none';
+                                        row.querySelector('td:nth-child(2)').style.color = '#9f1239';
+                                        
+                                        // 상세 행 스타일: 아래, 좌, 우 굵은 테두리
+                                        detailRow.style.background = '#fffafb';
+                                        detailRow.style.border = '2px solid #fb7185';
+                                        detailRow.style.borderTop = 'none';
                                     }
                                 };
                                 row.onmouseover = () => { if(document.getElementById(`detail-${row.dataset.id}`).style.display === 'none') row.style.background = '#f8fafc'; };
