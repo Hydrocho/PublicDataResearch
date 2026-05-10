@@ -96,47 +96,6 @@ export async function fetchAllStudents() {
     return { data, error };
 }
 
-/** Teacher-only: fetch a quick progress snapshot for all students */
-export async function fetchStudentProgressSnapshot() {
-    // 1. Get all students
-    const { data: students, error: sErr } = await supabaseClient
-        .from('students')
-        .select('student_id, name, created_at')
-        .order('student_id', { ascending: true });
-    if (sErr) return { error: sErr };
-
-    // 2. Get all activity log entries (just student_id and step_id)
-    const { data: logs } = await supabaseClient
-        .from('activity_log')
-        .select('student_id, step_id, created_at');
-
-    // 3. Get dataset counts per student
-    const { data: datasets } = await supabaseClient
-        .from('student_datasets')
-        .select('student_id, id');
-
-    // 4. Merge: compute max step_id and dataset count per student
-    const logMap = {};
-    (logs || []).forEach(l => {
-        if (!logMap[l.student_id] || l.step_id > logMap[l.student_id].maxStep) {
-            logMap[l.student_id] = { maxStep: l.step_id, lastActivity: l.created_at };
-        }
-    });
-
-    const dsCountMap = {};
-    (datasets || []).forEach(d => {
-        dsCountMap[d.student_id] = (dsCountMap[d.student_id] || 0) + 1;
-    });
-
-    const merged = (students || []).map(s => ({
-        ...s,
-        maxStep: logMap[s.student_id]?.maxStep ?? -1,
-        lastActivity: logMap[s.student_id]?.lastActivity ?? null,
-        datasetCount: dsCountMap[s.student_id] ?? 0,
-    }));
-
-    return { data: merged };
-}
 
 /** Teacher-only: fetch all data for a specific student to show detail view */
 export async function fetchStudentDetail(studentId) {
@@ -722,36 +681,6 @@ export async function fetchSharedDatasets(currentStudentId) {
     return { data: mergedData, error: null };
 }
 
-/**
- * Update 'Use for Research' status immediately
- */
-export async function toggleResearchUse(datasetId, isUse, studentId, isOwner, isTeacher = false) {
-    if (isOwner || isTeacher) {
-        // Owner or Teacher updates the dataset record directly
-        let query = supabaseClient
-            .from('student_datasets')
-            .update({ is_research_use: isUse })
-            .eq('id', datasetId);
-        
-        if (!isTeacher) {
-            query = query.eq('student_id', studentId);
-        }
-
-        const { data, error } = await query.select();
-        return { data, error };
-    } else {
-        // Shared user updates their preference in a separate table
-        const { data, error } = await supabaseClient
-            .from('shared_research_use')
-            .upsert({ 
-                student_id: studentId, 
-                dataset_id: datasetId, 
-                is_research_use: isUse 
-            }, { onConflict: 'student_id,dataset_id' })
-            .select();
-        return { data, error };
-    }
-}
 
 /**
  * Fetch team member datasets that are relevant for research (4?④퀎):
@@ -1502,6 +1431,75 @@ export async function deleteSharedPost(postId, files = []) {
             .from("shared_posts")
             .delete()
             .eq("id", postId);
+
+        return { success: !error, error };
+    } catch (error) {
+        return { error };
+    }
+}
+
+// 게시글 제목/내용 수정
+export async function updateSharedPost(postId, title, content) {
+    const { error } = await supabaseClient
+        .from("shared_posts")
+        .update({ title, content })
+        .eq("id", postId);
+    return { success: !error, error };
+}
+
+// 개별 파일 추가
+export async function addFilesToSharedPost(postId, files = []) {
+    try {
+        const uploadPromises = files.map(async (file) => {
+            const parts = file.name.split(".");
+            const fileExt = parts.length > 1 ? parts.pop().toLowerCase() : "";
+            const safeFileName = `${Math.random().toString(36).substring(2)}_${Date.now()}${fileExt ? "." + fileExt : ""}`;
+            const filePath = `uploads/${postId}/${safeFileName}`;
+
+            const { error: uploadError } = await supabaseClient.storage
+                .from("shared-work-files")
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabaseClient.storage
+                .from("shared-work-files")
+                .getPublicUrl(filePath);
+
+            return supabaseClient
+                .from("shared_files")
+                .insert([{ 
+                    post_id: postId, 
+                    file_name: file.name, 
+                    file_url: publicUrl, 
+                    file_path: filePath,
+                    file_size: file.size 
+                }]);
+        });
+
+        await Promise.all(uploadPromises);
+        return { success: true };
+    } catch (error) {
+        console.error("Error in addFilesToSharedPost:", error);
+        return { error };
+    }
+}
+
+// 개별 파일 삭제
+export async function deleteFileFromSharedPost(fileId, filePath) {
+    try {
+        // 1. 스토리지에서 삭제
+        if (filePath) {
+            await supabaseClient.storage
+                .from("shared-work-files")
+                .remove([filePath]);
+        }
+
+        // 2. DB에서 삭제
+        const { error } = await supabaseClient
+            .from("shared_files")
+            .delete()
+            .eq("id", fileId);
 
         return { success: !error, error };
     } catch (error) {

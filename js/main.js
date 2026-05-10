@@ -9,12 +9,10 @@ import {
     requestTeacherAccess, 
     fetchAllTeachers, 
     updateTeacherStatus, 
-    fetchStudentProgressSnapshot, 
     fetchStudentDetail, 
     deleteStudentAccount,
     fetchAllDatasetsForTeacher,
     toggleDatasetShare,
-    toggleResearchUse,
     fetchAllProblemDefinitionsForTeacher
 } from './auth.js';
 import { supabaseClient } from './config.js';
@@ -236,7 +234,6 @@ async function showTeacherDashboard(email) {
     const tabTeacherStep2 = document.getElementById('tab-teacher-step2');
     const tabTeacherStep3 = document.getElementById('tab-teacher-step3');
     const tabStep1 = document.getElementById('tab-step1'); // Step 4: Research Journal
-    const tabProgress = document.getElementById('tab-progress');
     const tabCompetitions = document.getElementById('tab-competitions');
     const tabTeachers = document.getElementById('tab-teachers');
     const tabSharing = document.getElementById('tab-sharing');
@@ -246,7 +243,6 @@ async function showTeacherDashboard(email) {
     const viewStep0 = document.getElementById('teacher-step0-view');
     const viewStepHalf = document.getElementById('teacher-step-half-view');
     const viewTeacherStep2 = document.getElementById('teacher-step2-test-view');
-    const viewProgress = document.getElementById('teacher-progress-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
     const viewCompetitions = document.getElementById('teacher-competitions-view');
     const viewManagement = document.getElementById('teacher-management-view');
@@ -254,8 +250,8 @@ async function showTeacherDashboard(email) {
     const viewSharing = document.getElementById('teacher-sharing-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabTeacherStep0, tabStepHalf, tabTeacherStep2, tabTeacherStep3, tabStep1, tabProgress, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStep0, viewStepHalf, viewTeacherStep2, viewProgress, viewManagement, viewStep1, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
+        [tabStudents, tabAttendance, tabTeacherStep0, tabStepHalf, tabTeacherStep2, tabTeacherStep3, tabStep1, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStep0, viewStepHalf, viewTeacherStep2, viewManagement, viewStep1, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
         if (activeTab) activeTab.classList.add('active');
         if (activeView) activeView.style.display = 'block';
     };
@@ -589,13 +585,6 @@ async function showTeacherDashboard(email) {
         UI.renderTeacherDashboard(data || [], onResetPin, onDeleteStudent);
     };
     
-    tabProgress.onclick = async () => {
-        switchTab(tabProgress, viewProgress);
-        const progressList = viewProgress.querySelector('#teacher-progress-list');
-        if (progressList) progressList.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
-        const { data } = await fetchStudentProgressSnapshot();
-        UI.renderStudentProgress(data, onViewStudentDetail);
-    };
 
     tabSharing.onclick = async () => {
         switchTab(tabSharing, viewSharing);
@@ -879,7 +868,7 @@ async function showTeacherDashboard(email) {
         ]);
         if (!error) {
             UI.renderTeacherDataManagement(
-                data, onTeacherToggleShare, onTeacherToggleResearch, teacherIds,
+                data, onTeacherToggleShare, teacherIds,
                 user?.email, 
                 false,        
                 () => loadManagementTab()
@@ -923,15 +912,6 @@ async function onDeleteStudent(studentId, studentName) {
     }
 }
 
-async function onViewStudentDetail(studentId, studentName) {
-    // If no studentId, just refresh the progress list
-    if (!studentId) {
-        document.getElementById('tab-progress').click();
-        return;
-    }
-    const detail = await fetchStudentDetail(studentId);
-    await UI.showStudentDetailModal(studentName, detail);
-}
 
 document.getElementById('teacher-logout-btn').addEventListener('click', async () => {
     await signOut();
@@ -943,10 +923,6 @@ async function onTeacherToggleShare(id, isShared) {
     if (error) alert('오류: ' + error.message);
 }
 
-async function onTeacherToggleResearch(id, isUse) {
-    const { error } = await toggleResearchUse(id, isUse, null, false, true);
-    if (error) alert('오류: ' + error.message);
-}
 
 async function onResetPin(studentId) {
     if (!confirm(`${studentId} 학생의 PIN을 0000으로 초기화할까요?`)) return;

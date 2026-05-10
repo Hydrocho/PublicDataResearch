@@ -629,8 +629,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                             </div>
 
                                                             ${(() => {
-                                                                const userStr = localStorage.getItem('currentUser');
-                                                                const user = userStr ? JSON.parse(userStr) : {};
+                                                                const user = state.user || {};
                                                                 
                                                                 // 1. 작성자 본인 확인
                                                                 const isAuthor = user.student_id && user.student_id === post.author_id;
@@ -638,11 +637,17 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                                 // 2. 교사 권한 확인 (데이터 구조 또는 현재 화면이 교사용 섹션인지 확인)
                                                                 const teacherSection = document.getElementById('teacher-section');
                                                                 const isTeacherView = teacherSection && teacherSection.style.display !== 'none';
-                                                                const isTeacherUser = (user.email && !user.student_id) || user.role === 'teacher';
+                                                                const isTeacherUser = user.role === 'teacher' || (!user.student_id && user.email);
                                                                 
                                                                 if (isAuthor || isTeacherView || isTeacherUser) {
                                                                     return `
-                                                                        <div style="margin-top:25px; padding-top:20px; border-top:1px solid #e2e8f0; text-align:right;">
+                                                                        <div style="margin-top:25px; padding-top:20px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+                                                                            <button class="edit-post-btn btn-secondary" 
+                                                                                    data-id="${post.id}" 
+                                                                                    data-post='${JSON.stringify(post).replace(/'/g, "&apos;")}'
+                                                                                    style="font-size:0.85rem; padding:8px 18px; cursor:pointer; border-radius:8px; font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+                                                                                <i data-lucide="edit-3" size="14"></i> 수정하기
+                                                                            </button>
                                                                             <button class="delete-post-btn btn-secondary" 
                                                                                     data-id="${post.id}" 
                                                                                     data-files='${JSON.stringify(post.shared_files || [])}'
@@ -661,6 +666,42 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                     </table>
                                 </div>`;
                             
+                            // 수정 버튼 기능 연결
+                            boardContainer.querySelectorAll('.edit-post-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    const postData = JSON.parse(btn.dataset.post);
+                                    
+                                    const { showBoardEditor } = await import('./ui-board-editor.js');
+                                    showBoardEditor(state, async (updatedData) => {
+                                        const { updateSharedPost, addFilesToSharedPost, deleteFileFromSharedPost } = await import('./auth.js');
+                                        
+                                        // 1. 게시글 기본 정보 수정
+                                        const updateRes = await updateSharedPost(postData.id, updatedData.title, updatedData.content);
+                                        if (!updateRes.success) throw updateRes.error;
+                                        
+                                        // 2. 파일 삭제 처리
+                                        if (updatedData.deletedFileIds.length > 0) {
+                                            for (const fileId of updatedData.deletedFileIds) {
+                                                const file = postData.shared_files.find(f => String(f.id) === String(fileId));
+                                                if (file) {
+                                                    await deleteFileFromSharedPost(file.id, file.file_path);
+                                                }
+                                            }
+                                        }
+                                        
+                                        // 3. 새 파일 추가 업로드
+                                        if (updatedData.files.length > 0) {
+                                            const addRes = await addFilesToSharedPost(postData.id, updatedData.files);
+                                            if (!addRes.success) throw addRes.error;
+                                        }
+                                        
+                                        alert('게시글이 수정되었습니다.');
+                                        await loadBoard();
+                                    }, postData);
+                                };
+                            });
+
                             // 삭제 버튼 기능 연결
                             boardContainer.querySelectorAll('.delete-post-btn').forEach(btn => {
                                 btn.onclick = async (e) => {

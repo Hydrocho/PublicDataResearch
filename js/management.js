@@ -1,5 +1,5 @@
 import { supabaseClient } from './config.js';
-import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, fetchTeamDatasets, updateDatasetName, toggleResearchUse } from './auth.js';
+import { fetchStudentDatasets, deleteStudentDataset, toggleDatasetShare, fetchSharedDatasets, fetchTeamDatasets, updateDatasetName } from './auth.js';
 import { openDatasetModal } from './ui.js';
 
 export async function onLoadDatasets(state, changeStep) {
@@ -50,7 +50,6 @@ export async function onLoadDatasets(state, changeStep) {
                         <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
                         <th style="padding: 12px; font-size: 0.85rem;">팀원</th>
                         <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -74,9 +73,6 @@ export async function onLoadDatasets(state, changeStep) {
                             </td>
                             <td style="padding: 12px; font-size: 0.85rem; color: #0369a1; font-weight: 600;">${memberName}</td>
                             <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? '#0284c7' : '#94a3b8'};">${rowStr}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="false" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                            </td>
                         </tr>
                         `;
                     }).join('')}
@@ -96,7 +92,6 @@ export async function onLoadDatasets(state, changeStep) {
                     <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
                         <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
                         <th style="padding: 12px; font-size: 0.85rem;">공유자</th>
-                        <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -111,9 +106,6 @@ export async function onLoadDatasets(state, changeStep) {
                                 </div>
                             </td>
                             <td style="padding: 12px; font-size: 0.85rem; color: #4338ca; font-weight: 600;">${ownerName}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <input type="checkbox" class="research-use-check" data-id="${ds.id}" data-owner="false" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                            </td>
                         </tr>
                         `;
                     }).join('')}
@@ -145,10 +137,6 @@ export async function onLoadDatasets(state, changeStep) {
             const { error } = await toggleDatasetShare(id, isShared, state.user.student_id);
             if (error) alert('공유 상태 변경 실패: ' + error.message);
         },
-        async (id, isUse) => { // onToggleResearch
-            const { error } = await toggleResearchUse(id, isUse, state.user.student_id, true);
-            if (error) alert('연구 활용 상태 저장 실패: ' + error.message);
-        },
         async (id, currentName) => { // onEditName
             const newName = prompt('수정할 데이터셋 이름을 입력하세요:', currentName);
             if (newName && newName.trim() !== '' && newName !== currentName) {
@@ -170,22 +158,6 @@ export async function onLoadDatasets(state, changeStep) {
         });
     });
 
-    // ── 연구 활용 체크 (팀/친구 공유 자료용) ────────────────────────────
-    container.querySelectorAll('.research-use-check').forEach(chk => {
-        chk.addEventListener('change', async () => {
-            const id = chk.dataset.id;
-            const isUse = chk.checked;
-            const isOwner = chk.dataset.owner === 'true'; // 팀/친구는 false가 명시되어 있음
-            
-            chk.disabled = true;
-            const { error } = await toggleResearchUse(id, isUse, state.user.student_id, isOwner);
-            if (error) {
-                alert('연구 활용 상태 저장 실패: ' + error.message);
-                chk.checked = !isUse;
-            }
-            chk.disabled = false;
-        });
-    });
 }
 
 

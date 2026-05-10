@@ -145,7 +145,7 @@ async function setupTeacherUploadPanel(container, teacherEmail, onSuccess) {
     }
 }
 
-export function renderTeacherDataManagement(datasets, onToggleShare, onToggleResearch, teacherIds = [], teacherEmail = null, showUploadPanel = true, onTeacherUploadSuccess = null) {
+export function renderTeacherDataManagement(datasets, onToggleShare, teacherIds = [], teacherEmail = null, showUploadPanel = true, onTeacherUploadSuccess = null) {
     const container = document.getElementById('teacher-dataset-list');
     if (!container) return;
 
@@ -365,7 +365,6 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                         <th style="padding:12px;">데이터셋 이름</th>
                         <th style="padding:12px;">작성자</th>
                         <th style="padding:12px;text-align:center;">행 수</th>
-                        <th style="padding:12px;text-align:center;">학생 연구 활용</th>
                         <th style="padding:12px;text-align:center;background:#fffbeb;">
                             <div style="display:flex;align-items:center;justify-content:center;gap:7px;">
                                 <input type="checkbox" id="teacher-test-all-chk" title="전체 체크/해제" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;flex-shrink:0;">
@@ -428,9 +427,6 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
                             <td style="padding:12px;text-align:center;">
                                 <span style="font-size:0.88rem;font-weight:600;color:${rowCount != null ? 'var(--secondary)' : '#94a3b8'};">${rowStr}</span>
                                 ${sizeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${sizeStr}</div>` : ''}
-                            </td>
-                            <td style="padding:12px;text-align:center;">
-                                <input type="checkbox" class="teacher-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
                             </td>
                             <td style="padding:12px;text-align:center;background:#fffdf0;">
                                 <input type="checkbox" class="teacher-test-toggle" data-id="${ds.id}" ${isTeacherChecked ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#f59e0b;">
@@ -604,9 +600,6 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
 
     updateFilter();
 
-    container.querySelectorAll('.teacher-research-toggle').forEach(chk => {
-        chk.onchange = () => onToggleResearch(chk.dataset.id, chk.checked);
-    });
     container.querySelectorAll('.teacher-share-toggle').forEach(chk => {
         chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
     });
@@ -1085,7 +1078,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, onToggleRes
     if (window.lucide) lucide.createIcons();
 }
 
-export function renderDatasetsList(datasets, containerId, onDelete, onToggleShare, onToggleResearch, onEditName) {
+export function renderDatasetsList(datasets, containerId, onDelete, onToggleShare, onEditName) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -1100,7 +1093,6 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
                 <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
                     <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
-                    <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
                 </tr>
@@ -1127,9 +1119,6 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
                             </div>
                         </td>
                         <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? 'var(--primary)' : '#94a3b8'};">${rowStr}</td>
-                        <td style="padding: 12px; text-align: center;">
-                            <input type="checkbox" class="managed-research-use-check" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                        </td>
                         <td style="padding: 12px; text-align: center;">
                             <label class="switch">
                                 <input type="checkbox" class="managed-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
@@ -1165,10 +1154,6 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
 
     container.querySelectorAll('.managed-share-toggle').forEach(chk => {
         chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
-    });
-
-    container.querySelectorAll('.managed-research-use-check').forEach(chk => {
-        chk.onchange = () => onToggleResearch(chk.dataset.id, chk.checked);
     });
 
     container.querySelectorAll('.managed-edit-name-btn').forEach(btn => {
