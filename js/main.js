@@ -231,37 +231,33 @@ async function showTeacherDashboard(email) {
     // Setup sidebar navigation
     const tabStudents = document.getElementById('tab-students');
     const tabAttendance = document.getElementById('tab-attendance');
+    const tabTeacherStep0 = document.getElementById('tab-teacher-step0');
     const tabStepHalf = document.getElementById('tab-step-half');
-    const tabProgress = document.getElementById('tab-progress');
-    const tabTeacherStep1 = document.getElementById('tab-teacher-step1');
     const tabTeacherStep2 = document.getElementById('tab-teacher-step2');
     const tabTeacherStep3 = document.getElementById('tab-teacher-step3');
-    const tabStep3Half = document.getElementById('tab-step-3half');
-    const tabStep1 = document.getElementById('tab-step1');
-    const tabStep2 = document.getElementById('tab-step2');
+    const tabStep1 = document.getElementById('tab-step1'); // Step 4: Research Journal
+    const tabProgress = document.getElementById('tab-progress');
     const tabCompetitions = document.getElementById('tab-competitions');
     const tabTeachers = document.getElementById('tab-teachers');
     const tabSharing = document.getElementById('tab-sharing');
 
     const viewStudents = document.getElementById('teacher-students-view');
     const viewAttendance = document.getElementById('teacher-attendance-view');
+    const viewStep0 = document.getElementById('teacher-step0-view');
     const viewStepHalf = document.getElementById('teacher-step-half-view');
+    const viewTeacherStep2 = document.getElementById('teacher-step2-test-view');
     const viewProgress = document.getElementById('teacher-progress-view');
-    const viewTeacherStep1 = document.getElementById('teacher-step1-test-explore-view');
-    const viewTeacherStep2 = document.getElementById('teacher-step2-test-save-view');
     const viewStep1 = document.getElementById('teacher-step1-view');
-    const viewStep2 = document.getElementById('teacher-step2-view');
     const viewCompetitions = document.getElementById('teacher-competitions-view');
     const viewManagement = document.getElementById('teacher-management-view');
-    const viewStep3Half = document.getElementById('teacher-step-3half-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
     const viewSharing = document.getElementById('teacher-sharing-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabStepHalf, tabProgress, tabTeacherStep1, tabTeacherStep2, tabTeacherStep3, tabStep3Half, tabStep1, tabStep2, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStepHalf, viewProgress, viewTeacherStep1, viewTeacherStep2, viewManagement, viewStep3Half, viewStep1, viewStep2, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
-        activeTab.classList.add('active');
-        activeView.style.display = 'block';
+        [tabStudents, tabAttendance, tabTeacherStep0, tabStepHalf, tabTeacherStep2, tabTeacherStep3, tabStep1, tabProgress, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStep0, viewStepHalf, viewTeacherStep2, viewProgress, viewManagement, viewStep1, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
+        if (activeTab) activeTab.classList.add('active');
+        if (activeView) activeView.style.display = 'block';
     };
     
     // ── 출석 체크 ───────────────────────────────────────────
@@ -607,6 +603,43 @@ async function showTeacherDashboard(email) {
         renderStepContent(11, state, (id) => {}, 'teacher-sharing-root');
     };
 
+    // ── 0단계: 기초 지식 조사 (교사 모니터링) ──────────────────────────
+    const loadStep0Monitoring = async () => {
+        const { fetchAllKnowledgeSurveysForTeacher } = await import('./auth.js');
+        const { renderTeacherKnowledgeMonitoring } = await import('./ui-teacher-admin.js');
+        const { renderResearchJournal } = await import('./ui-journal.js');
+        
+        const { data: logs } = await fetchAllKnowledgeSurveysForTeacher();
+        
+        renderTeacherKnowledgeMonitoring(logs, (targetSid) => {
+            const containerId = 'teacher-step0-root';
+            const state = { user: { student_id: email } };
+            
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div style="margin-bottom:15px;">
+                    <button id="teacher-step0-back-btn" class="btn-secondary" style="padding:6px 15px; font-size:0.85rem;">
+                        <i data-lucide="arrow-left" size="14" style="vertical-align:middle; margin-right:4px;"></i> 목록으로 돌아가기
+                    </button>
+                </div>
+                <div id="teacher-step0-detail-container"></div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            
+            document.getElementById('teacher-step0-back-btn').onclick = loadStep0Monitoring;
+            
+            renderResearchJournal('teacher-step0-detail-container', state, {
+                readOnly: true,
+                targetStudentId: targetSid
+            });
+        });
+    };
+
+    tabTeacherStep0.onclick = async () => {
+        switchTab(tabTeacherStep0, viewStep0);
+        await loadStep0Monitoring();
+    };
+
     // ── 1.5단계: 주제 탐색 ──────────────────────────────────
     tabStepHalf.onclick = async () => {
         switchTab(tabStepHalf, viewStepHalf);
@@ -624,7 +657,7 @@ async function showTeacherDashboard(email) {
             const cat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
             root.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                    <h2>1.5단계: 연구 주제 탐색</h2>
+                    <h2>STEP 1: 연구 주제 탐색</h2>
                     ${cat ? `<button id="teacher-back-btn" class="btn-secondary" style="font-size:0.85rem;">← 전체 분야 보기</button>` : ''}
                 </div>
 
@@ -632,8 +665,8 @@ async function showTeacherDashboard(email) {
                 <!-- 카테고리 목록 -->
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
                     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
-                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">1.5단계 역할</div>
-                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 1단계로 돌아가 데이터를 찾으면 됩니다.</div>
+                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">STEP 1 역할</div>
+                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 다음 단계로 이동하여 데이터를 저장하면 됩니다.</div>
                     </div>
                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
                         <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">난이도 기준</div>
@@ -641,7 +674,20 @@ async function showTeacherDashboard(email) {
                     </div>
                     <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
                         <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">활용 방법</div>
-                        <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">마음에 드는 분야를 클릭 → 교육 접점 질문과 아이디어 확인 → <strong>1단계 데이터 탐색</strong>으로 이동해 실제 데이터 수집</div>
+                        <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">마음에 드는 분야를 클릭 → 교육 접점 질문과 아이디어 확인 → <strong>STEP 2 데이터 저장</strong>으로 이동해 실제 데이터 수집</div>
+                    </div>
+                </div>
+
+                <!-- KOSIS 추천 링크 (추가됨) -->
+                <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; display: flex; align-items: center; gap: 15px;">
+                    <div style="background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i data-lucide="external-link" size="18"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 0.95rem; color: #0369a1;">🔍 더 많은 데이터를 찾고 싶나요?</h4>
+                        <p style="margin: 3px 0 0 0; font-size: 0.85rem; color: #0ea5e9;">
+                            <a href="https://kosis.kr/statisticsList/statisticsListIndex.do?vwcd=MT_ZTITLE&menuId=M_01_01#H1_12.2" target="_blank" style="color: #0369a1; font-weight: 700; text-decoration: underline;">KOSIS 국가통계포털</a>에서 주제별 다양한 통계 자료를 탐색해보세요.
+                        </p>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
@@ -750,29 +796,15 @@ async function showTeacherDashboard(email) {
         renderTopics();
     };
 
-    // ── 1단계: 데이터 탐색 (교사 테스트) ────────────────────────────────
-    tabTeacherStep1.onclick = () => {
-        switchTab(tabTeacherStep1, viewTeacherStep1);
-        const root = document.getElementById('teacher-step1-test-root');
-        if (root) {
-            import('./discovery.js').then(m => m.renderDataExplorer(root, {
-                user: { student_id: email, name: `${email.split('@')[0]} (교사)` },
-                currentStep: 0
-            }, (cat, dataInfo) => {
-                alert(`'${dataInfo.name}' 데이터가 분석 목록에 추가되었습니다! \n[2단계: 데이터 저장] 단계에서 시스템에 등록할 수 있습니다.`);
-                tabTeacherStep2.click();
-            }));
-        }
-    };
 
     // ── 2단계: 데이터 저장 (교사 테스트) ────────────────────────────────
-    tabTeacherStep2.onclick = () => {
+    tabTeacherStep2.onclick = async () => {
         switchTab(tabTeacherStep2, viewTeacherStep2);
-        const rootId = 'teacher-step2-test-root';
+        const { renderStepContent } = await import('./ui-step-router.js');
         const teacherUser = { student_id: email, name: `${email.split('@')[0]} (교사)` };
-        UI.renderStepContent(1, { user: teacherUser }, (nextStep) => {
+        renderStepContent(1, { user: teacherUser }, (nextStep) => {
             if (nextStep === 2) tabTeacherStep3.click();
-        }, rootId);
+        }, 'teacher-step2-test-root');
     };
 
     // ── 3단계: 전체 데이터 관리 (교사 테스트+모니터링) ──────────────────
@@ -781,158 +813,43 @@ async function showTeacherDashboard(email) {
         await loadManagementTab();
     };
 
-    // ── 3.5단계: 데이터 내용 미리보기 ──────────────────────────────────
-    const loadStep3Half = async () => {
-        const content = viewStep3Half?.querySelector('#teacher-step-3half-content');
-        if (!content) return;
-        content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
-
-        const { renderDatasetSampleViewer } = await import('./ui-datasets.js');
-        const { fetchTeacherTestDatasets } = await import('./auth.js');
-
-        const { data: previewDs } = await fetchTeacherTestDatasets();
-
-        content.innerHTML = `
-            <div style="margin-bottom:20px; padding:15px 20px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; display:flex; align-items:center; gap:12px;">
-                <div style="background:#4f46e5; color:white; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                    <i data-lucide="info" size="18"></i>
+    // ── 4단계: 연구 일지 (교사 모니터링) ──────────────────────────────────
+    const loadStep4Monitoring = async () => {
+        const { fetchAllProblemDefinitionsForTeacher } = await import('./auth.js');
+        const { renderTeacherJournalMonitoring } = await import('./ui-teacher-admin.js');
+        const { renderResearchJournalStep4 } = await import('./ui-research-journal.js');
+        
+        const { data: logs } = await fetchAllProblemDefinitionsForTeacher();
+        
+        renderTeacherJournalMonitoring(logs, (targetSid) => {
+            // Open Journal Detail in Read-Only mode
+            const containerId = 'teacher-step1-root';
+            const state = { user: { student_id: email } }; // Current teacher as viewer
+            
+            // Add a back button before rendering the journal
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div style="margin-bottom:15px;">
+                    <button id="teacher-journal-back-btn" class="btn-secondary" style="padding:6px 15px; font-size:0.85rem;">
+                        <i data-lucide="arrow-left" size="14" style="vertical-align:middle; margin-right:4px;"></i> 목록으로 돌아가기
+                    </button>
                 </div>
-                <div style="font-size:0.92rem; color:#3730a3; line-height:1.5;">
-                    <strong>3단계(데이터 관리)</strong>에서 '연구 활용'으로 체크한 자료들의 샘플입니다.<br>
-                    AI에게 데이터 구조를 설명할 때 아래의 <strong>[복사]</strong> 버튼을 활용해 보세요.
-                </div>
-            </div>
-            <div id="step3half-preview-area" style="min-height:200px;"></div>
-        `;
-
-        if (window.lucide) lucide.createIcons();
-        await renderDatasetSampleViewer(previewDs || [], 'step3half-preview-area');
-    };
-
-    if (tabStep3Half) {
-        tabStep3Half.onclick = async () => {
-            switchTab(tabStep3Half, viewStep3Half);
-            await loadStep3Half();
-        };
-    }
-
-    const refreshStep3HalfBtn = document.getElementById('refresh-step-3half-btn');
-    if (refreshStep3HalfBtn) refreshStep3HalfBtn.onclick = loadStep3Half;
-
-    const showStep1Monitor = () => {
-        document.getElementById('step1-monitor-section').style.display = 'block';
-        document.getElementById('step1-test-section').style.display = 'none';
-        document.getElementById('step1-tab-monitor-btn').className = 'btn-primary';
-        document.getElementById('step1-tab-test-btn').className = 'btn-secondary';
-    };
-    const showStep1Test = () => {
-        document.getElementById('step1-monitor-section').style.display = 'none';
-        document.getElementById('step1-test-section').style.display = 'block';
-        document.getElementById('step1-tab-monitor-btn').className = 'btn-secondary';
-        document.getElementById('step1-tab-test-btn').className = 'btn-primary';
-    };
-
-    const loadStep1Data = async () => {
-        const step1List = viewStep1.querySelector('#teacher-step1-list');
-        if (step1List) step1List.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
-        const { data } = await fetchAllProblemDefinitionsForTeacher();
-        UI.renderTeacherProblemDefinitions(data || [], 'teacher-step1-list');
-        if (window.lucide) window.lucide.createIcons();
-    };
-
-    const loadStep1Test = async () => {
-        const { fetchTeacherTestDatasets } = await import('./auth.js');
-        await UI.renderProblemDefinitionView(
-            'teacher-step1-test-container',
-            () => fetchTeacherTestDatasets(),
-            null, // 교사 테스트 모드 — 저장 없음
-            () => { tabTeacherStep3.click(); }
-        );
+                <div id="teacher-journal-detail-container"></div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            
+            document.getElementById('teacher-journal-back-btn').onclick = loadStep4Monitoring;
+            
+            renderResearchJournalStep4('teacher-journal-detail-container', state, {
+                readOnly: true,
+                targetStudentId: targetSid
+            });
+        });
     };
 
     tabStep1.onclick = async () => {
         switchTab(tabStep1, viewStep1);
-        showStep1Monitor();
-        await loadStep1Data();
-        if (window.lucide) window.lucide.createIcons();
-    };
-
-    document.getElementById('step1-tab-monitor-btn').onclick = async () => {
-        showStep1Monitor();
-        await loadStep1Data();
-    };
-    document.getElementById('step1-tab-test-btn').onclick = async () => {
-        showStep1Test();
-        try { await loadStep1Test(); } catch(err) { console.error('loadStep1Test error:', err); }
-    };
-
-    const refreshStep1Btn = document.getElementById('refresh-step1-btn');
-    if (refreshStep1Btn) refreshStep1Btn.onclick = loadStep1Data;
-
-    const showStep2Monitor = () => {
-        document.getElementById('step2-monitor-section').style.display = 'block';
-        document.getElementById('step2-test-section').style.display = 'none';
-        document.getElementById('step2-tab-monitor-btn').className = 'btn-primary';
-        document.getElementById('step2-tab-test-btn').className = 'btn-secondary';
-    };
-    const showStep2Test = () => {
-        document.getElementById('step2-monitor-section').style.display = 'none';
-        document.getElementById('step2-test-section').style.display = 'block';
-        document.getElementById('step2-tab-monitor-btn').className = 'btn-secondary';
-        document.getElementById('step2-tab-test-btn').className = 'btn-primary';
-    };
-
-    const loadStep2Data = async () => {
-        const step2Content = viewStep2.querySelector('#teacher-step2-content');
-        if (step2Content) step2Content.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">데이터를 불러오는 중입니다...</p></div>';
-        const { data } = await fetchAllProblemDefinitionsForTeacher();
-        UI.renderTeacherPreprocessing(data || [], 'teacher-step2-content');
-    };
-
-    const loadStep2Test = async () => {
-        const {
-            fetchTeacherTestActivityLogs,
-            fetchTeacherTestDatasets,
-            getTeacherSelectedResearchId,
-            setTeacherSelectedResearchId,
-            deleteTeacherTestActivityLog,
-        } = await import('./auth.js');
-        await UI.renderPreprocessingView('teacher-step2-test-container', {
-            getOwnLogsFn: () => fetchTeacherTestActivityLogs(),
-            getTeamLogsFn: null,
-            getDatasetsFn: () => fetchTeacherTestDatasets(),
-            getSelectedId: () => getTeacherSelectedResearchId(),
-            setSelectedIdAndRerender: (id) => {
-                setTeacherSelectedResearchId(id);
-                loadStep2Test();
-            },
-            onDelete: async (id) => {
-                const { error } = await deleteTeacherTestActivityLog(id);
-                if (error) alert('삭제 중 오류가 발생했습니다: ' + error.message);
-                else await loadStep2Test();
-            },
-            onGoToStep4: () => {
-                tabStep1.click();
-                setTimeout(() => document.getElementById('step1-tab-test-btn')?.click(), 100);
-            },
-            isTeacherMode: true,
-        });
-    };
-
-    tabStep2.onclick = async () => {
-        switchTab(tabStep2, viewStep2);
-        showStep2Monitor();
-        await loadStep2Data();
-        if (window.lucide) window.lucide.createIcons();
-    };
-
-    document.getElementById('step2-tab-monitor-btn').onclick = async () => {
-        showStep2Monitor();
-        await loadStep2Data();
-    };
-    document.getElementById('step2-tab-test-btn').onclick = async () => {
-        showStep2Test();
-        try { await loadStep2Test(); } catch(err) { console.error('loadStep2Test error:', err); }
+        await loadStep4Monitoring();
     };
 
     const loadCompetitions = async () => {
@@ -1105,21 +1022,10 @@ function changeStep(id) {
     }
     state.currentStep = id;
     
-    const s0 = document.getElementById('step-0');
     const sContent = document.getElementById('step-content-section');
-    if (s0) s0.classList.remove('active');
-    if (sContent) sContent.classList.remove('active');
+    if (sContent) sContent.classList.add('active');
     
-    if (id === 0) {
-        if (s0) s0.classList.add('active');
-        const root = document.getElementById('explorer-root');
-        if (root) {
-            import('./discovery.js').then(m => m.renderDataExplorer(root, state, window.onDataSelected));
-        }
-    } else {
-        if (sContent) sContent.classList.add('active');
-        UI.renderStepContent(id, state, changeStep);
-    }
+    UI.renderStepContent(id, state, changeStep);
     UI.renderStepsNav(id, state, changeStep);
 }
 

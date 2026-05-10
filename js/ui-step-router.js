@@ -1,5 +1,6 @@
-import { renderProblemDefinitionView } from './ui-problem-def.js';
 import { renderPreprocessingView } from './ui-preprocessing.js';
+import { renderResearchJournal } from './ui-journal.js';
+import { renderResearchJournalStep4 } from './ui-research-journal.js';
 
 export function renderStepContent(stepId, state, onStepChange, containerId = 'step-canvas') {
     const canvas = document.getElementById(containerId);
@@ -8,8 +9,17 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
     const topic = state.selectedTopic;
 
     switch(stepId) {
-            case 0:
-                content = `<div style="text-align:center; padding: 40px;"><h2>데이터 탐색 단계입니다.</h2><p>왼쪽 메뉴를 이용하거나 홈으로 가세요.</p></div>`;
+            case 0: // 0단계: 연구 일지
+                content = '<div id="journal-root" style="min-height: 400px; padding: 20px;"></div>';
+                setTimeout(() => {
+                    renderResearchJournal('journal-root', state);
+                }, 50);
+                break;
+            case 3: // 4단계: 연구 일지 (기존 문제 정의 대체)
+                content = '<div id="research-journal-root" style="min-height: 400px; padding: 20px;"></div>';
+                setTimeout(() => {
+                    renderResearchJournalStep4('research-journal-root', state);
+                }, 50);
                 break;
             case 9: // 1.5단계: 주제 탐색
                 content = '<div id="topic-explore-root" style="min-height: 400px; padding: 20px;"></div>';
@@ -27,7 +37,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
 
                             root.innerHTML = `
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                                    <h2>1.5단계: 연구 주제 탐색</h2>
+                                    <h2>1단계: 연구 주제 탐색</h2>
                                     ${cat ? `<button id="back-to-categories" class="btn-secondary" style="font-size:0.85rem;">← 전체 분야 보기</button>` : ''}
                                 </div>
 
@@ -35,8 +45,8 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                 <!-- 카테고리 목록 -->
                                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
                                     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
-                                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">1.5단계 역할</div>
-                                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 1단계로 돌아가 데이터를 찾으면 됩니다.</div>
+                                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">1단계 역할</div>
+                                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 다음 단계로 이동하여 데이터를 저장하면 됩니다.</div>
                                     </div>
                                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
                                         <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">난이도 기준</div>
@@ -47,6 +57,20 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                         <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">마음에 드는 분야를 클릭 → 교육 접점 질문과 아이디어 확인 → <strong>1단계 데이터 탐색</strong>으로 이동해 실제 데이터 수집</div>
                                     </div>
                                 </div>
+                                
+                                <!-- KOSIS 추천 링크 추가 -->
+                                <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; display: flex; align-items: center; gap: 15px;">
+                                    <div style="background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i data-lucide="external-link" size="18"></i>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <h4 style="margin: 0; font-size: 0.95rem; color: #0369a1;">🔍 더 많은 데이터를 찾고 싶나요?</h4>
+                                        <p style="margin: 3px 0 0 0; font-size: 0.85rem; color: #0ea5e9;">
+                                            <a href="https://kosis.kr/statisticsList/statisticsListIndex.do?vwcd=MT_ZTITLE&menuId=M_01_01#H1_12.2" target="_blank" style="color: #0369a1; font-weight: 700; text-decoration: underline;">KOSIS 국가통계포털</a>에서 주제별 다양한 통계 자료를 탐색해보세요.
+                                        </p>
+                                    </div>
+                                </div>
+
                                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
                                     ${categories.map(c => {
                                         const dc = diffColor[c.difficulty] || diffColor['초급'];
@@ -242,354 +266,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     setTimeout(() => state.onLoadDatasets(), 100);
                 }
                 break;
-            case 10: // 3.5단계: 데이터 미리보기
-                content = `
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                        <h2>📋 3.5단계: 데이터 내용 미리보기</h2>
-                        <span class="text-muted" style="font-size:0.9rem;">연구 활용으로 선택된 데이터의 실제 내용을 확인하고 복사합니다.</span>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
-                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
-                            <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">3.5단계 역할</div>
-                            <div style="font-size:0.88rem;color:#166534;line-height:1.55;">4단계 AI 프롬프트에 실제로 들어가는 데이터 내용을 미리 확인합니다. 데이터가 올바른지 검토한 뒤 4단계로 넘어가세요.</div>
-                        </div>
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
-                            <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">변수정보 파일</div>
-                            <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">파일명에 <strong>변수정보</strong>가 포함된 파일은 모든 변수 코드와 레이블을 전체 목록으로 표시합니다.</div>
-                        </div>
-                        <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
-                            <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">복사 방법</div>
-                            <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">각 데이터셋 오른쪽 상단의 <strong>복사</strong> 버튼으로 해당 내용을 클립보드에 복사할 수 있습니다.</div>
-                        </div>
-                    </div>
-                    <div id="step-3half-root" style="min-height:300px;"></div>
-                `;
-                setTimeout(async () => {
-                    const { fetchAllResearchDatasets } = await import('./auth.js');
-                    const { renderDatasetSampleViewer } = await import('./ui-datasets.js');
-                    const { data, error } = await fetchAllResearchDatasets(state.user.student_id);
-                    if (error) {
-                        const el = document.getElementById('step-3half-root');
-                        if (el) el.innerHTML = `<p class="text-muted">데이터 로딩 실패: ${error.message}</p>`;
-                        return;
-                    }
-                    await renderDatasetSampleViewer(data || [], 'step-3half-root');
-                }, 50);
-                break;
 
-            case 3: // 4단계: 문제 정의 (Step 1)
-                content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
-                setTimeout(async () => {
-                    const { fetchAllResearchDatasets } = await import('./auth.js');
-                    await renderProblemDefinitionView(
-                        'step-inner-content',
-                        () => fetchAllResearchDatasets(state.user.student_id),
-                        async (data) => {
-                            const { onSaveRecord } = await import('./research.js');
-                            await onSaveRecord(3, data, state);
-                        },
-                        () => window.changeStep && window.changeStep(2)
-                    );
-                }, 50);
-                break;
-            case 4: // 5단계: 데이터 전처리 (Step 2)
-                content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
-                setTimeout(async () => {
-                    const { fetchActivityLogs, fetchTeamActivityLogs, fetchAllResearchDatasets } = await import('./auth.js');
-                    await renderPreprocessingView('step-inner-content', {
-                        getOwnLogsFn: () => fetchActivityLogs(state.user.student_id, 3),
-                        getTeamLogsFn: () => fetchTeamActivityLogs(state.user.student_id, 3),
-                        getDatasetsFn: () => fetchAllResearchDatasets(state.user.student_id),
-                        getSelectedId: () => state.selectedResearchId,
-                        setSelectedIdAndRerender: (id) => {
-                            state.selectedResearchId = id;
-                            onStepChange(stepId);
-                        },
-                        onDelete: async (id) => {
-                            const { deleteActivityLog } = await import('./auth.js');
-                            const { data, error, status, statusText } = await deleteActivityLog(id, state.user.student_id);
-                            if (!error) {
-                                if (data && data.length > 0) {
-                                    alert('연구 기록이 삭제되었습니다.');
-                                } else {
-                                    alert(`삭제할 기록을 찾지 못했거나 권한이 없습니다.\n(상태: ${status} ${statusText})`);
-                                }
-                            } else {
-                                alert('삭제 실패: ' + error.message);
-                                throw new Error(error.message);
-                            }
-                        },
-                        onGoToStep4: () => window.changeStep && window.changeStep(3),
-                        isTeacherMode: false,
-                    });
-                }, 50);
-                break;
-            case 5: // 6단계: AI 분석
-                content = '<div id="step-inner-content" style="min-height: 400px; padding: 20px;"></div>';
-                setTimeout(async () => {
-                    const canvasInner = document.getElementById('step-inner-content');
-                    if (!canvasInner) return;
-                    canvasInner.innerHTML = '<div style="text-align:center;padding:40px;"><p class="text-muted">4단계 연구 기록을 불러오는 중입니다...</p></div>';
-
-                    const { fetchActivityLogs, fetchAllResearchDatasets } = await import('./auth.js');
-                    const { data: logs, error } = await fetchActivityLogs(state.user.student_id, 3);
-
-                    if (error || !logs || logs.length === 0) {
-                        canvasInner.innerHTML = `
-                            <div style="text-align:center;padding:50px 20px;">
-                                <div style="font-size:3rem;margin-bottom:20px;">🔬</div>
-                                <h3 style="margin-bottom:10px;">4단계에서 저장된 연구 주제가 없습니다.</h3>
-                                <p class="text-muted">먼저 [4단계: 문제 정의]에서 AI 프롬프트를 생성하고<br>답변 내용을 저장해 주세요.</p>
-                                <button class="btn-secondary" style="margin-top:20px;" onclick="window.changeStep(3)">4단계로 가기</button>
-                            </div>`;
-                        return;
-                    }
-
-                    if (state.step6ResearchId) {
-                        const selectedLog = logs.find(l => String(l.id) === String(state.step6ResearchId));
-                        if (selectedLog) {
-                            let resData;
-                            try { resData = JSON.parse(selectedLog.content); } catch(e) { resData = { answer: selectedLog.content }; }
-
-                            canvasInner.innerHTML = `
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                                    <h2>6단계: AI 데이터 분석</h2>
-                                    <button id="reset-step6-btn" class="btn-secondary" style="font-size:0.85rem;">다른 주제 선택</button>
-                                </div>
-
-                                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
-                                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
-                                        <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">6단계 역할</div>
-                                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">5단계에서 전처리된 데이터를 바탕으로 <strong>분석 코드를 생성</strong>하고, 결과를 해석해 가설을 검증합니다. 8단계 정책 제안의 근거가 됩니다.</div>
-                                    </div>
-                                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
-                                        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 A: 분석 코드</div>
-                                        <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">① 분석 유형 선택 → ② <strong>분석 코드 프롬프트 생성</strong> → ③ ChatGPT에 붙여넣어 코드 받기 → ④ 코랩에서 실행</div>
-                                    </div>
-                                    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
-                                        <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 B: 결과 해석</div>
-                                        <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">코랩 분석 후 결과 수치·내용을 입력하면 AI가 <strong>가설 지지/기각 여부</strong>와 정책 시사점을 해석해 줍니다.</div>
-                                    </div>
-                                </div>
-
-                                <div class="glass" style="padding:20px;border-left:4px solid var(--primary);margin-bottom:25px;">
-                                    <h4 style="color:var(--secondary);margin-bottom:8px;font-size:0.95rem;">📌 선택된 연구 주제</h4>
-                                    <p style="font-size:0.9rem;color:#475569;line-height:1.5;margin:0;">${resData.opinion || resData.answer?.slice(0, 150) + '...'}</p>
-                                </div>
-
-                                <!-- 파트 A: 분석 코드 생성 -->
-                                <div style="border:2px dashed #cbd5e1;border-radius:15px;padding:30px;background:rgba(255,255,255,0.4);margin-bottom:25px;">
-                                    <h3 style="margin-bottom:6px;color:var(--secondary);">🧪 파트 A: 분석 코드 생성</h3>
-                                    <p class="text-muted" style="margin-bottom:20px;font-size:0.88rem;">분석 유형을 선택하고 코랩용 분석 코드 프롬프트를 생성하세요.</p>
-                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
-                                        ${['상관관계','집계·비교','회귀분석','군집분석'].map(t => `
-                                            <label style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:500;transition:all 0.15s;" class="analysis-type-label">
-                                                <input type="radio" name="analysis-type" value="${t}" style="accent-color:var(--primary);"> ${t}
-                                            </label>`).join('')}
-                                    </div>
-                                    <button id="gen-analysis-btn" class="btn-primary" style="background:#059669;border-color:#059669;padding:10px 22px;">
-                                        <i data-lucide="code" style="vertical-align:middle;margin-right:8px;"></i> 분석 코드 프롬프트 생성
-                                    </button>
-                                </div>
-
-                                <div id="analysis-prompt-result" style="display:none;background:#0f172a;border-radius:12px;padding:25px;margin-bottom:25px;position:relative;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                                        <h4 style="color:#f8fafc;margin:0;font-size:1rem;">💻 분석 코드 생성 프롬프트</h4>
-                                        <button id="copy-analysis-btn" class="btn-secondary" style="font-size:0.75rem;padding:5px 12px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;">복사하기</button>
-                                    </div>
-                                    <textarea id="analysis-prompt-text" readonly style="width:100%;height:300px;background:rgba(0,0,0,0.3);color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:15px;font-family:'Consolas',monospace;font-size:0.85rem;line-height:1.6;box-sizing:border-box;"></textarea>
-                                    <p style="color:#94a3b8;font-size:0.8rem;margin-top:10px;"><i data-lucide="info" size="13" style="vertical-align:middle;margin-right:4px;"></i> 복사 후 ChatGPT 등에 붙여넣으면 분석 코드를 받을 수 있습니다.</p>
-                                </div>
-
-                                <!-- 파트 B: 결과 해석 & 가설 검증 -->
-                                <div style="border:2px dashed #c4b5fd;border-radius:15px;padding:30px;background:rgba(250,245,255,0.4);margin-bottom:25px;">
-                                    <h3 style="margin-bottom:6px;color:#7c3aed;">🔍 파트 B: 결과 해석 & 가설 검증</h3>
-                                    <p class="text-muted" style="margin-bottom:18px;font-size:0.88rem;">코랩에서 분석을 실행한 후, 결과(수치·패턴·그래프 설명 등)를 아래에 입력하세요.</p>
-                                    <textarea id="analysis-result-input" placeholder="예: 상관계수 0.72로 강한 양의 상관관계 확인. 버스 정류장 수가 많을수록 혼잡도가 높게 나타남. 군집 3개 중 2번 군집이 가장 혼잡..." style="width:100%;height:120px;background:#ffffff;border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;font-size:0.95rem;line-height:1.5;box-sizing:border-box;"></textarea>
-                                    <button id="gen-interp-btn" class="btn-primary" style="margin-top:14px;background:#7c3aed;border-color:#7c3aed;padding:10px 22px;">
-                                        <i data-lucide="sparkles" style="vertical-align:middle;margin-right:8px;"></i> 결과 해석 & 가설 검증 프롬프트 생성
-                                    </button>
-                                </div>
-
-                                <div id="interp-prompt-result" style="display:none;background:#0f172a;border-radius:12px;padding:25px;margin-bottom:25px;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                                        <h4 style="color:#f8fafc;margin:0;font-size:1rem;">✨ 결과 해석 프롬프트</h4>
-                                        <button id="copy-interp-btn" class="btn-secondary" style="font-size:0.75rem;padding:5px 12px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;">복사하기</button>
-                                    </div>
-                                    <textarea id="interp-prompt-text" readonly style="width:100%;height:280px;background:rgba(0,0,0,0.3);color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:15px;font-family:'Consolas',monospace;font-size:0.85rem;line-height:1.6;box-sizing:border-box;"></textarea>
-                                    <p style="color:#94a3b8;font-size:0.8rem;margin-top:10px;"><i data-lucide="info" size="13" style="vertical-align:middle;margin-right:4px;"></i> 복사 후 ChatGPT에 붙여넣어 가설 검증 해석을 받으세요.</p>
-                                </div>
-
-                                <div id="step6-save-area" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:22px;margin-bottom:10px;">
-                                    <h4 style="margin-bottom:12px;font-size:0.95rem;color:var(--secondary);">📝 AI 해석 결과 저장</h4>
-                                    <textarea id="step6-interp-answer" placeholder="ChatGPT 등에서 받은 해석 결과를 여기에 붙여넣어 저장하세요..." style="width:100%;height:140px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;font-size:0.93rem;line-height:1.5;box-sizing:border-box;"></textarea>
-                                    <div style="text-align:right;margin-top:12px;">
-                                        <button id="save-step6-btn" class="btn-primary" style="font-size:0.85rem;padding:8px 28px;background:#7c3aed;border-color:#7c3aed;">기록 저장하기</button>
-                                    </div>
-                                </div>
-                            `;
-
-                            lucide.createIcons();
-
-                            document.getElementById('reset-step6-btn').onclick = () => {
-                                state.step6ResearchId = null;
-                                onStepChange(stepId);
-                            };
-
-                            // 라디오 버튼 스타일
-                            canvasInner.querySelectorAll('.analysis-type-label').forEach(label => {
-                                label.querySelector('input').addEventListener('change', () => {
-                                    canvasInner.querySelectorAll('.analysis-type-label').forEach(l => l.style.borderColor = '#e2e8f0');
-                                    label.style.borderColor = 'var(--primary)';
-                                    label.style.background = 'var(--primary-glow)';
-                                });
-                            });
-
-                            // 파트 A: 분석 코드 프롬프트 생성
-                            document.getElementById('gen-analysis-btn').onclick = async () => {
-                                const typeInput = canvasInner.querySelector('input[name="analysis-type"]:checked');
-                                if (!typeInput) { alert('분석 유형을 선택해 주세요.'); return; }
-                                const btn = document.getElementById('gen-analysis-btn');
-                                btn.disabled = true; btn.innerHTML = '<i class="spinner-sm"></i> 생성 중...';
-                                try {
-                                    const { fetchAllResearchDatasets } = await import('./auth.js');
-                                    const { generateAnalysisCodePrompt } = await import('./research_prompts.js');
-                                    const { data: datasets } = await fetchAllResearchDatasets(state.user.student_id);
-                                    const prompt = await generateAnalysisCodePrompt(selectedLog, datasets || [], typeInput.value);
-                                    const resultEl = document.getElementById('analysis-prompt-result');
-                                    resultEl.style.display = 'block';
-                                    document.getElementById('analysis-prompt-text').value = prompt;
-                                    resultEl.scrollIntoView({ behavior: 'smooth' });
-                                    lucide.createIcons();
-                                } catch(err) {
-                                    alert('프롬프트 생성 오류: ' + err.message);
-                                } finally {
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<i data-lucide="code" style="vertical-align:middle;margin-right:8px;"></i> 분석 코드 프롬프트 생성';
-                                    lucide.createIcons();
-                                }
-                            };
-
-                            document.getElementById('copy-analysis-btn').onclick = () => {
-                                navigator.clipboard.writeText(document.getElementById('analysis-prompt-text').value).then(() => {
-                                    const btn = document.getElementById('copy-analysis-btn');
-                                    btn.innerText = '복사 완료!';
-                                    setTimeout(() => btn.innerText = '복사하기', 2000);
-                                });
-                            };
-
-                            // 파트 B: 결과 해석 프롬프트 생성
-                            document.getElementById('gen-interp-btn').onclick = async () => {
-                                const result = document.getElementById('analysis-result-input').value.trim();
-                                if (!result) { alert('분석 결과를 먼저 입력해 주세요.'); return; }
-                                const btn = document.getElementById('gen-interp-btn');
-                                btn.disabled = true; btn.innerHTML = '<i class="spinner-sm"></i> 생성 중...';
-                                try {
-                                    const { generateInterpretationPrompt } = await import('./research_prompts.js');
-                                    const prompt = generateInterpretationPrompt(selectedLog, result);
-                                    const resultEl = document.getElementById('interp-prompt-result');
-                                    resultEl.style.display = 'block';
-                                    document.getElementById('interp-prompt-text').value = prompt;
-                                    document.getElementById('step6-save-area').style.display = 'block';
-                                    resultEl.scrollIntoView({ behavior: 'smooth' });
-                                    lucide.createIcons();
-                                } catch(err) {
-                                    alert('프롬프트 생성 오류: ' + err.message);
-                                } finally {
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<i data-lucide="sparkles" style="vertical-align:middle;margin-right:8px;"></i> 결과 해석 & 가설 검증 프롬프트 생성';
-                                    lucide.createIcons();
-                                }
-                            };
-
-                            document.getElementById('copy-interp-btn').onclick = () => {
-                                navigator.clipboard.writeText(document.getElementById('interp-prompt-text').value).then(() => {
-                                    const btn = document.getElementById('copy-interp-btn');
-                                    btn.innerText = '복사 완료!';
-                                    setTimeout(() => btn.innerText = '복사하기', 2000);
-                                });
-                            };
-
-                            // 저장
-                            document.getElementById('save-step6-btn').onclick = () => {
-                                const answer = document.getElementById('step6-interp-answer').value.trim();
-                                const analysisResult = document.getElementById('analysis-result-input').value.trim();
-                                const typeInput = canvasInner.querySelector('input[name="analysis-type"]:checked');
-                                if (!answer) { alert('저장할 내용을 입력해 주세요.'); return; }
-                                state.onSaveRecord(stepId, JSON.stringify({
-                                    researchLogId: state.step6ResearchId,
-                                    analysisType: typeInput?.value || '',
-                                    analysisResult,
-                                    interpretationAnswer: answer
-                                }));
-                            };
-
-                            return;
-                        }
-                    }
-
-                    // 목록 화면
-                    canvasInner.innerHTML = `
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                            <h2>6단계: AI 데이터 분석</h2>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
-                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
-                                <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">6단계 역할</div>
-                                <div style="font-size:0.88rem;color:#166534;line-height:1.55;">5단계의 전처리 데이터를 분석하고 결과를 해석해 <strong>가설을 검증</strong>합니다. 8단계 정책 제안의 핵심 근거가 됩니다.</div>
-                            </div>
-                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
-                                <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 A</div>
-                                <div style="font-size:0.88rem;color:#1e3a8a;line-height:1.55;">분석 유형(상관관계/집계·비교/회귀/군집) 선택 → <strong>코랩 분석 코드 프롬프트</strong> 생성</div>
-                            </div>
-                            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;">
-                                <div style="font-size:0.75rem;font-weight:700;color:#7c3aed;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">파트 B</div>
-                                <div style="font-size:0.88rem;color:#4c1d95;line-height:1.55;">분석 결과 입력 → AI가 <strong>가설 지지/기각</strong> 및 정책 시사점 해석 프롬프트 생성</div>
-                            </div>
-                        </div>
-                        <div style="margin-bottom:20px;">
-                            <h4 style="margin-bottom:15px;display:flex;align-items:center;gap:8px;">
-                                <i data-lucide="list-checks" size="18"></i> 분석할 연구 주제 선택
-                            </h4>
-                            <div style="display:grid;gap:15px;">
-                                ${logs.map(log => {
-                                    let d; try { d = JSON.parse(log.content); } catch(e) { d = { answer: log.content }; }
-                                    const dateStr = new Date(log.created_at).toLocaleString();
-                                    return `
-                                        <div class="glass card" data-id="${log.id}" style="padding:20px;cursor:pointer;border-left:4px solid var(--glass-border);transition:all 0.2s;">
-                                            <span style="font-size:0.8rem;color:var(--primary);font-weight:500;">
-                                                <i data-lucide="clock" size="12" style="vertical-align:middle;"></i> ${dateStr}
-                                            </span>
-                                            <div style="margin:10px 0 8px;">
-                                                <strong style="font-size:0.9rem;color:var(--secondary);">분석 관점:</strong>
-                                                <p style="font-size:0.95rem;margin:4px 0 0;color:var(--text);">${d.opinion || '의견 없음'}</p>
-                                            </div>
-                                            <p style="font-size:0.88rem;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0;">${d.answer}</p>
-                                            <div style="text-align:right;margin-top:14px;">
-                                                <button class="btn-primary step6-select-btn" data-id="${log.id}" style="font-size:0.8rem;padding:6px 15px;">선택하기</button>
-                                            </div>
-                                        </div>`;
-                                }).join('')}
-                            </div>
-                        </div>`;
-
-                    lucide.createIcons();
-
-                    canvasInner.querySelectorAll('.step6-select-btn').forEach(btn => {
-                        btn.onclick = (e) => {
-                            e.stopPropagation();
-                            state.step6ResearchId = btn.dataset.id;
-                            onStepChange(stepId);
-                        };
-                    });
-                }, 50);
-                break;
-            case 6: // 7단계: 시각화
-                content = `<h2>7단계: 시각화</h2><div class="glass" style="padding:30px;"><p>분석 데이터의 시각적 요약 단계입니다.</p></div>`;
-                break;
-            case 7: // 8단계: 정책 제안
-                content = `<h2>8단계: 정책 및 인사이트 제안</h2><div class="glass" style="padding:30px;"><p>최종 제안서 작성 단계입니다.</p></div>`;
-                break;
             case 8: // Competition Application
                 content = '<div id="competition-root" style="min-height: 400px;"></div>';
                 setTimeout(async () => {
@@ -605,6 +282,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     const renderApplyMode = (initialData = null) => {
                         const isEdit = !!initialData;
                         const initialTeam = initialData ? initialData.team_data : [];
+                        const initialTeamName = initialData ? (initialData.team_name || '') : '';
 
                         root.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
@@ -616,6 +294,15 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                             </div>
                             <div class="glass" style="padding: 30px; border-left: 4px solid var(--accent);">
                                 <form id="competition-form">
+                                    <div style="margin-bottom: 25px; background: #fffbeb; padding: 20px; border-radius: 10px; border: 1px solid #fde68a;">
+                                        <label style="display: block; font-weight: 700; color: #92400e; font-size: 0.95rem; margin-bottom: 10px;">
+                                            <i data-lucide="award" size="18" style="vertical-align: middle; margin-right: 5px;"></i> 팀 이름 (대회 활동명)
+                                        </label>
+                                        <input type="text" id="comp-team-name" placeholder="멋진 팀 이름을 입력해주세요 (예: 데이터 마스터)" value="${initialTeamName}" 
+                                               style="width: 100%; padding: 12px 15px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 1rem; font-weight: 600; outline: none; transition: border-color 0.2s;">
+                                        <p style="margin: 8px 0 0; font-size: 0.8rem; color: #b45309;">※ 팀 이름은 연구 일지 협업 및 대회 심사 시 활용됩니다.</p>
+                                    </div>
+
                                     <div id="team-members-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
                                     <div style="margin-top: 20px; display: flex; flex-direction: ${window.innerWidth <= 768 ? 'column' : 'row'}; gap: 10px;">
                                         <button type="button" id="add-member-btn" class="btn-secondary" style="font-size: 0.9rem; padding: 8px 15px; width: ${window.innerWidth <= 768 ? '100%' : 'auto'}; justify-content: center;">
@@ -636,7 +323,8 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                         const cancelBtn = document.getElementById('cancel-edit-btn');
 
                         const validateForm = () => {
-                            submitBtn.disabled = false;
+                            const teamName = document.getElementById('comp-team-name').value.trim();
+                            submitBtn.disabled = !teamName; // 팀 이름이 있어야 활성화
 
                             rows.forEach(row => {
                                 const emailVal = document.getElementById('comp-email-' + row.id).value.trim();
@@ -697,6 +385,8 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                             container.appendChild(createMemberRow(true));
                         }
 
+                        document.getElementById('comp-team-name').addEventListener('input', validateForm);
+
                         addBtn.onclick = () => {
                             if (rows.length < 3) {
                                 container.appendChild(createMemberRow(false));
@@ -711,6 +401,9 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                             e.preventDefault();
 
                             let errors = [];
+                            const teamName = document.getElementById('comp-team-name').value.trim();
+                            if (!teamName) errors.push('팀 이름을 입력해주세요.');
+
                             const teamData = rows.map((r, i) => {
                                 const stId = document.getElementById('comp-id-' + r.id).value.trim();
                                 const name = document.getElementById('comp-name-' + r.id).value.trim();
@@ -734,8 +427,8 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
 
                             try {
                                 const { error } = isEdit
-                                    ? await updateCompetitionApplication(initialData.id, teamData)
-                                    : await submitCompetitionApplication(teamData, state.user.student_id);
+                                    ? await updateCompetitionApplication(initialData.id, teamData, teamName)
+                                    : await submitCompetitionApplication(teamData, state.user.student_id, teamName);
                                 if (error) throw error;
                                 alert(isEdit ? '신청 내용이 수정되었습니다.' : '대회 참가 신청이 완료되었습니다!');
                                 onStepChange(stepId);
@@ -753,11 +446,19 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     const renderViewMode = (app, isMemberView = false) => {
                         const team = app.team_data || [];
                         const isCompleted = app.status === 'completed';
+                        const teamName = app.team_name || '이름 없음';
 
                         root.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                                 <div>
-                                    <h2>${isMemberView ? '👥 우리 팀 참가 신청 현황' : isCompleted ? '🔒 접수 완료 (수정 불가)' : '✅ 대회 참가 신청 완료'}</h2>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                        <h2 style="margin: 0;">🏆 ${teamName}</h2>
+                                        ${!isMemberView ? `
+                                            <button id="quick-edit-name-btn" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: flex; align-items: center; transition: color 0.2s;" title="팀 이름/정보 수정">
+                                                <i data-lucide="edit-3" size="18"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
                                     <p class="text-muted" style="margin-top: 5px;">
                                         ${isMemberView
                                             ? '<span style="color: #0369a1; font-weight: 600;">팀 대표가 신청한 팀 정보입니다. 수정이나 취소는 팀 대표만 가능합니다.</span>'
@@ -795,9 +496,15 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                             </div>
                         `;
 
-                        if (!isMemberView && !isCompleted) {
-                            document.getElementById('edit-app-btn').onclick = () => renderApplyMode(app);
-                            document.getElementById('delete-app-btn').onclick = async () => {
+                        if (!isMemberView) {
+                            const quickEditBtn = document.getElementById('quick-edit-name-btn');
+                            if (quickEditBtn) quickEditBtn.onclick = () => renderApplyMode(app);
+
+                            if (!isCompleted) {
+                                const editBtn = document.getElementById('edit-app-btn');
+                                if (editBtn) editBtn.onclick = () => renderApplyMode(app);
+
+                                document.getElementById('delete-app-btn').onclick = async () => {
                                 if (!confirm('신청을 정말로 취소하시겠습니까? 신청 내역이 즉시 삭제됩니다.')) return;
                                 const { error } = await deleteCompetitionApplication(app.id);
                                 if (error) alert('삭제 실패: ' + error.message);
@@ -806,6 +513,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                     onStepChange(stepId);
                                 }
                             };
+                            }
                         }
                         if (window.lucide) lucide.createIcons();
                     };
@@ -913,7 +621,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                                             <i data-lucide="download" size="14"></i>
                                                                             <div style="display:flex; flex-direction:column; align-items:flex-start;">
                                                                                 <span style="font-weight:600;">${file.file_name}</span>
-                                                                                <span style="font-size:0.7rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
+                                                                                <span style="font-size:0.72rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
                                                                             </div>
                                                                         </button>
                                                                     `).join('')}
@@ -1106,171 +814,47 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                         detailRow.style.background = '#fffafb';
                                         detailRow.style.border = '2px solid #fb7185';
                                         detailRow.style.borderTop = 'none';
+
+                                        if (window.lucide) lucide.createIcons();
                                     }
                                 };
-                                row.onmouseover = () => { if(document.getElementById(`detail-${row.dataset.id}`).style.display === 'none') row.style.background = '#f8fafc'; };
-                                row.onmouseout = () => { if(document.getElementById(`detail-${row.dataset.id}`).style.display === 'none') row.style.background = 'white'; };
                             });
                         }
-                        if (window.lucide) lucide.createIcons();
                     };
+                    
+                    loadBoard();
 
-                    await loadBoard();
-
-                    // [자료 공유하기] 버튼 클릭 시 모달 열기
-                    document.getElementById('create-share-post-btn').onclick = () => {
-                        const modal = document.createElement('div');
-                        modal.className = 'modal-overlay';
-                        modal.innerHTML = `
-                            <div class="modal-content" style="max-width:600px;">
-                                <div class="modal-header">
-                                    <h2>✨ 새로운 연구 자료 공유</h2>
-                                    <button class="close-modal" style="background:none;border:none;cursor:pointer;"><i data-lucide="x"></i></button>
-                                </div>
-                                <div class="modal-body"> <!-- 스크롤 가능 구역 추가 -->
-                                    <div class="modal-body-inner">
-                                        <div style="display:flex;flex-direction:column;gap:20px;">
-                                            <div>
-                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">공유 제목</label>
-                                                <input type="text" id="share-title" placeholder="연구 주제나 핵심 결과물을 한 줄로 설명해주세요." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
-                                            </div>
-                                            <div>
-                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">설명 (선택)</label>
-                                                <textarea id="share-content" placeholder="어떤 파일인지, 어떻게 활용하면 좋은지 설명해주세요." style="width:100%;height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:none;"></textarea>
-                                            </div>
-                                            <div>
-                                                <label style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:8px;">파일 첨부 (여러 개 선택 가능)</label>
-                                                <div id="drop-zone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;background:#f8fafc;cursor:pointer;transition:all 0.2s;">
-                                                    <i data-lucide="upload-cloud" size="32" style="color:#94a3b8;margin-bottom:10px;"></i>
-                                                    <p style="font-size:0.85rem;color:#64748b;">여기에 파일을 끌어다 놓거나 클릭하여 선택하세요.</p>
-                                                    <input type="file" id="share-files" multiple style="display:none;">
-                                                </div>
-                                                <div id="file-list-preview" style="margin-top:12px;display:flex;flex-direction:column;gap:5px;"></div>
-                                            </div>
-                                        </div>
-                                        <div style="margin-top:30px;display:flex;gap:10px;padding-bottom:10px;">
-                                            <button id="cancel-share-btn" class="btn-secondary" style="flex:1;">취소</button>
-                                            <button id="submit-share-btn" class="btn-primary" style="flex:2;">📤 자료 업로드 및 공유하기</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>`;
-                        document.body.appendChild(modal);
-                        if (window.lucide) lucide.createIcons();
-
-                        const fileInput = modal.querySelector('#share-files');
-                        const dropZone = modal.querySelector('#drop-zone');
-                        const preview = modal.querySelector('#file-list-preview');
-                        let selectedFiles = [];
-
-                        const updatePreview = () => {
-                            preview.innerHTML = selectedFiles.map((f, i) => `
-                                <div style="display:flex;justify-content:space-between;align-items:center;background:white;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;font-size:0.85rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;">
-                                        <i data-lucide="file" size="14"></i>
-                                        <span>${f.name} <small style="color:#94a3b8;">(${(f.size/1024).toFixed(1)} KB)</small></span>
-                                    </div>
-                                    <button class="remove-file" data-index="${i}" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i data-lucide="trash-2" size="14"></i></button>
-                                </div>`).join('');
-                            if (window.lucide) lucide.createIcons();
-                            
-                            preview.querySelectorAll('.remove-file').forEach(btn => {
-                                btn.onclick = () => {
-                                    selectedFiles.splice(parseInt(btn.dataset.index), 1);
-                                    updatePreview();
-                                };
+                    const createBtn = document.getElementById('create-share-post-btn');
+                    if (createBtn) {
+                        createBtn.onclick = () => {
+                            import('./ui-board-editor.js').then(m => {
+                                m.showBoardEditor(state, async (postData) => {
+                                    const { createSharedPost } = await import('./auth.js');
+                                    const { success, error } = await createSharedPost(
+                                        postData.title, 
+                                        postData.content, 
+                                        state.user.student_id, 
+                                        state.user.name, 
+                                        postData.files
+                                    );
+                                    if (success) {
+                                        alert('자료가 공유되었습니다.');
+                                        await loadBoard();
+                                    } else {
+                                        alert('공유 실패: ' + (error.message || '알 수 없는 오류'));
+                                    }
+                                });
                             });
                         };
+                    }
 
-                        dropZone.onclick = () => fileInput.click();
-                        fileInput.onchange = (e) => {
-                            selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
-                            updatePreview();
-                        };
-
-                        modal.querySelector('.close-modal').onclick = () => modal.remove();
-                        modal.querySelector('#cancel-share-btn').onclick = () => modal.remove();
-                        
-                        modal.querySelector('#submit-share-btn').onclick = async (e) => {
-                            const title = modal.querySelector('#share-title').value.trim();
-                            const content = modal.querySelector('#share-content').value.trim();
-                            
-                            if (!title) { alert('제목을 입력해주세요.'); return; }
-                            if (selectedFiles.length === 0) { alert('최소 하나 이상의 파일을 첨부해야 합니다.'); return; }
-
-                            const btn = e.target;
-                            const origText = btn.innerHTML;
-                            btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;"></div> 업로드 중...';
-                            btn.disabled = true;
-
-                            const { createSharedPost } = await import('./auth.js');
-                            const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-                            
-                            const { success, error } = await createSharedPost(
-                                title, 
-                                content, 
-                                user.student_id || 'teacher', 
-                                user.name || '선생님', 
-                                selectedFiles
-                            );
-
-                            if (success) {
-                                alert('성공적으로 자료를 공유했습니다!');
-                                modal.remove();
-                                await loadBoard();
-                            } else {
-                                alert('업로드 실패: ' + (error.message || '알 수 없는 오류'));
-                                btn.innerHTML = origText;
-                                btn.disabled = false;
-                            }
-                        };
-                    };
-
-                }, 0);
+                    if (window.lucide) lucide.createIcons();
+                }, 50);
                 break;
             default:
-                content = `<h2>개발 준비 중인 단계입니다.</h2>`;
-        }
-
-        if (stepId >= 3 && stepId !== 8) {
-            const isStep1 = stepId === 3;
-            content += `
-                <div class="glass" style="margin-top: 40px; padding: 25px; border-top: 1px solid var(--glass-border);">
-                    <h4 style="margin-bottom: 15px;">${isStep1 ? '✨ 인공지능 답변 기록' : '📝 연구 기록 및 메모'}</h4>
-                    <textarea id="step-memo" placeholder="${isStep1 ? 'AI가 제안한 주제 중 마음에 드는 내용이나 보완할 점을 기록하세요...' : '이 단계에서 찾아낸 데이터나 아이디어를 기록하세요...'}"
-                               style="width: 100%; height: 120px; background: #ffffff; border: 1px solid #cbd5e1; color: var(--text); padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.95rem; line-height: 1.5; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);"></textarea>
-                    <div style="text-align: right;">
-                        <button id="save-memo-btn" class="btn-primary" style="font-size: 0.85rem; padding: 8px 30px; font-weight: 600;">
-                            ${isStep1 ? '저장하기' : '기록 저장하기'}
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-    canvas.innerHTML = `
-        <div style="display: flex; flex-direction: column; height: 100%;">
-            <div style="flex: 1;">${content}</div>
-        </div>
-    `;
-
-    if (window.lucide) lucide.createIcons();
-
-    const saveBtn = document.getElementById('save-memo-btn');
-    if (saveBtn) {
-        saveBtn.onclick = () => {
-            const memo = document.getElementById('step-memo').value;
-            if (stepId === 3) {
-                const opinion = document.getElementById('researcher-opinion-text')?.value || '';
-                const prompt = document.getElementById('ai-prompt-text')?.value || '';
-                state.onSaveRecord(stepId, {
-                    opinion,
-                    prompt,
-                    answer: memo
-                });
-            } else {
-                state.onSaveRecord(stepId, memo);
-            }
-        };
+                content = `<h2>Step ${stepId}</h2><p>준비 중인 기능입니다.</p>`;
     }
+
+    canvas.innerHTML = content;
+    if (window.lucide) lucide.createIcons();
 }

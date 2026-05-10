@@ -21,17 +21,12 @@ export function renderCategories(onCategoryClick, selectedId) {
 export function renderStepsNav(currentStep, state, onStepChange) {
     const steps = [
         { id: 8, title: "대회 참가 신청", icon: "users", group: "HOME" },
-        { id: 0, title: "데이터 탐색", icon: "search", group: "준비 및 탐색", stepNum: "1" },
-        { id: 9, title: "연구 주제 탐색", icon: "compass", group: "준비 및 탐색", stepNum: "1.5" },
+        { id: 0, title: "기초 지식 작성", icon: "book-open", group: "준비 및 탐색", stepNum: "0" },
+        { id: 9, title: "연구 주제 탐색", icon: "compass", group: "준비 및 탐색", stepNum: "1" },
         { id: 1, title: "데이터 저장", icon: "download", group: "데이터 분석", stepNum: "2" },
         { id: 2, title: "데이터 관리", icon: "list", group: "데이터 분석", stepNum: "3" },
-        { id: 10, title: "데이터 미리보기", icon: "table-2", group: "데이터 분석", stepNum: "3.5" },
-        { id: 3, title: "문제 정의", icon: "database", group: "데이터 분석", stepNum: "4" },
-        { id: 4, title: "데이터 전처리", icon: "map", group: "데이터 분석", stepNum: "5" },
-        { id: 11, title: "작업 파일 공유", icon: "share-2", group: "결과 공유", stepNum: "6" },
-        { id: 5, title: "인공지능 분석", icon: "brain", group: "데이터 분석", stepNum: "7" },
-        { id: 6, title: "데이터 시각화", icon: "bar-chart", group: "데이터 분석", stepNum: "8" },
-        { id: 7, title: "정책 제안", icon: "file-text", group: "결과 공유", stepNum: "9" },
+        { id: 3, title: "연구 일지", icon: "file-text", group: "데이터 분석", stepNum: "4" },
+        { id: 11, title: "작업 파일 공유", icon: "share-2", group: "결과 공유", stepNum: "5" },
     ];
 
     const isMobile = window.innerWidth <= 768;

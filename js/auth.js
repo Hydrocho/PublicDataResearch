@@ -255,19 +255,53 @@ export async function fetchTeamActivityLogs(currentStudentId, stepId) {
 }
 
 /**
+ * 팀원 전체(나 포함)의 로그 중 가장 최신 내용을 하나 가져옴 (공동 작업용)
+ */
+export async function fetchLatestTeamJournal(currentStudentId, stepId) {
+    // 1. 내가 속한 승인된 팀 찾기
+    const { data: allApps } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('status', 'completed');
+
+    const myApp = (allApps || []).find(app => {
+        if (app.created_by === currentStudentId) return true;
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        return members.some(m => m.student_id === currentStudentId);
+    });
+
+    // 팀이 없으면 내 로그만 검색
+    const targetIds = myApp 
+        ? [myApp.created_by, ...(Array.isArray(myApp.team_data) ? myApp.team_data.map(m => m.student_id) : [])]
+        : [currentStudentId];
+
+    const { data, error } = await supabaseClient
+        .from('activity_log')
+        .select('*')
+        .in('student_id', targetIds)
+        .eq('step_id', stepId)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    return { data: data || [], error, isTeam: !!myApp, teamName: myApp?.team_name };
+}
+
+/**
  * Teacher View: Fetch ALL Step 1 (Problem Definition) logs from all students
  */
 export async function fetchAllProblemDefinitionsForTeacher() {
-    // 1. Get all logs for step_id = 3 (Step 1 internal ID)
+    // 1. Get all logs for step_id = 3 (Research Journal)
     const { data: logs, error: logsError } = await supabaseClient
         .from('activity_log')
         .select('*')
         .eq('step_id', 3)
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false });
 
     if (logsError || !logs) return { data: logs, error: logsError };
 
-    // 2. Fetch student names separately
+    // 2. Fetch student names
     const studentIds = [...new Set(logs.map(l => l.student_id).filter(id => id))];
     let nameMap = {};
     if (studentIds.length > 0) {
@@ -275,20 +309,81 @@ export async function fetchAllProblemDefinitionsForTeacher() {
             .from('students')
             .select('student_id, name')
             .in('student_id', studentIds);
-        
-        if (students) {
-            students.forEach(s => {
-                nameMap[s.student_id] = s.name;
-            });
-        }
+        if (students) students.forEach(s => { nameMap[s.student_id] = s.name; });
     }
 
-    const mergedData = logs.map(log => ({
-        ...log,
-        student_name: nameMap[log.student_id] || log.student_id
-    }));
+    // 3. Fetch approved team applications
+    const { data: apps } = await supabaseClient
+        .from('competition_applications')
+        .select('*')
+        .eq('status', 'completed');
 
-    return { data: mergedData, error: null };
+    // 4. Map students to teams
+    const studentToTeam = {};
+    (apps || []).forEach(app => {
+        const members = Array.isArray(app.team_data) ? app.team_data : [];
+        const allIds = [app.created_by, ...members.map(m => m.student_id)].filter(id => id);
+        allIds.forEach(id => {
+            studentToTeam[id] = { team_name: app.team_name, appId: app.id };
+        });
+    });
+
+    // 5. Group by team (appId) or individual student_id
+    const logMap = new Map();
+    logs.forEach(log => {
+        const teamInfo = studentToTeam[log.student_id];
+        const groupKey = teamInfo ? `team_${teamInfo.appId}` : `indiv_${log.student_id}`;
+        
+        if (!logMap.has(groupKey)) {
+            logMap.set(groupKey, {
+                ...log,
+                student_name: nameMap[log.student_id] || log.student_id,
+                team_name: teamInfo?.team_name || null,
+                _isTeam: !!teamInfo
+            });
+        }
+    });
+
+    return { data: Array.from(logMap.values()), error: null };
+}
+
+/**
+ * Teacher View: Fetch ALL Step 0 (Basic Knowledge Survey) logs from all students
+ */
+export async function fetchAllKnowledgeSurveysForTeacher() {
+    // 1. Get all logs for step_id = 0
+    const { data: logs, error: logsError } = await supabaseClient
+        .from('activity_log')
+        .select('*')
+        .eq('step_id', 0)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+    if (logsError || !logs) return { data: logs, error: logsError };
+
+    // 2. Fetch student names
+    const studentIds = [...new Set(logs.map(l => l.student_id).filter(id => id))];
+    let nameMap = {};
+    if (studentIds.length > 0) {
+        const { data: students } = await supabaseClient
+            .from('students')
+            .select('student_id, name')
+            .in('student_id', studentIds);
+        if (students) students.forEach(s => { nameMap[s.student_id] = s.name; });
+    }
+
+    // 3. Deduplicate by student_id (Keep latest)
+    const logMap = new Map();
+    logs.forEach(log => {
+        if (!logMap.has(log.student_id)) {
+            logMap.set(log.student_id, {
+                ...log,
+                student_name: nameMap[log.student_id] || log.student_id
+            });
+        }
+    });
+
+    return { data: Array.from(logMap.values()), error: null };
 }
 
 export async function deleteActivityLog(logId, studentId) {
@@ -903,12 +998,13 @@ export async function deleteStudentAccount(studentId) {
     }
 }
 
-export async function submitCompetitionApplication(teamData, studentId) {
+export async function submitCompetitionApplication(teamData, studentId, teamName = '') {
     const { data, error } = await supabaseClient
         .from('competition_applications')
         .insert([{
             team_data: teamData,
-            created_by: studentId
+            created_by: studentId,
+            team_name: teamName
         }])
         .select();
     return { data, error };
@@ -941,10 +1037,13 @@ export async function fetchCompetitionApplicationAsMember(studentId) {
     return { data: found || null, error: null };
 }
 
-export async function updateCompetitionApplication(id, teamData) {
+export async function updateCompetitionApplication(id, teamData, teamName = '') {
     const { data, error } = await supabaseClient
         .from('competition_applications')
-        .update({ team_data: teamData })
+        .update({ 
+            team_data: teamData,
+            team_name: teamName
+        })
         .eq('id', id)
         .select();
     return { data, error };

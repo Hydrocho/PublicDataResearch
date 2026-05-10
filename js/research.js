@@ -15,6 +15,5 @@ export async function onSaveRecord(stepId, content, state) {
     
     const { saveActivityLog } = await import('./auth.js');
     const { error } = await saveActivityLog(state.user.student_id, stepId, finalContent);
-    if (!error) alert('성공적으로 저장되었습니다!');
-    else alert('저장 실패: ' + error.message);
+    if (error) alert('저장 실패: ' + error.message);
 }

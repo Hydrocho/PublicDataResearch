@@ -89,17 +89,6 @@
             </nav>
 
             <main class="content-area">
-                <!-- Step 0: Idea Bank / Data Explorer -->
-                <section id="step-0" class="active">
-                    <div class="explorer-top-area" style="margin-bottom: 25px;">
-                        <h2 style="font-size: 1.8rem; margin-bottom: 8px;">🔍 데이터 탐색 및 수집</h2>
-                        <p class="text-muted">연구하고 싶은 분야의 데이터를 탐색하고 내 연구실로 가져오세요.</p>
-                    </div>
-
-                    <div id="explorer-root">
-                        <!-- Hierarchical Explorer injected here -->
-                    </div>
-                </section>
 
                 <!-- Steps 1-6 will use this container -->
                 <section id="step-content-section">
@@ -190,41 +179,45 @@
                     </div>
                     
                     <div style="margin: 20px 0 10px 15px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">연구 워크플로우 테스트</div>
-                    <div id="tab-teacher-step1" class="nav-item">
-                        <i data-lucide="search"></i>
-                        <span>1단계: 데이터 탐색</span>
+                    <div id="tab-teacher-step0" class="nav-item">
+                        <i data-lucide="clipboard-list"></i>
+                        <div style="display:flex;flex-direction:column;line-height:1.2;">
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 0</span>
+                            <span style="font-size:0.92rem;">기초 지식 확인</span>
+                        </div>
                     </div>
                     <div id="tab-step-half" class="nav-item">
                         <i data-lucide="compass"></i>
-                        <span>1.5단계: 주제 탐색</span>
+                        <div style="display:flex;flex-direction:column;line-height:1.2;">
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 1</span>
+                            <span style="font-size:0.92rem;">주제 탐색</span>
+                        </div>
                     </div>
                     <div id="tab-teacher-step2" class="nav-item">
                         <i data-lucide="download"></i>
-                        <span>2단계: 데이터 저장</span>
+                        <div style="display:flex;flex-direction:column;line-height:1.2;">
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 2</span>
+                            <span style="font-size:0.92rem;">데이터 저장</span>
+                        </div>
                     </div>
                     <div id="tab-teacher-step3" class="nav-item">
                         <i data-lucide="database"></i>
-                        <span>3단계: 전체 데이터 관리</span>
-                    </div>
-                    <div id="tab-step-3half" class="nav-item">
-                        <i data-lucide="table-2"></i>
-                        <span>3.5단계: 데이터 미리보기</span>
+                        <div style="display:flex;flex-direction:column;line-height:1.2;">
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 3</span>
+                            <span style="font-size:0.92rem;">데이터 관리</span>
+                        </div>
                     </div>
                     <div id="tab-step1" class="nav-item">
-                        <i data-lucide="lightbulb"></i>
-                        <span>4단계: 문제 정의</span>
-                    </div>
-                    <div id="tab-step2" class="nav-item">
-                        <i data-lucide="cog"></i>
+                        <i data-lucide="file-text"></i>
                         <div style="display:flex;flex-direction:column;line-height:1.2;">
-                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 5</span>
-                            <span style="font-size:0.92rem;">전처리</span>
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 4</span>
+                            <span style="font-size:0.92rem;">연구 일지 확인</span>
                         </div>
                     </div>
                     <div id="tab-sharing" class="nav-item">
                         <i data-lucide="share-2"></i>
                         <div style="display:flex;flex-direction:column;line-height:1.2;">
-                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 6</span>
+                            <span style="font-size:0.68rem;opacity:0.7;font-weight:700;">STEP 5</span>
                             <span style="font-size:0.92rem;">작업 파일 공유</span>
                         </div>
                     </div>
@@ -242,6 +235,11 @@
             </nav>
 
             <main class="content-area" style="padding: 40px; overflow-y: auto; height: calc(100vh - 70px);">
+                <!-- Teacher View: Step 0 Knowledge Survey Monitoring -->
+                <div id="teacher-step0-view" class="view-section" style="display: none; padding: 20px;">
+                    <div id="teacher-step0-root" style="min-height:400px;"></div>
+                </div>
+
                 <!-- Views -->
                 <div id="teacher-students-view" class="view-section">
                     <div class="glass card" style="padding: 30px;">
@@ -318,12 +316,12 @@
                     </div>
                 </div>
 
-                <!-- Teacher View: Step 1.5 Topic Exploration -->
+                <!-- Teacher View: Step 1 Topic Exploration -->
                 <div id="teacher-step-half-view" class="view-section" style="display: none;">
                     <div class="glass card" style="padding: 30px;">
                         <h3 style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
                             <i data-lucide="compass" style="color:var(--primary);"></i>
-                            1.5단계: 연구 주제 탐색
+                            1단계: 연구 주제 탐색
                         </h3>
                         <p class="text-muted" style="margin-bottom:24px;font-size:0.9rem;">연구 분야별 교육 접점과 아이디어를 탐색합니다. 학생들에게 안내할 주제를 미리 확인하세요.</p>
                         <div id="teacher-step-half-root" style="min-height:400px;"></div>
@@ -344,24 +342,8 @@
                     </div>
                 </div>
 
-                <div id="teacher-step1-test-explore-view" class="view-section" style="display: none;">
-                    <div class="glass card" style="padding: 30px;">
-                        <h2 style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-                            <i data-lucide="search" style="color:var(--primary);"></i>
-                            1단계: 데이터 탐색 및 수집 (테스트)
-                        </h2>
-                        <div id="teacher-step1-test-root"></div>
-                    </div>
-                </div>
-
-                <div id="teacher-step2-test-save-view" class="view-section" style="display: none;">
-                    <div class="glass card" style="padding: 30px;">
-                        <h2 style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-                            <i data-lucide="download" style="color:var(--primary);"></i>
-                            2단계: 데이터 저장 및 연동 (테스트)
-                        </h2>
-                        <div id="teacher-step2-test-root"></div>
-                    </div>
+                <div id="teacher-step2-test-view" class="view-section" style="display: none; padding: 20px;">
+                    <div id="teacher-step2-test-root" style="min-height:400px;"></div>
                 </div>
 
                 <!-- Teacher View: Data Management (Full Admin + Personal Test) -->
@@ -378,53 +360,14 @@
                     </div>
                 </div>
 
-                <!-- Teacher View: Step 3.5 Data Preview -->
-                <div id="teacher-step-3half-view" class="view-section" style="display: none;">
-                    <div class="glass card" style="padding: 30px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                            <h3 style="display:flex;align-items:center;gap:10px;margin:0;">
-                                <i data-lucide="table-2" style="color:#6366f1;"></i>
-                                3.5단계: 데이터 내용 미리보기
-                            </h3>
-                                <button id="refresh-step-3half-btn" class="btn-secondary" style="padding:6px 15px; font-size:0.85rem;">
-                                    <i data-lucide="refresh-cw" size="14" style="vertical-align:middle; margin-right:4px;"></i>새로고침
-                                </button>
-                        </div>
-                        <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;"><strong>교사 테스트 활용</strong> 체크된 데이터셋의 내용을 미리 확인하고 복사할 수 있습니다.</p>
-                        <div id="teacher-step-3half-content" style="min-height:300px;"></div>
-                    </div>
+                <div id="teacher-step2-test-view" class="view-section" style="display: none; padding: 20px;">
+                    <div id="teacher-step2-test-root" style="min-height:400px;"></div>
                 </div>
 
+
                 <!-- Teacher View: Step 4 Problem Definition -->
-                <div id="teacher-step1-view" class="view-section" style="display: none;">
-                    <div class="glass card" style="padding: 30px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                            <h3 style="display:flex;align-items:center;gap:10px;margin:0;">
-                                <i data-lucide="lightbulb" style="color:#f59e0b;"></i>
-                                4단계: 문제 정의
-                            </h3>
-                        </div>
-                        <!-- 서브탭 -->
-                        <div style="display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
-                            <button id="step1-tab-monitor-btn" class="btn-primary" style="padding:7px 20px;font-size:0.88rem;">📊 학생 현황</button>
-                            <button id="step1-tab-test-btn" class="btn-secondary" style="padding:7px 20px;font-size:0.88rem;">🧪 교사 테스트</button>
-                        </div>
-                        <!-- 학생 현황 -->
-                        <div id="step1-monitor-section">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                                <p class="text-muted" style="margin:0;font-size:0.9rem;">학생들이 AI 프롬프트를 활용해 설정한 연구 주제를 확인합니다. 카드를 클릭하면 전체 내용을 볼 수 있습니다.</p>
-                                <button id="refresh-step1-btn" class="btn-secondary" style="padding:6px 15px;font-size:0.85rem;flex-shrink:0;margin-left:16px;">
-                                    <i data-lucide="refresh-cw" size="14" style="vertical-align:middle;margin-right:4px;"></i>새로고침
-                                </button>
-                            </div>
-                            <div id="teacher-step1-list"></div>
-                        </div>
-                        <!-- 교사 테스트 -->
-                        <div id="step1-test-section" style="display:none;">
-                            <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;">데이터 관리 탭에서 <strong>교사 테스트 활용</strong> 체크한 데이터셋으로 4단계를 직접 실행합니다.</p>
-                            <div id="teacher-step1-test-container" style="min-height:400px;"></div>
-                        </div>
-                    </div>
+                <div id="teacher-step1-view" class="view-section" style="display: none; padding: 20px;">
+                    <div id="teacher-step1-root" style="min-height:400px;"></div>
                 </div>
 
                 <!-- Teacher View: Competition Applications Monitoring -->
@@ -445,34 +388,6 @@
                     </div>
                 </div>
 
-                <!-- Teacher View: Step 5 Preprocessing -->
-                <div id="teacher-step2-view" class="view-section" style="display: none;">
-                    <div class="glass card" style="padding: 30px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                            <h3 style="display:flex;align-items:center;gap:10px;margin:0;">
-                                <i data-lucide="cog" style="color:#0ea5e9;"></i>
-                                5단계: 전처리
-                            </h3>
-                        </div>
-                        <!-- 서브탭 -->
-                        <div style="display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
-                            <button id="step2-tab-monitor-btn" class="btn-primary" style="padding:7px 20px;font-size:0.88rem;">📊 학생 현황</button>
-                            <button id="step2-tab-test-btn" class="btn-secondary" style="padding:7px 20px;font-size:0.88rem;">🧪 교사 테스트</button>
-                        </div>
-                        <!-- 학생 현황 -->
-                        <div id="step2-monitor-section">
-                            <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;">학생들이 실제 분석을 위해 준비한 전처리 프롬프트와 데이터셋을 확인합니다.</p>
-                            <div id="teacher-step2-content">
-                                <!-- Step 2 content rendered here -->
-                            </div>
-                        </div>
-                        <!-- 교사 테스트 -->
-                        <div id="step2-test-section" style="display:none;">
-                            <p class="text-muted" style="margin-bottom:20px;font-size:0.9rem;">[4단계: 문제 정의] 탭의 <strong>교사 테스트</strong>에서 생성한 결과를 바탕으로 5단계를 직접 실행합니다.</p>
-                            <div id="teacher-step2-test-container" style="min-height:400px;"></div>
-                        </div>
-                    </div>
-                </div>
 
                 <div id="teacher-permissions-view" class="view-section" style="display: none;">
                     <div class="glass card" style="padding: 30px;">
