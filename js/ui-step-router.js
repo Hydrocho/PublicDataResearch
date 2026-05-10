@@ -523,6 +523,213 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                     else renderApplyMode();
                 }, 50);
                 break;
+            case 12: // 6단계: 추천 사이트 공유
+                content = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                        <div>
+                            <h2 style="margin:0;font-size:1.5rem;color:var(--secondary);">🔗 6단계: 추천 사이트 공유</h2>
+                            <p class="text-muted" style="margin:5px 0 0;font-size:0.9rem;">공공데이터 연구에 도움이 되는 사이트를 공유하고 다른 친구들의 추천을 확인하세요.</p>
+                        </div>
+                        <button id="add-site-btn" class="btn-primary" style="padding:10px 20px;font-weight:600;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="plus-circle" size="18"></i> 사이트 추천하기
+                        </button>
+                    </div>
+                    
+                    <div id="site-form-container" class="glass" style="display:none; padding:25px; margin-bottom:25px; border-top:4px solid var(--primary);">
+                        <h3 id="form-title" style="margin-top:0; margin-bottom:15px; font-size:1.1rem;">✨ 새로운 사이트 추천</h3>
+                        <input type="hidden" id="site-id-edit">
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <div>
+                                <label style="display:block; font-size:0.85rem; font-weight:600; color:#475569; margin-bottom:5px;">URL 주소</label>
+                                <input type="url" id="site-url" placeholder="https://..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.85rem; font-weight:600; color:#475569; margin-bottom:5px;">사이트 설명</label>
+                                <textarea id="site-desc" placeholder="이 사이트가 왜 유용한지 설명해 주세요." style="width:100%; height:80px; padding:10px; border:1px solid #cbd5e1; border-radius:6px;"></textarea>
+                            </div>
+                            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                                <button id="cancel-site-btn" class="btn-secondary">취소</button>
+                                <button id="save-site-btn" class="btn-primary" style="padding:8px 25px;">공유하기</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="sites-list-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
+                        <!-- Sites will be rendered here -->
+                    </div>
+                `;
+                
+                setTimeout(async () => {
+                    const { fetchRecommendedSites, createRecommendedSite, updateRecommendedSite, deleteRecommendedSite } = await import('./auth.js');
+                    const container = document.getElementById('sites-list-container');
+                    const formContainer = document.getElementById('site-form-container');
+                    const addBtn = document.getElementById('add-site-btn');
+                    
+                    const loadSites = async () => {
+                        container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px;"><div class="spinner"></div></div>';
+                        const { fetchRecommendedSites, updateRecommendedSitesOrder, deleteRecommendedSite, updateRecommendedSite, createRecommendedSite } = await import('./auth.js');
+                        const { data, error } = await fetchRecommendedSites();
+                        if (error) {
+                            container.innerHTML = `<p style="color:red; grid-column:1/-1;">오류: ${error.message}</p>`;
+                            return;
+                        }
+                        
+                        if (!data || data.length === 0) {
+                            container.innerHTML = `
+                                <div style="grid-column:1/-1; text-align:center; padding:60px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">
+                                    <p style="color:#64748b;">아직 공유된 사이트가 없습니다. 첫 번째 추천을 남겨보세요!</p>
+                                </div>`;
+                        } else {
+                            container.innerHTML = data.map(site => `
+                                <div class="glass card" style="padding:20px; display:flex; flex-direction:column; gap:12px; transition:transform 0.2s; border-top:3px solid var(--primary-glow);">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <div style="background:var(--primary-glow); color:var(--primary); width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                                            <i data-lucide="link" size="16"></i>
+                                        </div>
+                                        <div style="display:flex; gap:5px; align-items:center;">
+                                            ${(state.user && state.user.role === 'teacher') ? `
+                                                <div style="display:flex; gap:2px; margin-right:8px; background:#f1f5f9; padding:2px; border-radius:6px;">
+                                                    <button class="move-up-btn" data-index="${data.indexOf(site)}" style="background:white; border:1px solid #e2e8f0; color:#64748b; cursor:pointer; width:28px; height:28px; border-radius:4px; display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+                                                        <i data-lucide="chevron-up" size="16"></i>
+                                                    </button>
+                                                    <button class="move-down-btn" data-index="${data.indexOf(site)}" style="background:white; border:1px solid #e2e8f0; color:#64748b; cursor:pointer; width:28px; height:28px; border-radius:4px; display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+                                                        <i data-lucide="chevron-down" size="16"></i>
+                                                    </button>
+                                                </div>
+                                            ` : ''}
+                                            ${(state.user && (state.user.student_id === site.author_id || state.user.role === 'teacher')) ? `
+                                                <button class="edit-site-btn" data-id="${site.id}" data-url="${site.url}" data-desc="${site.description.replace(/"/g, '&quot;')}" style="background:none; border:none; color:var(--primary); cursor:pointer; padding:4px;">
+                                                    <i data-lucide="edit-3" size="14"></i>
+                                                </button>
+                                                <button class="delete-site-btn" data-id="${site.id}" style="background:none; border:none; color:#ef4444; cursor:pointer; padding:4px;">
+                                                    <i data-lucide="trash-2" size="14"></i>
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div style="flex:1;">
+                                        <p style="margin:0; font-size:0.92rem; color:#334155; line-height:1.5; font-weight:500; word-break:break-all;">
+                                            ${site.description}
+                                        </p>
+                                        <a href="${site.url}" target="_blank" style="margin-top:10px; display:inline-block; font-size:0.8rem; color:var(--primary); text-decoration:underline; word-break:break-all;">
+                                            ${site.url}
+                                        </a>
+                                    </div>
+                                    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94a3b8;">
+                                        <span>👤 ${site.author_name}</span>
+                                        <span>📅 ${new Date(site.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                            container.querySelectorAll('.delete-site-btn').forEach(btn => {
+                                btn.onclick = async () => {
+                                    if (!confirm('정말로 이 추천을 삭제하시겠습니까?')) return;
+                                    await deleteRecommendedSite(btn.dataset.id);
+                                    loadSites();
+                                };
+                            });
+
+                            container.querySelectorAll('.edit-site-btn').forEach(btn => {
+                                btn.onclick = () => {
+                                    const { id, url, desc } = btn.dataset;
+                                    document.getElementById('site-id-edit').value = id;
+                                    document.getElementById('site-url').value = url;
+                                    document.getElementById('site-desc').value = desc;
+                                    document.getElementById('form-title').innerText = '✏️ 추천 사이트 수정';
+                                    document.getElementById('save-site-btn').innerText = '수정 완료';
+                                    formContainer.style.display = 'block';
+                                    addBtn.style.display = 'none';
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                };
+                            });
+
+                            const moveItems = async (fromIdx, toIdx) => {
+                                if (toIdx < 0 || toIdx >= data.length) return;
+                                container.style.opacity = '0.5';
+                                container.style.pointerEvents = 'none';
+                                
+                                const tempData = [...data];
+                                const item = tempData.splice(fromIdx, 1)[0];
+                                tempData.splice(toIdx, 0, item);
+                                
+                                const updates = tempData.map((s, i) => ({ id: s.id, sort_order: i }));
+                                const { updateRecommendedSitesOrder } = await import('./auth.js');
+                                const { error } = await updateRecommendedSitesOrder(updates);
+                                
+                                if (error) {
+                                    alert('순서 저장 중 오류가 발생했습니다: ' + (error.message || error.details || '권한이 없거나 데이터베이스 오류입니다.'));
+                                    container.style.opacity = '1';
+                                    container.style.pointerEvents = 'auto';
+                                    await loadSites(); // 원복
+                                } else {
+                                    await loadSites();
+                                    container.style.opacity = '1';
+                                    container.style.pointerEvents = 'auto';
+                                }
+                            };
+
+                            container.querySelectorAll('.move-up-btn').forEach(btn => {
+                                btn.onclick = () => moveItems(parseInt(btn.dataset.index), parseInt(btn.dataset.index) - 1);
+                            });
+
+                            container.querySelectorAll('.move-down-btn').forEach(btn => {
+                                btn.onclick = () => moveItems(parseInt(btn.dataset.index), parseInt(btn.dataset.index) + 1);
+                            });
+                        }
+                        if (window.lucide) lucide.createIcons();
+                    };
+                    
+                    addBtn.onclick = () => {
+                        document.getElementById('site-id-edit').value = '';
+                        document.getElementById('site-url').value = '';
+                        document.getElementById('site-desc').value = '';
+                        document.getElementById('form-title').innerText = '✨ 새로운 사이트 추천';
+                        document.getElementById('save-site-btn').innerText = '공유하기';
+                        formContainer.style.display = 'block';
+                        addBtn.style.display = 'none';
+                    };
+                    
+                    const cancelBtn = document.getElementById('cancel-site-btn');
+                    if (cancelBtn) {
+                        cancelBtn.onclick = () => {
+                            formContainer.style.display = 'none';
+                            addBtn.style.display = 'flex';
+                        };
+                    }
+                    
+                    const saveBtn = document.getElementById('save-site-btn');
+                    if (saveBtn) {
+                        saveBtn.onclick = async () => {
+                            const url = document.getElementById('site-url').value.trim();
+                            const desc = document.getElementById('site-desc').value.trim();
+                            const editId = document.getElementById('site-id-edit').value;
+                            
+                            if (!url || !desc) { alert('URL과 설명을 모두 입력해 주세요.'); return; }
+                            
+                            let result;
+                            if (editId) {
+                                result = await updateRecommendedSite(editId, url, desc);
+                            } else {
+                                result = await createRecommendedSite(url, desc, state.user.student_id, state.user.name);
+                            }
+                            
+                            if (result.error) alert('저장 실패: ' + result.error.message);
+                            else {
+                                document.getElementById('site-id-edit').value = '';
+                                document.getElementById('site-url').value = '';
+                                document.getElementById('site-desc').value = '';
+                                formContainer.style.display = 'none';
+                                addBtn.style.display = 'flex';
+                                loadSites();
+                            }
+                        };
+                    }
+                    
+                    loadSites();
+                    if (window.lucide) lucide.createIcons();
+                }, 50);
+                break;
             case 11: // 6단계: 작업 파일 공유
                 content = `
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">

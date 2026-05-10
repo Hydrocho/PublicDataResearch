@@ -583,6 +583,74 @@ export async function toggleDatasetShare(id, isShared, studentId, isTeacher = fa
 }
 
 /**
+ * 추천 사이트 공유 (Step 6) 관련 기능
+ */
+export async function fetchRecommendedSites() {
+    const { data, error } = await supabaseClient
+        .from('recommended_sites')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+    return { data, error };
+}
+
+export async function updateRecommendedSitesOrder(updates) {
+    const promises = updates.map(u => 
+        supabaseClient.from('recommended_sites').update({ sort_order: u.sort_order }).eq('id', u.id)
+    );
+    const results = await Promise.all(promises);
+    return { error: results.find(r => r.error)?.error };
+}
+
+export async function createRecommendedSite(url, description, authorId, authorName) {
+    const { data, error } = await supabaseClient
+        .from('recommended_sites')
+        .insert([{
+            url,
+            description,
+            author_id: authorId,
+            author_name: authorName
+        }])
+        .select();
+    return { data, error };
+}
+
+export async function updateRecommendedSite(id, url, description) {
+    const { data, error } = await supabaseClient
+        .from('recommended_sites')
+        .update({ url, description })
+        .eq('id', id)
+        .select();
+    return { data, error };
+}
+
+export async function deleteRecommendedSite(id) {
+    const { error } = await supabaseClient
+        .from('recommended_sites')
+        .delete()
+        .eq('id', id);
+    return { error };
+}
+
+/**
+ * Toggle the is_research_use status of a dataset
+ */
+export async function toggleDatasetResearch(id, isResearchUse, studentId) {
+    if (!studentId || studentId === 'Guest') {
+        return { error: { message: '수정 권한이 없습니다.' }, status: 403 };
+    }
+    
+    const { data, error } = await supabaseClient
+        .from('student_datasets')
+        .update({ is_research_use: isResearchUse })
+        .eq('id', id)
+        .eq('student_id', studentId)
+        .select();
+        
+    return { data, error };
+}
+
+/**
  * Fetch ALL datasets for teacher dashboard, including student names
  */
 export async function fetchAllDatasetsForTeacher() {

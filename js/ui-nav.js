@@ -27,6 +27,7 @@ export function renderStepsNav(currentStep, state, onStepChange) {
         { id: 2, title: "데이터 관리", icon: "list", group: "데이터 분석", stepNum: "3" },
         { id: 3, title: "연구 일지", icon: "file-text", group: "데이터 분석", stepNum: "4" },
         { id: 11, title: "작업 파일 공유", icon: "share-2", group: "결과 공유", stepNum: "5" },
+        { id: 12, title: "추천 사이트 공유", icon: "external-link", group: "결과 공유", stepNum: "6" },
     ];
 
     const isMobile = window.innerWidth <= 768;

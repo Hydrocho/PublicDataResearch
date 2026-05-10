@@ -252,7 +252,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, teacherIds 
                     <input type="checkbox" id="filter-teacher-test-only-chk" style="width:16px; height:16px; accent-color:#f59e0b; cursor:pointer;">
                     <span style="font-size:0.88rem; font-weight:700; color:#92400e;">
                         <i data-lucide="flask-conical" size="14" style="vertical-align:middle; margin-right:4px;"></i>
-                        교사 테스트 활용 체크된 자료만 보기
+                        연구 활용 체크된 자료만 보기
                     </span>
                 </label>
             </div>
@@ -260,7 +260,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, teacherIds 
 
         <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.85rem;color:#92400e;display:flex;align-items:center;gap:8px;">
             <i data-lucide="flask-conical" size="15"></i>
-            <span><strong>교사 테스트 활용</strong> 체크 = 4단계 교사 테스트 모드에서 이 데이터셋을 사용합니다. 학생 기록에는 영향을 주지 않습니다.</span>
+            <span><strong>연구 활용</strong> 체크 = 4단계 연구 및 테스트 모드에서 이 데이터셋을 사용합니다. 학생 기록에는 영향을 주지 않습니다.</span>
         </div>
 
         <!-- Bulk Action Bar -->
@@ -368,7 +368,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, teacherIds 
                         <th style="padding:12px;text-align:center;background:#fffbeb;">
                             <div style="display:flex;align-items:center;justify-content:center;gap:7px;">
                                 <input type="checkbox" id="teacher-test-all-chk" title="전체 체크/해제" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;flex-shrink:0;">
-                                교사 테스트 활용
+                                연구 활용
                             </div>
                         </th>
                         <th style="padding:12px;text-align:center;">공유</th>
@@ -1078,7 +1078,7 @@ export function renderTeacherDataManagement(datasets, onToggleShare, teacherIds 
     if (window.lucide) lucide.createIcons();
 }
 
-export function renderDatasetsList(datasets, containerId, onDelete, onToggleShare, onEditName) {
+export function renderDatasetsList(datasets, containerId, onDelete, onToggleShare, onEditName, onToggleResearch) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -1091,8 +1091,12 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
             <thead>
                 <tr style="text-align: left; border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 12px; text-align: center; width: 40px;">
+                        <input type="checkbox" class="ds-bulk-all-chk" title="전체 선택" style="width: 16px; height: 16px; cursor: pointer;">
+                    </th>
                     <th style="padding: 12px; font-size: 0.85rem;">데이터셋 이름</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: center;">행 수</th>
+                    <th style="padding: 12px; font-size: 0.85rem; text-align: center;">연구 활용</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: center;">공유</th>
                     <th style="padding: 12px; font-size: 0.85rem; text-align: right;">관리</th>
                 </tr>
@@ -1105,7 +1109,10 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
                     const rowStr = rowCount != null ? `${Number(rowCount).toLocaleString()}행` : '-';
                     const sizeStr = sizeKb ? (sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB (${Number(sizeKb).toLocaleString()} KB)` : `${Number(sizeKb).toLocaleString()} KB`) : '';
                     return `
-                    <tr class="managed-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                    <tr class="managed-row managed-ds-row" data-id="${ds.id}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="ds-row-chk" data-id="${ds.id}" style="width: 16px; height: 16px; cursor: pointer;">
+                        </td>
                         <td style="padding: 12px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <i data-lucide="file-spreadsheet" size="18" style="color: var(--primary);"></i>
@@ -1119,6 +1126,9 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
                             </div>
                         </td>
                         <td style="padding: 12px; text-align: center; font-size: 0.9rem; font-weight: 600; color: ${rowCount != null ? 'var(--primary)' : '#94a3b8'};">${rowStr}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <input type="checkbox" class="managed-research-toggle" data-id="${ds.id}" ${ds.is_research_use ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--secondary);">
+                        </td>
                         <td style="padding: 12px; text-align: center;">
                             <label class="switch">
                                 <input type="checkbox" class="managed-share-toggle" data-id="${ds.id}" ${ds.is_shared ? 'checked' : ''}>
@@ -1137,32 +1147,56 @@ export function renderDatasetsList(datasets, containerId, onDelete, onToggleShar
 
     lucide.createIcons();
 
-    container.querySelectorAll('.managed-row').forEach(row => {
-        row.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
-            const ds = datasets.find(d => String(d.id) === row.dataset.id);
-            if (ds) openDatasetModal(ds, false);
-        });
+    // Select All logic
+    const bulkAllChk = container.querySelector('.ds-bulk-all-chk');
+    const rowChks = container.querySelectorAll('.ds-row-chk');
+    if (bulkAllChk) {
+        bulkAllChk.onchange = () => {
+            const isChecked = bulkAllChk.checked;
+            rowChks.forEach(chk => { chk.checked = isChecked; });
+            container.dispatchEvent(new CustomEvent('dsSelectionChange'));
+        };
+    }
+    rowChks.forEach(chk => {
+        chk.onchange = (e) => {
+            e.stopPropagation();
+            if (bulkAllChk) {
+                bulkAllChk.checked = Array.from(rowChks).every(c => c.checked);
+                bulkAllChk.indeterminate = !bulkAllChk.checked && Array.from(rowChks).some(c => c.checked);
+            }
+            container.dispatchEvent(new CustomEvent('dsSelectionChange'));
+        };
+    });
+
+    container.querySelectorAll('.managed-research-toggle').forEach(chk => {
+        chk.onchange = () => onToggleResearch && onToggleResearch(chk.dataset.id, chk.checked);
+    });
+
+    container.querySelectorAll('.managed-share-toggle').forEach(chk => {
+        chk.onchange = () => onToggleShare && onToggleShare(chk.dataset.id, chk.checked);
     });
 
     container.querySelectorAll('.managed-delete-ds-btn').forEach(btn => {
         btn.onclick = (e) => {
             e.stopPropagation();
-            onDelete(btn.dataset.id);
+            onDelete && onDelete(btn.dataset.id);
         };
-    });
-
-    container.querySelectorAll('.managed-share-toggle').forEach(chk => {
-        chk.onchange = () => onToggleShare(chk.dataset.id, chk.checked);
     });
 
     container.querySelectorAll('.managed-edit-name-btn').forEach(btn => {
         btn.onclick = (e) => {
             e.stopPropagation();
-            const id = btn.dataset.id;
-            const ds = datasets.find(d => String(d.id) === id);
-            onEditName(id, ds?.data_name || '');
+            const ds = datasets.find(d => String(d.id) === btn.dataset.id);
+            if (ds) onEditName && onEditName(ds.id, ds.data_name);
         };
+    });
+
+    container.querySelectorAll('.managed-ds-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('.switch') || e.target.closest('input[type="checkbox"]')) return;
+            const ds = datasets.find(d => String(d.id) === row.dataset.id);
+            if (ds) openDatasetModal(ds, false);
+        });
     });
 }
 

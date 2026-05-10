@@ -222,6 +222,7 @@ document.getElementById('teacher-login-link').addEventListener('click', async (e
 });
 
 async function showTeacherDashboard(email) {
+    state.user = { role: 'teacher', student_id: email, name: email ? email.split('@')[0] : '선생님' };
     hideAllSections();
     document.getElementById('teacher-section').style.display = 'block';
     if (email) document.getElementById('teacher-email-display').innerText = email;
@@ -237,6 +238,7 @@ async function showTeacherDashboard(email) {
     const tabCompetitions = document.getElementById('tab-competitions');
     const tabTeachers = document.getElementById('tab-teachers');
     const tabSharing = document.getElementById('tab-sharing');
+    const tabRecommendedSites = document.getElementById('tab-recommended-sites');
 
     const viewStudents = document.getElementById('teacher-students-view');
     const viewAttendance = document.getElementById('teacher-attendance-view');
@@ -248,10 +250,11 @@ async function showTeacherDashboard(email) {
     const viewManagement = document.getElementById('teacher-management-view');
     const viewTeachers = document.getElementById('teacher-permissions-view');
     const viewSharing = document.getElementById('teacher-sharing-view');
+    const viewRecommendedSites = document.getElementById('teacher-recommended-sites-view');
 
     const switchTab = (activeTab, activeView) => {
-        [tabStudents, tabAttendance, tabTeacherStep0, tabStepHalf, tabTeacherStep2, tabTeacherStep3, tabStep1, tabCompetitions, tabTeachers, tabSharing].forEach(t => t?.classList.remove('active'));
-        [viewStudents, viewAttendance, viewStep0, viewStepHalf, viewTeacherStep2, viewManagement, viewStep1, viewCompetitions, viewTeachers, viewSharing].forEach(v => { if(v) v.style.display = 'none'; });
+        [tabStudents, tabAttendance, tabTeacherStep0, tabStepHalf, tabTeacherStep2, tabTeacherStep3, tabStep1, tabCompetitions, tabTeachers, tabSharing, tabRecommendedSites].forEach(t => t?.classList.remove('active'));
+        [viewStudents, viewAttendance, viewStep0, viewStepHalf, viewTeacherStep2, viewManagement, viewStep1, viewCompetitions, viewTeachers, viewSharing, viewRecommendedSites].forEach(v => { if(v) v.style.display = 'none'; });
         if (activeTab) activeTab.classList.add('active');
         if (activeView) activeView.style.display = 'block';
     };
@@ -590,6 +593,12 @@ async function showTeacherDashboard(email) {
         switchTab(tabSharing, viewSharing);
         const { renderStepContent } = await import('./ui-step-router.js');
         renderStepContent(11, state, (id) => {}, 'teacher-sharing-root');
+    };
+
+    tabRecommendedSites.onclick = async () => {
+        switchTab(tabRecommendedSites, viewRecommendedSites);
+        const { renderStepContent } = await import('./ui-step-router.js');
+        renderStepContent(12, state, (id) => {}, 'teacher-recommended-sites-root');
     };
 
     // ── 0단계: 기초 지식 조사 (교사 모니터링) ──────────────────────────
