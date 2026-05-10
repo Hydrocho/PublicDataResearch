@@ -638,7 +638,7 @@ async function showTeacherDashboard(email) {
         await loadStep0Monitoring();
     };
 
-    // ── 1.5단계: 주제 탐색 ──────────────────────────────────
+    // ── 1.단계: 데이터 탐색 ──────────────────────────────────
     tabStepHalf.onclick = async () => {
         switchTab(tabStepHalf, viewStepHalf);
         if (window.lucide) window.lucide.createIcons();
@@ -655,7 +655,7 @@ async function showTeacherDashboard(email) {
             const cat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
             root.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                    <h2>STEP 1: 연구 주제 탐색</h2>
+                    <h2>STEP 1: 데이터 탐색</h2>
                     ${cat ? `<button id="teacher-back-btn" class="btn-secondary" style="font-size:0.85rem;">← 전체 분야 보기</button>` : ''}
                 </div>
 
@@ -664,7 +664,7 @@ async function showTeacherDashboard(email) {
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:25px;">
                     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 18px;">
                         <div style="font-size:0.75rem;font-weight:700;color:#16a34a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">STEP 1 역할</div>
-                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 주제가 정해지면 다음 단계로 이동하여 데이터를 저장하면 됩니다.</div>
+                        <div style="font-size:0.88rem;color:#166534;line-height:1.55;">분야를 클릭해 <strong>교육과의 접점</strong>과 연구 아이디어를 먼저 탐색하세요. 데이터가 정해지면 다음 단계로 이동하여 데이터를 저장하면 됩니다.</div>
                     </div>
                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;">
                         <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">난이도 기준</div>
