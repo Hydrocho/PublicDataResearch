@@ -1,5 +1,4 @@
 import { renderPreprocessingView } from './ui-preprocessing.js';
-import { renderResearchJournal } from './ui-journal.js';
 import { renderResearchJournalStep4 } from './ui-research-journal.js';
 
 export function renderStepContent(stepId, state, onStepChange, containerId = 'step-canvas') {
@@ -10,10 +9,25 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
 
     switch(stepId) {
             case 0: // 0단계: 연구 프로젝트 안내
-                content = '<div id="journal-root" style="min-height: 400px; padding: 20px;"></div>';
+                content = `<iframe
+                    id="project-info-frame"
+                    src="projectInfo.html"
+                    scrolling="no"
+                    style="width:100%; border:none; display:block; min-height:400px;"
+                ></iframe>`;
                 setTimeout(() => {
-                    renderResearchJournal('journal-root', state);
-                }, 50);
+                    const frame = document.getElementById('project-info-frame');
+                    if (!frame) return;
+                    const resize = () => {
+                        try {
+                            const h = frame.contentWindow.document.body.scrollHeight;
+                            if (h > 0) frame.style.height = h + 'px';
+                        } catch (_) {}
+                    };
+                    frame.addEventListener('load', resize);
+                    // 폰트·이미지 로딩 후 재측정
+                    frame.addEventListener('load', () => setTimeout(resize, 300));
+                }, 0);
                 break;
             case 3: // 4단계: 연구 일지 (기존 문제 정의 대체)
                 content = '<div id="research-journal-root" style="min-height: 400px; padding: 20px;"></div>';
