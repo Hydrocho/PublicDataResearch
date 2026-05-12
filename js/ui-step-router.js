@@ -9,7 +9,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
     const topic = state.selectedTopic;
 
     switch(stepId) {
-            case 0: // 0단계: 연구 일지
+            case 0: // 0단계: 연구 프로젝트 안내
                 content = '<div id="journal-root" style="min-height: 400px; padding: 20px;"></div>';
                 setTimeout(() => {
                     renderResearchJournal('journal-root', state);

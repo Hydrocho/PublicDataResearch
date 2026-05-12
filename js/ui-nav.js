@@ -21,7 +21,7 @@ export function renderCategories(onCategoryClick, selectedId) {
 export function renderStepsNav(currentStep, state, onStepChange) {
     const steps = [
         { id: 8, title: "대회 참가 신청", icon: "users", group: "HOME" },
-        { id: 0, title: "기초 지식 작성", icon: "book-open", group: "준비 및 탐색", stepNum: "0" },
+        { id: 0, title: "연구 프로젝트 안내", icon: "info", group: "준비 및 탐색", stepNum: "0" },
         { id: 9, title: "데이터 탐색", icon: "compass", group: "준비 및 탐색", stepNum: "1" },
         { id: 1, title: "데이터 저장", icon: "download", group: "데이터 분석", stepNum: "2" },
         { id: 2, title: "데이터 관리", icon: "list", group: "데이터 분석", stepNum: "3" },

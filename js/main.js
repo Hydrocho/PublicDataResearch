@@ -595,48 +595,22 @@ async function showTeacherDashboard(email) {
         renderStepContent(11, state, (id) => {}, 'teacher-sharing-root');
     };
 
+
     tabRecommendedSites.onclick = async () => {
         switchTab(tabRecommendedSites, viewRecommendedSites);
         const { renderStepContent } = await import('./ui-step-router.js');
         renderStepContent(12, state, (id) => {}, 'teacher-recommended-sites-root');
     };
 
-    // ── 0단계: 기초 지식 조사 (교사 모니터링) ──────────────────────────
-    const loadStep0Monitoring = async () => {
-        const { fetchAllKnowledgeSurveysForTeacher } = await import('./auth.js');
-        const { renderTeacherKnowledgeMonitoring } = await import('./ui-teacher-admin.js');
-        const { renderResearchJournal } = await import('./ui-journal.js');
-        
-        const { data: logs } = await fetchAllKnowledgeSurveysForTeacher();
-        
-        renderTeacherKnowledgeMonitoring(logs, (targetSid) => {
-            const containerId = 'teacher-step0-root';
-            const state = { user: { student_id: email } };
-            
-            const container = document.getElementById(containerId);
-            container.innerHTML = `
-                <div style="margin-bottom:15px;">
-                    <button id="teacher-step0-back-btn" class="btn-secondary" style="padding:6px 15px; font-size:0.85rem;">
-                        <i data-lucide="arrow-left" size="14" style="vertical-align:middle; margin-right:4px;"></i> 목록으로 돌아가기
-                    </button>
-                </div>
-                <div id="teacher-step0-detail-container"></div>
-            `;
-            if (window.lucide) lucide.createIcons();
-            
-            document.getElementById('teacher-step0-back-btn').onclick = loadStep0Monitoring;
-            
-            renderResearchJournal('teacher-step0-detail-container', state, {
-                readOnly: true,
-                targetStudentId: targetSid
-            });
-        });
-    };
-
+    // ── 0단계: 연구 프로젝트 안내 (교사용 조회) ──────────────────────────
     tabTeacherStep0.onclick = async () => {
         switchTab(tabTeacherStep0, viewStep0);
-        await loadStep0Monitoring();
+        const { renderStepContent } = await import('./ui-step-router.js');
+        renderStepContent(0, state, (nextStep) => {
+            if (nextStep === 9) tabStepHalf.click();
+        }, 'teacher-step0-root');
     };
+
 
     // ── 1.단계: 데이터 탐색 ──────────────────────────────────
     tabStepHalf.onclick = async () => {
