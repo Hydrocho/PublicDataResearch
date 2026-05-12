@@ -11,7 +11,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
             case 0: // 0단계: 연구 프로젝트 안내
                 content = `<iframe
                     id="project-info-frame"
-                    src="projectInfo.html"
+                    src="projectInfo.html?v=${Date.now()}"
                     scrolling="no"
                     style="width:100%; border:none; display:block; min-height:400px;"
                 ></iframe>`;
