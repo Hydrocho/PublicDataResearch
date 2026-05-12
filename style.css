@@ -93,18 +93,17 @@ body {
 
 .main-layout {
   display: flex;
-  padding: 20px 0;
-  width: 96%;
-  max-width: 1600px;
-  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  margin: 0;
 }
 
 .side-nav {
   width: 280px;
   padding: 24px 16px;
-  height: calc(100vh - 110px);
+  height: calc(100vh - 70px);
   position: sticky;
-  top: 90px;
+  top: 70px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -127,7 +126,9 @@ body {
 
 .content-area {
   flex: 1;
-  padding: 0 40px;
+  padding: 30px;
+  overflow-y: auto;
+  height: calc(100vh - 70px);
 }
 
 /* Section visibility */
@@ -303,7 +304,7 @@ textarea:focus, input[type="text"]:focus {
 
 /* Step content */
 .step-container {
-  padding: 40px;
+  padding: 30px;
   min-height: 600px;
   display: flex;
   flex-direction: column;
