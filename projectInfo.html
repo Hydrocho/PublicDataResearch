@@ -431,6 +431,29 @@
             margin-top: 14px;
         }
 
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .copy-btn {
+            padding: 4px 12px;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: var(--primary-dark);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #dbeafe;
+        }
+
         .prompt-examples {
             margin-top: 16px;
             padding: 16px 18px;
@@ -452,6 +475,23 @@
             font-weight: 700;
         }
 
+        .tip-text {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .tip-text.flash {
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+
         .tag {
             display: inline-flex;
             padding: 6px 10px;
@@ -460,6 +500,36 @@
             color: #334155;
             font-size: 13px;
             font-weight: 700;
+        }
+
+        .loop-group {
+            position: relative;
+            border: 2px dashed #a5b4fc;
+            border-radius: 24px;
+            padding: 20px 16px 16px;
+            background: rgba(238, 242, 255, 0.4);
+        }
+
+        .loop-group::before {
+            content: "🔄 반복 분석 루프 (9~10단계)";
+            position: absolute;
+            top: -13px;
+            left: 20px;
+            background: #eef2ff;
+            padding: 2px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #4338ca;
+            border: 2px solid #a5b4fc;
+        }
+
+        .loop-group-desc {
+            text-align: center;
+            color: #6366f1;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
         }
 
         .table-wrap {
@@ -579,11 +649,31 @@
             font-size: 14px;
         }
 
+        .slide-container {
+            counter-reset: slide;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .slide-section {
+            background: rgba(248, 250, 252, 0.6);
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 20px;
+        }
+
+        .slide-section-title {
+            margin: 0 0 14px;
+            font-size: 18px;
+            color: var(--primary-dark);
+            letter-spacing: -0.02em;
+        }
+
         .slide-list {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             gap: 12px;
-            counter-reset: slide;
         }
 
         .slide-card {
@@ -838,8 +928,11 @@
                         </div>
                         <p>관심 영역의 공공데이터와 관련 자료를 업로드한 뒤, 이 데이터로 확인할 수 있는 질문, 비교할 수 있는 항목, 분석에 필요한 변수 후보를 탐색합니다.</p>
                         <div class="prompt-examples">
-                            <strong>NotebookLM 예시 질문</strong>
-                            <p>이 데이터로 탐구 가능한 질문을 5개 제안해줘.</p>
+                            <div class="prompt-header">
+                                <strong>NotebookLM 예시 질문</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>업로드한 데이터의 실제 열(Column) 이름과 데이터 값들을 꼼꼼히 분석하여, 실제 데이터 전처리와 수치 계산을 통해 명확한 답을 도출할 수 있는 '실행 가능한' 탐구 질문을 하나만 추천해줘. 우리 실생활 및 교육(학습, 학교 환경, 학생 복지 등)과 밀접해야 하며, 우리가 직접 시각화해서 결과를 확인할 수 있는 친절한 용어의 질문이어야 해. 데이터에 지역 정보가 포함되어 있다면 지도(Map)와 함께 시각화하기 좋은 자료를, 연도별 데이터가 있다면 시간 흐름에 따른 변화를 그래프로 나타내기 좋은 탐구 질문을 우선적으로 도출해줘.</p>
                         </div>
                         <div class="tag-list">
                             <span class="tag">질문 생성</span>
@@ -853,18 +946,22 @@
                     <div class="timeline-number">4</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
-                            <h3>NotebookLM으로 전처리 코드 작성하기</h3>
+                            <h3>NotebookLM으로 전처리 가이드 생성하기</h3>
                             <a class="small-link" href="https://notebooklm.google.com/" target="_blank"
                                 rel="noopener noreferrer">NotebookLM 바로가기</a>
                         </div>
-                        <p>데이터의 열 이름, 결측치, 중복값, 지역명 형식, 병합 기준을 확인한 뒤 Colab에서 실행할 Python 전처리 코드 초안을 작성합니다.</p>
+                        <p>데이터의 특징을 분석하여 기술 전문가에게 요청할 전처리 작업 지시서를 만듭니다. 인코딩, 결측치, 데이터 병합 등 분석의 정확도를 높일 수 있는 구체적인 가이드를 얻습니다.</p>
                         <div class="prompt-examples">
-                            <strong>NotebookLM 예시 질문</strong>
-                            <p>탐구 질문(가설)을 분석하기 위한 Google Colab용 전처리 코드를 작성해줘.</p>
+                            <div class="prompt-header">
+                                <strong>NotebookLM 예시 질문</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>선택한 탐구 질문을 해결하기 위해 Google Colab의 데이터 분석 전문가에게 요청할 '최적의 전처리 작업 지시서'를 작성해줘. 업로드된 데이터의 특징(열 이름, 형식)을 분석하여 인코딩 오류 해결, 결측치 처리, 데이터 병합 및 가공 로직을 전문가가 즉시 파이썬 코드로 구현할 수 있도록 매우 구체적이고 기술적인 지침 형태로 정리해줘.</p>
                         </div>
                         <div class="tag-list">
-                            <span class="tag">코드 초안</span>
-                            <span class="tag">결측치 처리</span>
+                            <span class="tag">작업 지시서</span>
+                            <span class="tag">전처리 가이드</span>
+                            <span class="tag">인코딩 해결</span>
                             <span class="tag">데이터 병합</span>
                             <span class="tag">열 이름 정리</span>
                         </div>
@@ -875,13 +972,22 @@
                     <div class="timeline-number">5</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
-                            <h3>Google Colab에서 코드 실행·수정하기</h3>
+                            <h3>Google Colab에서 전처리 코드 생성 및 실행</h3>
                             <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
                                 rel="noopener noreferrer">Google Colab 바로가기</a>
                         </div>
-                        <p>NotebookLM이 작성한 전처리 코드를 Colab에서 실행하고, 오류를 수정하면서 분석 가능한 형태의 데이터셋을 만듭니다.</p>
+                        <p>NotebookLM에서 생성한 전처리 가이드를 바탕으로 Google Colab에서 실제 Python 코드를 생성하고 실행하여, 분석 가능한 데이터셋을 최종 확정합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>다음 전처리 가이드를 참고하여 Google Colab에서 실행할 수 있는 Python 전처리 코드를 작성해줘. [가이드 내용 붙여넣기]</p>
+                        </div>
+                        <div class="tip-text flash">💡 Tip: 전처리 가이드대로 코드가 잘 작성되지 않거나 오류가 발생했을 때는 구글 코랩의 <b>Gemini 3 Flash</b> 모델에게 수정을 요청해 보세요. 가장 빠르고 효율적인 도우미입니다.</div>
+                        <div class="tip-text">💡 Tip: 제미나이와의 대화 내용을 나중에 참고하기 위해 노트북에 남겨두고 싶다면, <b>'지금 대화 내용을 노트북 셀에 기록해줘'</b>라고 요청해 보세요.</div>
                         <div class="tag-list">
-                            <span class="tag">코드 실행</span>
+                            <span class="tag">코드 생성</span>
                             <span class="tag">오류 수정</span>
                             <span class="tag">지역명 통일</span>
                             <span class="tag">데이터 병합</span>
@@ -893,21 +999,23 @@
                     <div class="timeline-number">6</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
-                            <h3>분석 결과 검증하기</h3>
+                            <h3>분석 지표 만들기</h3>
                             <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
                                 rel="noopener noreferrer">Google Colab 바로가기</a>
                         </div>
-                        <p>선택한 질문이나 가설에 대한 분석 결과가 통계적으로 의미 있는지 확인하기 위해 상관분석, 평균 비교, 회귀분석, 유의성 검정 등을 수행합니다.</p>
+                        <p>수집한 데이터를 정책이나 앱 제안에 활용할 수 있도록 인구 대비 시설 수, 지역별 비율, 우선순위 지수 등 의미 있는 분석 지표로 바꿉니다.</p>
                         <div class="prompt-examples">
-                            <strong>Google Colab 예시 질문</strong>
-                            <p>탐구 질문(가설)을 통계적으로 검증하기 위한 Google Colab용 분석 코드를 작성해줘.</p>
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>분석된 데이터를 바탕으로 정책이나 웹앱 제안에 활용하기 좋은 새로운 분석 지표(비율, 지수 등)를 제안하고, 이를 계산하여 데이터프레임에 추가하는 코드를 작성해줘.</p>
                         </div>
                         <div class="tag-list">
-                            <span class="tag">상관분석</span>
+                            <span class="tag">파생 변수</span>
+                            <span class="tag">비율 계산</span>
                             <span class="tag">평균 비교</span>
-                            <span class="tag">회귀분석</span>
-                            <span class="tag">유의성 검정</span>
-                            <span class="tag">p-value</span>
+                            <span class="tag">취약지수</span>
                         </div>
                     </div>
                 </div>
@@ -916,20 +1024,24 @@
                     <div class="timeline-number">7</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
-                            <h3>분석 지표 만들기</h3>
+                            <h3>분석 결과 검증하기</h3>
                             <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
                                 rel="noopener noreferrer">Google Colab 바로가기</a>
                         </div>
-                        <p>수집한 데이터를 정책이나 앱 제안에 활용할 수 있도록 인구 대비 시설 수, 지역별 비율, 우선순위 지수 등 의미 있는 분석 지표로 바꿉니다.</p>
+                        <p>앞서 생성한 분석 지표들이 통계적으로 의미가 있는지 확인합니다. 상관분석, 평균 비교, 유의성 검정(p-value) 등을 통해 분석 결과의 신뢰도를 확보합니다.</p>
                         <div class="prompt-examples">
-                            <strong>Google Colab 예시 질문</strong>
-                            <p>수집한 데이터를 정책이나 앱 제안에 활용할 수 있도록 분석 지표를 제안해줘. 그리고 각 지표를 계산하는 코드를 함께 작성해줘.</p>
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>앞서 생성한 분석 지표들이 탐구 질문과 통계적으로 유의미한 관계가 있는지 검증하기 위한 Python 코드를 작성하고, 검정 결과를 해석해줘.</p>
                         </div>
                         <div class="tag-list">
-                            <span class="tag">파생 변수</span>
-                            <span class="tag">비율 계산</span>
+                            <span class="tag">상관분석</span>
                             <span class="tag">평균 비교</span>
-                            <span class="tag">취약지수</span>
+                            <span class="tag">회귀분석</span>
+                            <span class="tag">유의성 검정</span>
+                            <span class="tag">p-value</span>
                         </div>
                     </div>
                 </div>
@@ -944,8 +1056,11 @@
                         </div>
                         <p>계산한 분석 지표를 표, 막대그래프, 선그래프, 산점도, 지도 등으로 표현하여 결과를 한눈에 이해할 수 있게 만듭니다.</p>
                         <div class="prompt-examples">
-                            <strong>Google Colab 예시 질문</strong>
-                            <p>분석 지표를 한눈에 이해할 수 있도록 적절한 시각화 방법을 제안해줘. 그리고 각 시각화를 만드는 코드를 함께 작성해줘.</p>
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>나눔(Nanum) 폰트 설치 및 한글 깨짐 방지를 적용하여, 분석 지표를 한눈에 이해할 수 있는 시각화 코드를 작성해줘. 각 시각화의 의미와 코드를 함께 작성해줘.</p>
                         </div>
                         <div class="tag-list">
                             <span class="tag">표</span>
@@ -956,8 +1071,84 @@
                     </div>
                 </div>
 
+                <div class="loop-group">
+                    <div class="loop-group-desc">필요 시 아래 두 단계를 반복하며 분석을 완성하세요.</div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-number">9</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title-row">
+                                <h3>분석 지표 정교화하기</h3>
+                                <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
+                                    rel="noopener noreferrer">Google Colab 바로가기</a>
+                            </div>
+                            <p>시각화 결과를 바탕으로 지표의 한계를 보완하고, 데이터의 편중이나 왜곡을 줄이기 위해 가중치를 조정하거나 새로운 파생 변수를 추가하여 분석의 정확도를 높입니다.</p>
+                            <div class="prompt-examples">
+                                <div class="prompt-header">
+                                    <strong>Colab Gemini 명령어</strong>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                                </div>
+                                <p>시각화 결과를 분석하여, 현재 지표의 한계점을 찾아줘. 그리고 가중치 조정이나 새로운 파생 변수 추가 등을 통해 지표를 정교화하는 코드를 작성해줘.</p>
+                            </div>
+                            <div class="tag-list">
+                                <span class="tag">가중치 조정</span>
+                                <span class="tag">파생 변수</span>
+                                <span class="tag">지표 보완</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-number">10</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title-row">
+                                <h3>정교화된 지표 시각화하기</h3>
+                                <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
+                                    rel="noopener noreferrer">Google Colab 바로가기</a>
+                            </div>
+                            <p>정교화된 분석 지표의 통계적 유의성을 다시 한번 확인하고, 가장 명확한 증거를 보여줄 수 있는 시각화 자료를 만듭니다.</p>
+                            <div class="prompt-examples">
+                                <div class="prompt-header">
+                                    <strong>Colab Gemini 명령어</strong>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                                </div>
+                                <p>나눔(Nanum) 폰트 설치 및 한글 깨짐 방지를 적용하여, 정교화된 분석 지표를 시각화하는 코드를 작성해줘. 초기 시각화와 비교할 수 있도록 해줘.</p>
+                            </div>
+                            <div class="tag-list">
+                                <span class="tag">정교화 시각화</span>
+                                <span class="tag">비교 분석</span>
+                                <span class="tag">최종 그래프</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="timeline-item">
-                    <div class="timeline-number">9</div>
+                    <div class="timeline-number">11</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title-row">
+                            <h3>분석 지표 변화 비교·서술하기</h3>
+                            <a class="small-link" href="https://notebooklm.google.com/" target="_blank"
+                                rel="noopener noreferrer">NotebookLM 바로가기</a>
+                        </div>
+                        <p>초기 지표부터 최종 정교화된 지표까지의 변화 과정을 비교하고, 각 단계에서 수정한 이유와 분석 결과가 어떻게 고도화되었는지를 정리합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>NotebookLM 예시 질문</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>초기 분석 지표부터 최종 정교화된 지표까지의 단계별 변화 과정을 비교해줘. 각 단계에서 지표를 수정한 이유(근거)와 그에 따라 분석 결과가 어떻게 고도화되었는지를 정리하여 보고서 초안을 작성해줘. 그리고 작성한 내용을 노트북 셀에 작성해줘.</p>
+                        </div>
+                        <div class="tag-list">
+                            <span class="tag">지표 비교</span>
+                            <span class="tag">변화 근거</span>
+                            <span class="tag">보고서 초안</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">12</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
                             <h3>결과 해석하기</h3>
@@ -966,8 +1157,11 @@
                         </div>
                         <p>그래프와 통계 분석 결과가 무엇을 의미하는지 해석하고, 탐구 질문이나 가설에 대한 답을 정리합니다.</p>
                         <div class="prompt-examples">
-                            <strong>Google Colab 예시 질문</strong>
-                            <p>분석 결과와 시각화 자료를 바탕으로 탐구 질문(가설)에 대한 답을 이해하기 쉽도록 해석해줘.</p>
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>분석 결과와 시각화 자료를 바탕으로 탐구 질문(가설)에 대한 답을 이해하기 쉽도록 해석해줘. 그리고 작성한 내용을 노트북 셀에 작성해줘.</p>
                         </div>
                         <div class="tag-list">
                             <span class="tag">결과 요약</span>
@@ -978,16 +1172,120 @@
                 </div>
 
                 <div class="timeline-item">
-                    <div class="timeline-number">10</div>
+                    <div class="timeline-number">13</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title-row">
+                            <h3>정책 또는 앱 기획하기</h3>
+                            <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
+                                rel="noopener noreferrer">Google Colab 바로가기</a>
+                        </div>
+                        <p>분석 결과를 바탕으로 실제 문제 해결을 위한 정책 방안을 수립하고, 이 정책을 실생활에서 구현하거나 시민들이 체감할 수 있도록 돕는 웹앱 서비스 아이디어를 제안합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>분석 결과와 기존 연구 비교 내용을 바탕으로 정책 또는 앱 아이디어를 제안해줘. 제안 내용은 제안 배경, 주요 내용, 기대 효과로 나누어 정리해줘. 그리고 작성한 내용을 노트북 셀에 작성해줘.</p>
+                        </div>
+                        <div class="tag-list">
+                            <span class="tag">정책 제안</span>
+                            <span class="tag">앱 아이디어</span>
+                            <span class="tag">기대 효과</span>
+                            <span class="tag">실행 방안</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">14</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title-row">
+                            <h3>웹앱 기획 및 데이터 자산 패키징</h3>
+                            <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
+                                rel="noopener noreferrer">Google Colab 바로가기</a>
+                        </div>
+                        <p>외부 AI(Claude, ChatGPT 등)에게 웹 개발을 의뢰하기 위한 '전문가용 지시서(guide.txt)'와 '분석 데이터(data.json)'를 생성하여 webapp 폴더에 패키징합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>앞서 수행한 분석 결과와 정책 제안 내용을 바탕으로, 웹앱 개발자에게 전달할 '기술 구현 명세서(guide.txt)'를 작성해줘. 그리고 시각화에 필요한 핵심 데이터를 JSON 형식(data.json)으로 추출하여, Python 코드를 사용해 'webapp' 폴더를 생성하고 두 파일을 저장해줘.</p>
+                        </div>
+                        <div class="tag-list">
+                            <span class="tag">guide.txt</span>
+                            <span class="tag">data.json</span>
+                            <span class="tag">webapp 폴더</span>
+                            <span class="tag">데이터 패키징</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">15</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title-row">
+                            <h3>전문 AI를 활용한 웹앱 구현 및 완성</h3>
+                            <div class="small-link-group" style="display:flex;gap:8px;">
+                                <a class="small-link" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claude 바로가기</a>
+                                <a class="small-link" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT 바로가기</a>
+                            </div>
+                        </div>
+                        <p>패키징된 guide.txt와 data.json을 Claude 또는 ChatGPT에 업로드하고, 아래 명령어를 사용하여 고품질 웹앱(index.html)을 완성합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>외부 AI용 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>첨부한 guide.txt(기획서)와 data.json(데이터)을 읽고, 단일 index.html 파일로 구동되는 인터랙티브 데이터 대시보드를 만들어줘. Chart.js를 CDN으로 로드하고, data.json 내용을 JS 변수로 임베드해줘. 반응형 디자인, 다크모드 지원, 부드러운 애니메이션을 적용하고 세련된 UI로 만들어줘.</p>
+                        </div>
+                        <div class="tag-list">
+                            <span class="tag">Claude</span>
+                            <span class="tag">ChatGPT</span>
+                            <span class="tag">index.html</span>
+                            <span class="tag">Chart.js</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">16</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title-row">
+                            <h3>분석 과정 저장하기</h3>
+                            <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
+                                rel="noopener noreferrer">Google Colab 바로가기</a>
+                        </div>
+                        <p>Google Colab에서 수행한 분석 코드, 시각화 결과, 해석 내용을 하나로 묶어 저장합니다. 이미지가 포함된 PDF와 제미나이가 정리한 텍스트 리포트를 함께 준비하여 NotebookLM의 핵심 소스로 활용합니다.</p>
+                        <div class="prompt-examples">
+                            <div class="prompt-header">
+                                <strong>Colab Gemini 명령어</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
+                            <p>지금까지의 분석 과정(코드, 시각화 결과, 해석)을 요약하여 텍스트 리포트 형태로 정리해줘. 그리고 노트북 전체를 PDF로 저장하는 코드를 작성해줘.</p>
+                        </div>
+                        <div class="tag-list">
+                            <span class="tag">PDF 저장</span>
+                            <span class="tag">리포트 정리</span>
+                            <span class="tag">NotebookLM 소스</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">17</div>
                     <div class="timeline-content">
                         <div class="timeline-title-row">
                             <h3>기존 연구(정책)와 비교하기</h3>
                             <a class="small-link" href="https://notebooklm.google.com/" target="_blank"
                                 rel="noopener noreferrer">NotebookLM 바로가기</a>
                         </div>
-                        <p>분석 결과를 기존 연구, 기사, 정책 자료와 비교하여 내 결과가 기존 자료와 어떤 점에서 비슷하거나 다른지 확인하고, 결과 해석을 보완합니다.</p>
+                        <p>분석 결과와 앞서 저장한 분석 자료를 기존 연구, 기사, 정책 자료와 비교하여 내 결과가 기존 자료와 어떤 점에서 비슷하거나 다른지 확인하고, 결과 해석을 보완합니다.</p>
                         <div class="prompt-examples">
-                            <strong>NotebookLM 예시 질문</strong>
+                            <div class="prompt-header">
+                                <strong>NotebookLM 예시 질문</strong>
+                                <button class="copy-btn" onclick="copyPrompt(this)">복사하기</button>
+                            </div>
                             <p>인터넷에서 탐구 주제와 관련된 기존 연구, 기사, 정책 자료를 찾아줘. 그리고 각 자료의 핵심 내용과 내 분석 결과가 비슷한 점과 다른 점을 정리해줘.</p>
                         </div>
                         <div class="tag-list">
@@ -995,28 +1293,6 @@
                             <span class="tag">보도 자료</span>
                             <span class="tag">정책 보고서</span>
                             <span class="tag">차이점 분석</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="timeline-item">
-                    <div class="timeline-number">11</div>
-                    <div class="timeline-content">
-                        <div class="timeline-title-row">
-                            <h3>정책 또는 앱 제안하기</h3>
-                            <a class="small-link" href="https://colab.research.google.com/?hl=ko" target="_blank"
-                                rel="noopener noreferrer">Google Colab 바로가기</a>
-                        </div>
-                        <p>분석 결과와 기존 연구 비교 내용을 바탕으로 실제 문제 해결에 도움이 되는 정책 방안 또는 앱 서비스 아이디어를 제안합니다.</p>
-                        <div class="prompt-examples">
-                            <strong>Google Colab 예시 질문</strong>
-                            <p>분석 결과와 기존 연구 비교 내용을 바탕으로 정책 또는 앱 아이디어를 제안해줘. 제안 내용은 제안 배경, 주요 내용, 기대 효과로 나누어 정리해줘.</p>
-                        </div>
-                        <div class="tag-list">
-                            <span class="tag">정책 제안</span>
-                            <span class="tag">앱 아이디어</span>
-                            <span class="tag">기대 효과</span>
-                            <span class="tag">실행 방안</span>
                         </div>
                     </div>
                 </div>
@@ -1031,58 +1307,117 @@
                 </div>
             </div>
 
-            <div class="slide-list">
-                <article class="slide-card">
-                    <h3>주제 소개</h3>
-                    <p>탐구 주제와 공공데이터를 활용한 문제 해결 목표를 소개</p>
-                </article>
-                <article class="slide-card">
-                    <h3>문제 인식</h3>
-                    <p>해결하고 싶은 사회 문제와 이 문제가 중요한 이유 제시</p>
-                </article>
-                <article class="slide-card">
-                    <h3>활용 데이터</h3>
-                    <p>사용한 공공데이터의 출처, 주요 열, 활용 목적 정리</p>
-                </article>
-                <article class="slide-card">
-                    <h3>탐구 질문 탐색</h3>
-                    <p>데이터로 확인하고 싶은 탐구 질문 또는 가설 제시</p>
-                </article>
-                <article class="slide-card">
-                    <h3>전처리 코드 작성</h3>
-                    <p>데이터 정리를 위해 필요한 전처리 방향과 코드 구성 설명</p>
-                </article>
-                <article class="slide-card">
-                    <h3>데이터 전처리</h3>
-                    <p>결측치, 중복값, 지역명, 병합 오류 등을 정리한 과정 제시</p>
-                </article>
-                <article class="slide-card">
-                    <h3>통계적 검증</h3>
-                    <p>상관분석, 평균 비교, 유의성 검정 등 검증 방법과 결과 제시</p>
-                </article>
-                <article class="slide-card">
-                    <h3>분석 지표</h3>
-                    <p>정책·앱 제안에 활용할 비율, 순위, 지수 등의 지표 설명</p>
-                </article>
-                <article class="slide-card">
-                    <h3>분석 결과 시각화</h3>
-                    <p>그래프, 표, 지도 등을 활용해 주요 분석 결과를 시각적으로 제시</p>
-                </article>
-                <article class="slide-card">
-                    <h3>결과 해석</h3>
-                    <p>시각화와 통계 결과를 바탕으로 탐구 질문에 대한 답 정리</p>
-                </article>
-                <article class="slide-card">
-                    <h3>기존 연구(정책) 비교</h3>
-                    <p>기존 연구, 기사, 정책 자료와 내 분석 결과의 공통점·차이점 비교</p>
-                </article>
-                <article class="slide-card">
-                    <h3>정책 또는 앱 제안</h3>
-                    <p>분석 근거를 바탕으로 제안 배경, 주요 내용, 기대 효과 제시</p>
-                </article>
+            <div class="slide-container">
+                <!-- Ⅰ. 서론 -->
+                <div class="slide-section">
+                    <h3 class="slide-section-title">Ⅰ. 서론</h3>
+                    <div class="slide-list">
+                        <article class="slide-card">
+                            <h3>연구 배경 및 문제 인식</h3>
+                            <p>해결하고자 하는 사회 문제와 중요성 제시 + 탐구 주제·목표 소개</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>기존 연구 및 정책 검토</h3>
+                            <p>관련 선행 연구·기사·정책 자료 요약 및 본 탐구와의 차별점 제시</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>탐구 질문 및 가설</h3>
+                            <p>데이터로 검증할 핵심 탐구 질문 또는 가설 명시</p>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- Ⅱ. 연구 방법 -->
+                <div class="slide-section">
+                    <h3 class="slide-section-title">Ⅱ. 연구 방법</h3>
+                    <div class="slide-list">
+                        <article class="slide-card">
+                            <h3>활용 데이터 및 전처리 계획</h3>
+                            <p>공공데이터 출처·주요 열·활용 목적 + 전처리 방향 및 코드 구성 설명</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>데이터 전처리 과정</h3>
+                            <p>결측치·중복값·지역명·병합 오류 정리 과정 제시</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>분석 지표 설계</h3>
+                            <p>정책·웹앱 제안에 활용할 비율·순위·지수 등 초기 지표 정의</p>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- Ⅲ. 분석 결과 -->
+                <div class="slide-section">
+                    <h3 class="slide-section-title">Ⅲ. 분석 결과</h3>
+                    <div class="slide-list">
+                        <article class="slide-card">
+                            <h3>통계적 검증</h3>
+                            <p>상관분석·평균 비교·유의성 검정 등 초기 지표 통계 결과</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>분석 결과 시각화</h3>
+                            <p>그래프·표·지도 등으로 주요 결과 시각화</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>지표 정교화 및 재검증</h3>
+                            <p>시각화에서 발견된 한계 보완 및 재검증 결과</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>정교화 지표 시각화</h3>
+                            <p>보완된 지표의 시각화 결과 제시</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>초기 vs 정교화 지표 비교</h3>
+                            <p>초기 지표와 정교화된 지표의 차이점 및 수정 근거를 논리적으로 설명</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>결과 해석</h3>
+                            <p>최종 시각화와 통계 결과를 바탕으로 탐구 질문에 대한 답 정리</p>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- Ⅳ. 제언 및 개발 -->
+                <div class="slide-section">
+                    <h3 class="slide-section-title">Ⅳ. 제언 및 개발</h3>
+                    <div class="slide-list">
+                        <article class="slide-card">
+                            <h3>정책 제안</h3>
+                            <p>분석 근거를 바탕으로 제안 배경, 주요 내용, 기대 효과 제시</p>
+                        </article>
+                        <article class="slide-card">
+                            <h3>웹앱 기획 및 구현</h3>
+                            <p>데이터 대시보드 및 정책 솔루션 기능의 기획·개발 과정 소개</p>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- Ⅴ. 결론 -->
+                <div class="slide-section">
+                    <h3 class="slide-section-title">Ⅴ. 결론</h3>
+                    <div class="slide-list">
+                        <article class="slide-card">
+                            <h3>결론 및 한계·향후 과제</h3>
+                            <p>연구 요약, 한계점, 향후 발전 방향 제시</p>
+                        </article>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
+
+    <script>
+        function copyPrompt(btn) {
+            const box = btn.closest('.prompt-examples');
+            const p = box.querySelector('p');
+            if (p) {
+                navigator.clipboard.writeText(p.textContent.trim()).then(() => {
+                    btn.textContent = '✓ 복사됨';
+                    setTimeout(() => btn.textContent = '복사하기', 1500);
+                });
+            }
+        }
+    </script>
 </body>
 
 </html>
