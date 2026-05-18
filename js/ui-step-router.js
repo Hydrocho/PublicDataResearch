@@ -852,6 +852,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                 const isTeacherView = teacherSection && teacherSection.style.display !== 'none';
                                 const isTeacherUser = currentUser.role === 'teacher' || (!currentUser.student_id && currentUser.email);
                                 const canDelete = isCommentAuthor || isTeacherView || isTeacherUser;
+                                const canEdit = isCommentAuthor;
 
                                 return `
                                     <div style="background: white; padding: 12px 15px; border-radius: 8px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;">
@@ -860,15 +861,24 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                 <span style="font-weight: 700; font-size: 0.85rem; color: #475569; background: #f8fafc; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">${comment.author_name}</span>
                                                 <span style="font-size: 0.75rem; color: #94a3b8;">${cDateStr}</span>
                                             </div>
-                                            ${canDelete ? `
-                                                <button class="delete-comment-btn" data-comment-id="${comment.id}" data-post-id="${postId}"
-                                                        style="background: none; border: none; color: #ef4444; font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; gap: 3px; transition: opacity 0.2s;" 
-                                                        onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">
-                                                    <i data-lucide="trash-2" size="12"></i> 삭제
-                                                </button>
-                                            ` : ''}
+                                            <div style="display: flex; align-items: center; gap: 4px;">
+                                                ${canEdit ? `
+                                                    <button class="edit-comment-btn" data-comment-id="${comment.id}" data-post-id="${postId}" data-content="${comment.content.replace(/"/g, '&quot;')}"
+                                                            style="background: none; border: none; color: var(--primary); font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; gap: 3px; transition: opacity 0.2s;" 
+                                                            onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">
+                                                        <i data-lucide="edit-2" size="12"></i> 수정
+                                                    </button>
+                                                ` : ''}
+                                                ${canDelete ? `
+                                                    <button class="delete-comment-btn" data-comment-id="${comment.id}" data-post-id="${postId}"
+                                                            style="background: none; border: none; color: #ef4444; font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; gap: 3px; transition: opacity 0.2s;" 
+                                                            onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">
+                                                        <i data-lucide="trash-2" size="12"></i> 삭제
+                                                    </button>
+                                                ` : ''}
+                                            </div>
                                         </div>
-                                        <div style="font-size: 0.88rem; color: #334155; line-height: 1.5; white-space: pre-wrap; word-break: break-all;">${comment.content}</div>
+                                        <div id="comment-body-${comment.id}" style="font-size: 0.88rem; color: #334155; line-height: 1.5; white-space: pre-wrap; word-break: break-all;">${comment.content}</div>
                                         
                                         <!-- 댓글 첨부파일 리스트 -->
                                         ${comment.files && comment.files.length > 0 ? `
@@ -1008,18 +1018,39 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                                     ` : ''}
                                                                 </h4>
                                                                 <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                                                    ${(post.shared_files || []).map(file => `
-                                                                        <button class="download-btn btn-secondary" 
-                                                                                data-url="${file.file_url}" 
-                                                                                data-name="${file.file_name}"
-                                                                                style="font-size:0.8rem; padding:8px 15px; cursor:pointer; display:flex; align-items:center; gap:8px; background:white; border:1px solid #e2e8f0; border-radius:8px;">
-                                                                            <i data-lucide="download" size="14"></i>
-                                                                            <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                                                                                <span style="font-weight:600;">${file.file_name}</span>
-                                                                                <span style="font-size:0.72rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
-                                                                            </div>
-                                                                        </button>
-                                                                    `).join('')}
+                                                                    ${(post.shared_files || []).map(file => {
+                                                                        const user = state.user || {};
+                                                                        const isAuthor = user.student_id && user.student_id === post.author_id;
+                                                                        const teacherSection = document.getElementById('teacher-section');
+                                                                        const isTeacherView = teacherSection && teacherSection.style.display !== 'none';
+                                                                        const isTeacherUser = user.role === 'teacher' || (!user.student_id && user.email);
+                                                                        const canManageFile = isAuthor || isTeacherView || isTeacherUser;
+                                                                        
+                                                                        return `
+                                                                            <span style="display:inline-flex; align-items:stretch; border:1px solid #e2e8f0; border-radius:8px; background:white; overflow:hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;">
+                                                                                <button class="download-btn" 
+                                                                                        data-url="${file.file_url}" 
+                                                                                        data-name="${file.file_name}"
+                                                                                        style="border:none; background:none; font-size:0.8rem; padding:8px 15px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                                                                                    <i data-lucide="download" size="14" style="color:var(--primary);"></i>
+                                                                                    <div style="display:flex; flex-direction:column; align-items:flex-start; text-align:left;">
+                                                                                        <span style="font-weight:600; color:#475569;">${file.file_name}</span>
+                                                                                        <span style="font-size:0.72rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
+                                                                                    </div>
+                                                                                </button>
+                                                                                ${canManageFile ? `
+                                                                                    <button class="delete-post-file-btn" 
+                                                                                            data-file-id="${file.id}" 
+                                                                                            data-file-path="${file.file_path}"
+                                                                                            style="border:none; border-left:1px solid #e2e8f0; background:#fff1f1; color:#ef4444; width:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s;"
+                                                                                            onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff1f1'"
+                                                                                            title="파일 삭제">
+                                                                                        <i data-lucide="trash-2" size="14"></i>
+                                                                                    </button>
+                                                                                ` : ''}
+                                                                            </span>
+                                                                        `;
+                                                                    }).join('')}
                                                                 </div>
                                                             </div>
 
@@ -1157,6 +1188,29 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                         btn.disabled = false;
                                         btn.innerHTML = '<i data-lucide="trash-2" size="14"></i> 게시글 삭제하기';
                                         if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
+                            // 개별 파일 삭제 기능 연결 (교사 및 작성자용)
+                            boardContainer.querySelectorAll('.delete-post-file-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm('정말로 이 첨부 파일을 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.')) return;
+                                    
+                                    const { fileId, filePath } = btn.dataset;
+                                    btn.disabled = true;
+                                    btn.style.opacity = '0.5';
+                                    
+                                    const { deleteFileFromSharedPost } = await import('./auth.js');
+                                    const res = await deleteFileFromSharedPost(fileId, filePath);
+                                    
+                                    if (res.success) {
+                                        await loadBoard();
+                                    } else {
+                                        alert('파일 삭제 실패: ' + (res.error?.message || '알 수 없는 오류'));
+                                        btn.disabled = false;
+                                        btn.style.opacity = '1';
                                     }
                                 };
                             });

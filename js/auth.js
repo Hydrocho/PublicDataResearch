@@ -1675,4 +1675,19 @@ export async function deleteSharedComment(commentId) {
     }
 }
 
+// 댓글 수정
+export async function updateSharedComment(commentId, content) {
+    try {
+        const { error } = await supabaseClient
+            .from("shared_comments")
+            .update({ content })
+            .eq("id", commentId);
+        
+        return { success: !error, error };
+    } catch (error) {
+        console.error("Error in updateSharedComment:", error);
+        return { error };
+    }
+}
+
 
