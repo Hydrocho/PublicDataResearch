@@ -766,8 +766,182 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                 setTimeout(async () => {
                     const { fetchSharedPosts } = await import('./auth.js');
                     const boardContainer = document.getElementById('shared-posts-container');
+                    const selectedCommentFilesMap = {};
+
+                    const renderSelectedFilesPreview = (postId) => {
+                        const container = document.getElementById(`comment-selected-files-${postId}`);
+                        if (!container) return;
+
+                        const files = selectedCommentFilesMap[postId] || [];
+                        if (files.length === 0) {
+                            container.innerHTML = '';
+                            return;
+                        }
+
+                        container.innerHTML = files.map((file, idx) => `
+                            <span style="display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:100px; padding:4px 10px; font-size:0.75rem; color:#475569; font-weight:500;">
+                                <i data-lucide="file" size="12" style="color:#64748b;"></i>
+                                <span>${file.name}</span>
+                                <span style="color:#94a3b8; font-size:0.7rem;">(${(file.size/1024).toFixed(1)} KB)</span>
+                                <button class="remove-selected-file-btn" data-post-id="${postId}" data-idx="${idx}"
+                                        style="background:none; border:none; color:#ef4444; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; opacity:0.6; transition:opacity 0.2s;"
+                                        onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
+                                    <i data-lucide="x" size="12"></i>
+                                </button>
+                            </span>
+                        `).join('');
+
+                        // 첨부한 파일 제거 핸들러 연결
+                        container.querySelectorAll('.remove-selected-file-btn').forEach(btn => {
+                            btn.onclick = (e) => {
+                                e.stopPropagation();
+                                  const pId = btn.dataset.postId;
+                                  const idx = parseInt(btn.dataset.idx);
+                                  if (selectedCommentFilesMap[pId]) {
+                                      selectedCommentFilesMap[pId].splice(idx, 1);
+                                      renderSelectedFilesPreview(pId);
+                                  }
+                            };
+                        });
+
+                        if (window.lucide) lucide.createIcons();
+                    };
                     
                     const loadBoard = async () => {
+                        const renderComments = async (postId) => {
+                            const commentsList = document.getElementById(`comments-list-${postId}`);
+                            const commentCount = document.getElementById(`comment-count-${postId}`);
+                            if (!commentsList) return;
+
+                            commentsList.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:10px 0;"><span style="display:inline-block; vertical-align:middle; width:12px; height:12px; border:2px solid #cbd5e1; border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin-right:5px;"></span> 불러오는 중...</p>';
+
+                            const { fetchSharedComments } = await import('./auth.js');
+                            const { data: comments, error } = await fetchSharedComments(postId);
+
+                            if (error) {
+                                commentsList.innerHTML = `<p style="color:#ef4444; font-size:0.85rem; text-align:center; padding:10px 0;">댓글 로드 실패: ${error.message}</p>`;
+                                return;
+                            }
+
+                            if (commentCount) {
+                                commentCount.innerText = `(${comments ? comments.length : 0})`;
+                            }
+
+                            // 테이블 목록 제목 옆의 댓글 개수도 실시간 동기화
+                            const boardCommentCount = document.getElementById(`board-comment-count-${postId}`);
+                            if (boardCommentCount) {
+                                boardCommentCount.innerText = `[${comments ? comments.length : 0}]`;
+                            }
+
+                            if (!comments || comments.length === 0) {
+                                commentsList.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:15px 0;">작성된 댓글이 없습니다. 첫 댓글을 남겨보세요! 💬</p>';
+                                return;
+                            }
+
+                            commentsList.innerHTML = comments.map(comment => {
+                                const cDateStr = new Date(comment.created_at).toLocaleString('ko-KR', {
+                                    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                });
+                                const currentUser = state.user || {};
+                                
+                                // 작성자 본인 확인
+                                const isCommentAuthor = currentUser.student_id && currentUser.student_id === comment.author_id;
+                                
+                                // 교사 권한 확인
+                                const teacherSection = document.getElementById('teacher-section');
+                                const isTeacherView = teacherSection && teacherSection.style.display !== 'none';
+                                const isTeacherUser = currentUser.role === 'teacher' || (!currentUser.student_id && currentUser.email);
+                                const canDelete = isCommentAuthor || isTeacherView || isTeacherUser;
+
+                                return `
+                                    <div style="background: white; padding: 12px 15px; border-radius: 8px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-weight: 700; font-size: 0.85rem; color: #475569; background: #f8fafc; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">${comment.author_name}</span>
+                                                <span style="font-size: 0.75rem; color: #94a3b8;">${cDateStr}</span>
+                                            </div>
+                                            ${canDelete ? `
+                                                <button class="delete-comment-btn" data-comment-id="${comment.id}" data-post-id="${postId}"
+                                                        style="background: none; border: none; color: #ef4444; font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; gap: 3px; transition: opacity 0.2s;" 
+                                                        onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">
+                                                    <i data-lucide="trash-2" size="12"></i> 삭제
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                        <div style="font-size: 0.88rem; color: #334155; line-height: 1.5; white-space: pre-wrap; word-break: break-all;">${comment.content}</div>
+                                        
+                                        <!-- 댓글 첨부파일 리스트 -->
+                                        ${comment.files && comment.files.length > 0 ? `
+                                            <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;">
+                                                ${comment.files.map(file => `
+                                                    <button class="comment-download-btn btn-secondary" 
+                                                            data-url="${file.file_url}" 
+                                                            data-name="${file.file_name}"
+                                                            style="font-size:0.75rem; padding:6px 12px; cursor:pointer; display:flex; align-items:center; gap:6px; background:white; border:1px solid #e2e8f0; border-radius:6px; transition: all 0.2s;">
+                                                        <i data-lucide="download" size="12" style="color:var(--primary);"></i>
+                                                        <span style="font-weight:600; color:#475569;">${file.file_name}</span>
+                                                        <span style="font-size:0.68rem; color:#94a3b8;">(${(file.file_size/1024).toFixed(1)} KB)</span>
+                                                    </button>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('');
+
+                            // 댓글 삭제 이벤트 핸들러 연결
+                            commentsList.querySelectorAll('.delete-comment-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm('정말로 이 댓글을 삭제하시겠습니까?')) return;
+                                    const { deleteSharedComment } = await import('./auth.js');
+                                    const res = await deleteSharedComment(btn.dataset.commentId);
+                                    if (res.success) {
+                                        await renderComments(postId);
+                                    } else {
+                                        alert('댓글 삭제 실패: ' + (res.error?.message || '알 수 없는 오류'));
+                                    }
+                                };
+                            });
+
+                            // 댓글 첨부파일 다운로드 핸들러 연결
+                            commentsList.querySelectorAll('.comment-download-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    const { url, name } = btn.dataset;
+                                    const origInner = btn.innerHTML;
+                                    
+                                    try {
+                                        btn.disabled = true;
+                                        btn.style.opacity = '0.7';
+                                        btn.innerHTML = '<span style="display:inline-block; vertical-align:middle; width:10px; height:10px; border:2px solid #cbd5e1; border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin-right:3px;"></span>';
+                                        
+                                        const response = await fetch(url);
+                                        const blob = await response.blob();
+                                        const blobUrl = window.URL.createObjectURL(blob);
+                                        
+                                        const a = document.createElement('a');
+                                        a.href = blobUrl;
+                                        a.download = name;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(blobUrl);
+                                        a.remove();
+                                    } catch (err) {
+                                        console.error('Comment download failed:', err);
+                                        alert('파일 다운로드에 실패했습니다.');
+                                    } finally {
+                                        btn.disabled = false;
+                                        btn.style.opacity = '1';
+                                        btn.innerHTML = origInner;
+                                        if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
+                            if (window.lucide) lucide.createIcons();
+                        };
+
                         const { data, error } = await fetchSharedPosts();
                         if (error) {
                             boardContainer.innerHTML = `<p style="color:red;text-align:center;padding:40px;">데이터 로딩 오류: ${error.message}</p>`;
@@ -805,7 +979,7 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                         <td style="padding:15px 20px; font-weight:600; color:var(--secondary);">
                                                             <div style="display:flex; align-items:center; gap:8px;">
                                                                 ${post.title}
-                                                                <span style="font-size:0.75rem; color:#94a3b8; font-weight:400;">[${post.shared_files?.length || 0}]</span>
+                                                                <span id="board-comment-count-${post.id}" style="font-size:0.75rem; color:#e11d48; font-weight:700;">[${post.shared_comments?.length || 0}]</span>
                                                             </div>
                                                         </td>
                                                         <td style="padding:15px 20px;">
@@ -846,6 +1020,44 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                                                             </div>
                                                                         </button>
                                                                     `).join('')}
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- 댓글 영역 (Comments Section) -->
+                                                            <div style="margin-top:25px; padding-top:20px; border-top:1px solid #e2e8f0;">
+                                                                <h4 style="margin:0 0 15px 0; font-size:0.95rem; color:#475569; display:flex; align-items:center; gap:8px;">
+                                                                    <i data-lucide="message-square" size="16"></i> 댓글 <span id="comment-count-${post.id}" style="font-size:0.8rem; color:#94a3b8; font-weight:normal;">(0)</span>
+                                                                </h4>
+                                                                
+                                                                <!-- 댓글 목록 -->
+                                                                <div id="comments-list-${post.id}" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px; max-height:300px; overflow-y:auto; padding-right:5px;">
+                                                                    <p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:10px 0;">댓글을 불러오는 중...</p>
+                                                                </div>
+                                                                
+                                                                <!-- 댓글 작성 -->
+                                                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                                                    <div style="display:flex; gap:10px; align-items:flex-start;">
+                                                                        <textarea id="comment-input-${post.id}" placeholder="따뜻한 댓글을 남겨보세요..." 
+                                                                                  style="flex:1; height:45px; min-height:45px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; resize:vertical; outline:none; transition:border-color 0.2s;"
+                                                                                  onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='#cbd5e1'"></textarea>
+                                                                        <div style="display:flex; gap:6px;">
+                                                                            <!-- File attach button -->
+                                                                            <button class="attach-comment-files-btn btn-secondary" data-post-id="${post.id}"
+                                                                                    style="height:45px; padding:0 12px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer;"
+                                                                                    title="파일 첨부">
+                                                                                <i data-lucide="paperclip" size="18"></i>
+                                                                            </button>
+                                                                            <!-- Hidden multiple file input -->
+                                                                            <input type="file" id="comment-file-input-${post.id}" multiple style="display:none;" />
+                                                                            
+                                                                            <button class="submit-comment-btn btn-primary" data-post-id="${post.id}" 
+                                                                                    style="height:45px; padding:0 20px; font-weight:600; font-size:0.88rem; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                                                                등록
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <!-- Selected Files Preview List -->
+                                                                    <div id="comment-selected-files-${post.id}" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
                                                                 </div>
                                                             </div>
 
@@ -1077,7 +1289,74 @@ export function renderStepContent(stepId, state, onStepChange, containerId = 'st
                                         detailRow.style.border = '2px solid #fb7185';
                                         detailRow.style.borderTop = 'none';
 
+                                        // 댓글 로드 및 렌더링
+                                        renderComments(row.dataset.id);
+
                                         if (window.lucide) lucide.createIcons();
+                                    }
+                                };
+                            });
+
+                            // 댓글 첨부 파일 버튼 기능 연결
+                            boardContainer.querySelectorAll('.attach-comment-files-btn').forEach(btn => {
+                                const postId = btn.dataset.postId;
+                                const fileInput = document.getElementById(`comment-file-input-${postId}`);
+                                if (!fileInput) return;
+                                
+                                btn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    fileInput.click();
+                                };
+                                
+                                fileInput.onchange = (e) => {
+                                    const files = Array.from(e.target.files);
+                                    if (files.length > 0) {
+                                        if (!selectedCommentFilesMap[postId]) {
+                                            selectedCommentFilesMap[postId] = [];
+                                        }
+                                        selectedCommentFilesMap[postId] = selectedCommentFilesMap[postId].concat(files);
+                                        renderSelectedFilesPreview(postId);
+                                    }
+                                    fileInput.value = ''; // Reset to allow re-selection
+                                };
+                            });
+
+                            // 댓글 등록 버튼 기능 연결
+                            boardContainer.querySelectorAll('.submit-comment-btn').forEach(btn => {
+                                btn.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    const postId = btn.dataset.postId;
+                                    const input = document.getElementById(`comment-input-${postId}`);
+                                    if (!input) return;
+                                    
+                                    const content = input.value.trim();
+                                    if (!content) {
+                                        alert('댓글 내용을 입력해주세요.');
+                                        return;
+                                    }
+
+                                    const user = state.user || {};
+                                    const authorId = user.student_id || user.email || 'guest';
+                                    const authorName = user.name || (user.email ? user.email.split('@')[0] : '비회원');
+                                    const files = selectedCommentFilesMap[postId] || [];
+
+                                    btn.disabled = true;
+                                    const origInner = btn.innerHTML;
+                                    btn.innerHTML = '<span style="display:inline-block; vertical-align:middle; width:12px; height:12px; border:2px solid #cbd5e1; border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin-right:5px;"></span> 등록 중...';
+
+                                    const { createSharedComment } = await import('./auth.js');
+                                    const { error } = await createSharedComment(postId, authorId, authorName, content, files);
+
+                                    btn.disabled = false;
+                                    btn.innerHTML = origInner;
+
+                                    if (error) {
+                                        alert('댓글 등록 실패: ' + error.message);
+                                    } else {
+                                        input.value = '';
+                                        selectedCommentFilesMap[postId] = [];
+                                        renderSelectedFilesPreview(postId);
+                                        await renderComments(postId);
                                     }
                                 };
                             });

@@ -1470,13 +1470,14 @@ export async function createSharedPost(title, content, authorId, authorName, fil
     }
 }
 
-// 게시글 목록 가져오기 (파일 포함)
+// 게시글 목록 가져오기 (파일 및 댓글 포함)
 export async function fetchSharedPosts() {
     const { data, error } = await supabaseClient
         .from("shared_posts")
         .select(`
             *,
-            shared_files (*)
+            shared_files (*),
+            shared_comments (*)
         `)
         .order("created_at", { ascending: false });
     
@@ -1574,4 +1575,104 @@ export async function deleteFileFromSharedPost(fileId, filePath) {
         return { error };
     }
 }
+
+// 댓글 목록 가져오기
+export async function fetchSharedComments(postId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from("shared_comments")
+            .select("*")
+            .eq("post_id", postId)
+            .order("created_at", { ascending: true });
+        
+        return { data, error };
+    } catch (error) {
+        return { error };
+    }
+}
+
+// 댓글 작성 (여러 파일 업로드 지원)
+export async function createSharedComment(postId, authorId, authorName, content, files = []) {
+    try {
+        const uploadedFiles = [];
+        
+        if (files.length > 0) {
+            const uploadPromises = files.map(async (file) => {
+                const parts = file.name.split(".");
+                const fileExt = parts.length > 1 ? parts.pop().toLowerCase() : "";
+                const safeFileName = `${Math.random().toString(36).substring(2)}_${Date.now()}${fileExt ? "." + fileExt : ""}`;
+                const filePath = `comments/${postId}/${safeFileName}`;
+
+                const { error: uploadError } = await supabaseClient.storage
+                    .from("shared-work-files")
+                    .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from("shared-work-files")
+                    .getPublicUrl(filePath);
+
+                uploadedFiles.push({
+                    file_name: file.name,
+                    file_url: publicUrl,
+                    file_path: filePath,
+                    file_size: file.size
+                });
+            });
+
+            await Promise.all(uploadPromises);
+        }
+
+        const { data, error } = await supabaseClient
+            .from("shared_comments")
+            .insert([{ 
+                post_id: postId, 
+                author_id: authorId, 
+                author_name: authorName, 
+                content,
+                files: uploadedFiles 
+            }])
+            .select()
+            .single();
+        
+        return { data, error };
+    } catch (error) {
+        console.error("Error in createSharedComment:", error);
+        return { error };
+    }
+}
+
+// 댓글 삭제 (스토리지 첨부파일 자동 정리 포함)
+export async function deleteSharedComment(commentId) {
+    try {
+        // 1. 첨부파일 조회 및 스토리지에서 선제 삭제
+        const { data: comment, error: fetchError } = await supabaseClient
+            .from("shared_comments")
+            .select("files")
+            .eq("id", commentId)
+            .single();
+
+        if (!fetchError && comment && comment.files && comment.files.length > 0) {
+            const paths = comment.files.map(f => f.file_path).filter(p => p);
+            if (paths.length > 0) {
+                await supabaseClient.storage
+                    .from("shared-work-files")
+                    .remove(paths);
+            }
+        }
+
+        // 2. DB에서 댓글 삭제
+        const { error } = await supabaseClient
+            .from("shared_comments")
+            .delete()
+            .eq("id", commentId);
+        
+        return { success: !error, error };
+    } catch (error) {
+        console.error("Error in deleteSharedComment:", error);
+        return { error };
+    }
+}
+
 
